@@ -60,6 +60,15 @@ const conversationSchema = new mongoose.Schema(
       },
     ],
 
+    groupPhoto: {
+      type: String,
+    },
+
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+
     // flash chat "mute" toggle, per-user — left as a flat array of
     // userIds with an optional mutedUntil, simplest version.
     mutedBy: [

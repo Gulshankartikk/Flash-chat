@@ -25,8 +25,33 @@ router.get(
 );
 
 router.get(
-  '/users', authMiddleware,
+  '/users',
+  authMiddleware,
   authController.getAllUser
-)
+);
+
+router.post(
+  '/block/:userId',
+  authMiddleware,
+  authController.blockUser
+);
+
+router.post(
+  '/unblock/:userId',
+  authMiddleware,
+  authController.unblockUser
+);
+
+router.get(
+  '/blocked-users',
+  authMiddleware,
+  authController.getBlockedUsers
+);
+
+router.put(
+  '/privacy-settings',
+  authMiddleware,
+  authController.updatePrivacySettings
+);
 
 module.exports = router;

@@ -10,10 +10,18 @@ import {
   Ban,
   Flag,
   ChevronRight,
+  UserPlus,
+  ShieldAlert,
+  ShieldCheck,
 } from "lucide-react";
 
 import useLayoutStore from "../store/useLayoutStore";
 import useThemeStore from "../store/useThemeStore";
+import useUserStore from "../store/useUserStore";
+import useChatStore from "../store/chatStore";
+import { blockUser, unblockUser } from "../services/user.service";
+import axiosInstance from "../services/url.services";
+import { toast } from "react-toastify";
 
 /**
  * UserDetail — contact profile panel (WhatsApp visual language)
@@ -34,11 +42,16 @@ const UserDetail = () => {
   const selectedContact = useLayoutStore((state) => state.selectedContact);
   const setSelectedContact = useLayoutStore((state) => state.setSelectedContact);
   const setActiveView = useLayoutStore((state) => state.setActiveView);
+  const contacts = useLayoutStore((state) => state.contacts);
+  const activeConversation = useChatStore((state) => state.activeConversation);
   const { theme } = useThemeStore();
   const dark = theme === "dark";
 
+  const currentUser = useUserStore((state) => state.user);
+  const isBlocked = currentUser?.blockedUsers?.map(String).includes(String(selectedContact?._id));
+
   const [isMuted, setIsMuted] = useState(false);
-  const [confirmAction, setConfirmAction] = useState(null); // "block" | "report" | null
+  const [confirmAction, setConfirmAction] = useState(null); // "block" | "unblock" | "report" | null
 
   // ---- Premium Theme palette tokens ----
   const ink = dark ? "#FFFFFF" : "#1e293b"; // slate-800
@@ -50,6 +63,75 @@ const UserDetail = () => {
   const headerBg = dark ? "#111111" : "#f8fafc"; // slate-50
   const rowBg = dark ? "#1c1c1c" : "#f1f5f9"; // slate-100
   const dialogBg = dark ? "#1c1c1c" : "#ffffff";
+
+  // Group parameters & states
+  const isGroup = activeConversation?.conversationType === "group" && activeConversation?._id === selectedContact?._id;
+  const groupName = isGroup ? activeConversation.groupName : selectedContact.name;
+  const groupPhoto = isGroup ? (activeConversation.groupPhoto || activeConversation.groupAvatar) : selectedContact.profilePic;
+  const groupAdmins = isGroup ? (activeConversation.groupAdmins || []).map(p => String(p._id || p)) : [];
+  const isAdmin = isGroup && groupAdmins.includes(String(currentUser?._id));
+  const groupParticipants = isGroup ? (activeConversation.participants || []) : [];
+
+  const [showAddMembersModal, setShowAddMembersModal] = useState(false);
+  const [selectedToAdd, setSelectedToAdd] = useState([]);
+  const [isActionLoading, setIsActionLoading] = useState(false);
+
+  const handlePromoteAdmin = async (memberId) => {
+    setIsActionLoading(true);
+    try {
+      const { data } = await axiosInstance.post(`/chat/group/${activeConversation._id}/promote-admin`, {
+        memberId
+      });
+      if (data && data.success) {
+        toast.success("User promoted to Admin");
+        useChatStore.setState({ activeConversation: data.data });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to promote user to Admin");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleRemoveMember = async (memberId) => {
+    setIsActionLoading(true);
+    try {
+      const { data } = await axiosInstance.post(`/chat/group/${activeConversation._id}/remove-member`, {
+        memberId
+      });
+      if (data && data.success) {
+        toast.success("Member removed");
+        useChatStore.setState({ activeConversation: data.data });
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to remove member");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleAddMembers = async () => {
+    if (selectedToAdd.length === 0) return;
+    setIsActionLoading(true);
+    try {
+      const { data } = await axiosInstance.post(`/chat/group/${activeConversation._id}/add-members`, {
+        members: selectedToAdd
+      });
+      if (data && data.success) {
+        toast.success("Members added successfully");
+        useChatStore.setState({ activeConversation: data.data });
+        setShowAddMembersModal(false);
+        setSelectedToAdd([]);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to add members");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
 
   if (!selectedContact) {
     return (
@@ -78,13 +160,35 @@ const UserDetail = () => {
     setActiveView("chats");
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (confirmAction === "block") {
-      // TODO: wire to a real block-user API call
-      console.log("Blocked:", selectedContact._id);
+      try {
+        const res = await blockUser(selectedContact._id);
+        if (res && res.success) {
+          const updatedBlocked = [...(currentUser?.blockedUsers || []), selectedContact._id];
+          useUserStore.getState().updateProfile({ blockedUsers: updatedBlocked });
+          toast.success(`Blocked ${selectedContact.name}`);
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to block user");
+      }
+    } else if (confirmAction === "unblock") {
+      try {
+        const res = await unblockUser(selectedContact._id);
+        if (res && res.success) {
+          const updatedBlocked = (currentUser?.blockedUsers || []).filter(
+            (id) => String(id) !== String(selectedContact._id)
+          );
+          useUserStore.getState().updateProfile({ blockedUsers: updatedBlocked });
+          toast.success(`Unblocked ${selectedContact.name}`);
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to unblock user");
+      }
     } else if (confirmAction === "report") {
-      // TODO: wire to a real report-user API call
-      console.log("Reported:", selectedContact._id);
+      toast.success(`Reported ${selectedContact.name}`);
     }
     setConfirmAction(null);
   };
@@ -133,7 +237,7 @@ const UserDetail = () => {
           <ArrowLeft size={20} />
         </button>
         <h2 style={{ fontSize: 17, fontWeight: 500, margin: 0 }}>
-          Contact info
+          {isGroup ? "Group info" : "Contact info"}
         </h2>
       </div>
 
@@ -150,10 +254,12 @@ const UserDetail = () => {
         <div style={{ position: "relative" }}>
           <img
             src={
-              selectedContact.profilePic ||
-              `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedContact.name)}&background=25D366&color=fff`
+              groupPhoto ||
+              (isGroup
+                ? `https://ui-avatars.com/api/?name=${encodeURIComponent(groupName)}&background=075E54&color=fff`
+                : `https://ui-avatars.com/api/?name=${encodeURIComponent(groupName)}&background=25D366&color=fff`)
             }
-            alt={selectedContact.name}
+            alt={groupName}
             style={{
               width: 116,
               height: 116,
@@ -161,7 +267,7 @@ const UserDetail = () => {
               objectFit: "cover",
             }}
           />
-          {selectedContact.isOnline && (
+          {!isGroup && selectedContact.isOnline && (
             <span
               style={{
                 position: "absolute",
@@ -179,18 +285,26 @@ const UserDetail = () => {
         </div>
 
         <h3 style={{ fontSize: 22, fontWeight: 600, margin: "16px 0 0" }}>
-          {selectedContact.name}
+          {groupName}
         </h3>
 
-        <p style={{ fontSize: 13.5, color: sub, margin: "4px 0 0" }}>
-          {selectedContact.isOnline ? (
-            <span style={{ color: accent, fontWeight: 600 }}>Online</span>
-          ) : (
-            "Offline"
-          )}
-        </p>
+        {!isGroup && (
+          <p style={{ fontSize: 13.5, color: sub, margin: "4px 0 0" }}>
+            {selectedContact.isOnline ? (
+              <span style={{ color: accent, fontWeight: 600 }}>Online</span>
+            ) : (
+              "Offline"
+            )}
+          </p>
+        )}
 
-        {selectedContact.bio && (
+        {isGroup && (
+          <p style={{ fontSize: 13, color: sub, margin: "6px 0 0" }}>
+            Group · {groupParticipants.length} participants
+          </p>
+        )}
+
+        {!isGroup && selectedContact.bio && (
           <p
             style={{
               fontSize: 14,
@@ -232,25 +346,124 @@ const UserDetail = () => {
         </button>
       </div>
 
-      {/* Details */}
-      <div style={{ padding: "20px 18px 0", display: "flex", flexDirection: "column", gap: 10 }}>
-        <p
-          style={{
-            fontSize: 11.5,
-            fontWeight: 600,
-            letterSpacing: 0.6,
-            textTransform: "uppercase",
-            color: sub,
-            margin: "0 4px 2px",
-          }}
-        >
-          Contact details
-        </p>
+      {/* Details / Group Members */}
+      {!isGroup ? (
+        <div style={{ padding: "20px 18px 0", display: "flex", flexDirection: "column", gap: 10 }}>
+          <p
+            style={{
+              fontSize: 11.5,
+              fontWeight: 600,
+              letterSpacing: 0.6,
+              textTransform: "uppercase",
+              color: sub,
+              margin: "0 4px 2px",
+            }}
+          >
+            Contact details
+          </p>
 
-        <InfoRow icon={Phone} label="Phone" value={selectedContact.phone} rowBg={rowBg} ink={ink} sub={sub} accent={accent} />
-        <InfoRow icon={Mail} label="Email" value={selectedContact.email} rowBg={rowBg} ink={ink} sub={sub} accent={accent} />
-        <InfoRow icon={MapPin} label="Location" value={selectedContact.location} rowBg={rowBg} ink={ink} sub={sub} accent={accent} />
-      </div>
+          <InfoRow icon={Phone} label="Phone" value={selectedContact.phone} rowBg={rowBg} ink={ink} sub={sub} accent={accent} />
+          <InfoRow icon={Mail} label="Email" value={selectedContact.email} rowBg={rowBg} ink={ink} sub={sub} accent={accent} />
+          <InfoRow icon={MapPin} label="Location" value={selectedContact.location} rowBg={rowBg} ink={ink} sub={sub} accent={accent} />
+        </div>
+      ) : (
+        <div style={{ padding: "20px 18px 0", display: "flex", flexDirection: "column", gap: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <p
+              style={{
+                fontSize: 11.5,
+                fontWeight: 600,
+                letterSpacing: 0.6,
+                textTransform: "uppercase",
+                color: sub,
+                margin: "0 4px",
+                flex: 1,
+                textAlign: "left"
+              }}
+            >
+              Group Members ({groupParticipants.length})
+            </p>
+            {isAdmin && (
+              <button
+                onClick={() => setShowAddMembersModal(true)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: accent,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4
+                }}
+              >
+                <UserPlus size={14} /> Add
+              </button>
+            )}
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxHeight: 300, overflowY: "auto", paddingRight: 4 }}>
+            {groupParticipants.map((member) => {
+              const mIdStr = String(member._id || member);
+              const mName = member.username || member.name || "Group Member";
+              const mPic = member.profilePicture || member.profilePic || "";
+              const mIsAdmin = groupAdmins.includes(mIdStr);
+              const isMe = mIdStr === String(currentUser?._id);
+
+              return (
+                <div
+                  key={mIdStr}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    background: rowBg
+                  }}
+                >
+                  <img
+                    src={mPic || `https://ui-avatars.com/api/?name=${encodeURIComponent(mName)}&background=f1f5f9&color=64748b`}
+                    alt=""
+                    style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }}
+                  />
+                  <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, margin: 0, color: ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {mName} {isMe && "(You)"}
+                    </p>
+                  </div>
+                  {mIsAdmin && (
+                    <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: `${accent}1a`, color: accent, fontWeight: 600 }}>
+                      Admin
+                    </span>
+                  )}
+                  {isAdmin && !mIsAdmin && !isMe && (
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button
+                        title="Promote to Admin"
+                        disabled={isActionLoading}
+                        onClick={() => handlePromoteAdmin(mIdStr)}
+                        style={{ background: "none", border: "none", color: accent, cursor: "pointer", padding: 2 }}
+                      >
+                        <ShieldCheck size={16} />
+                      </button>
+                      <button
+                        title="Remove Member"
+                        disabled={isActionLoading}
+                        onClick={() => handleRemoveMember(mIdStr)}
+                        style={{ background: "none", border: "none", color: danger, cursor: "pointer", padding: 2 }}
+                      >
+                        <ShieldAlert size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Media, links and docs */}
       <div style={{ marginTop: 18, borderTop: `1px solid ${border}` }}>
@@ -284,26 +497,30 @@ const UserDetail = () => {
       </div>
 
       {/* Danger zone */}
-      <div style={{ borderTop: `1px solid ${border}`, marginBottom: 12 }}>
-        <button
-          className="ud-list-row"
-          style={{ color: danger }}
-          onClick={() => setConfirmAction("block")}
-        >
-          <Ban size={19} style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: 14, fontWeight: 500 }}>Block {selectedContact.name}</span>
-        </button>
-        <button
-          className="ud-list-row"
-          style={{ color: danger }}
-          onClick={() => setConfirmAction("report")}
-        >
-          <Flag size={19} style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: 14, fontWeight: 500 }}>Report {selectedContact.name}</span>
-        </button>
-      </div>
+      {!isGroup && (
+        <div style={{ borderTop: `1px solid ${border}`, marginBottom: 12 }}>
+          <button
+            className="ud-list-row"
+            style={{ color: danger }}
+            onClick={() => setConfirmAction(isBlocked ? "unblock" : "block")}
+          >
+            <Ban size={19} style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: 14, fontWeight: 500 }}>
+              {isBlocked ? "Unblock" : "Block"} {selectedContact.name}
+            </span>
+          </button>
+          <button
+            className="ud-list-row"
+            style={{ color: danger }}
+            onClick={() => setConfirmAction("report")}
+          >
+            <Flag size={19} style={{ flexShrink: 0 }} />
+            <span style={{ fontSize: 14, fontWeight: 500 }}>Report {selectedContact.name}</span>
+          </button>
+        </div>
+      )}
 
-      {/* Confirm dialog — shared for Block / Report */}
+      {/* Confirm dialog — shared for Block / Unblock / Report */}
       {confirmAction && (
         <div
           className="ud-fade-in"
@@ -332,11 +549,17 @@ const UserDetail = () => {
             }}
           >
             <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 8px" }}>
-              {confirmAction === "block" ? `Block ${selectedContact.name}?` : `Report ${selectedContact.name}?`}
+              {confirmAction === "block"
+                ? `Block ${selectedContact.name}?`
+                : confirmAction === "unblock"
+                ? `Unblock ${selectedContact.name}?`
+                : `Report ${selectedContact.name}?`}
             </h3>
             <p style={{ fontSize: 13.5, color: sub, margin: "0 0 20px", lineHeight: 1.5 }}>
               {confirmAction === "block"
                 ? "Blocked contacts can no longer call or message you. They won't be notified."
+                : confirmAction === "unblock"
+                ? `Are you sure you want to unblock ${selectedContact.name}? You will be able to receive messages and calls from them again.`
                 : "Tell us they're sending spam, abuse, or anything that breaks the rules. We'll review and won't reveal it was you."}
             </p>
             <div style={{ display: "flex", gap: 10 }}>
@@ -363,14 +586,128 @@ const UserDetail = () => {
                   padding: "10px 0",
                   borderRadius: 8,
                   border: "none",
-                  background: danger,
+                  background: confirmAction === "unblock" ? accent : danger,
                   color: "#fff",
                   fontSize: 13.5,
                   fontWeight: 600,
                   cursor: "pointer",
                 }}
               >
-                {confirmAction === "block" ? "Block" : "Report"}
+                {confirmAction === "block" ? "Block" : confirmAction === "unblock" ? "Unblock" : "Report"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Members Modal */}
+      {showAddMembersModal && (
+        <div
+          className="ud-fade-in"
+          style={{
+            position: "fixed",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(0,0,0,0.55)",
+            zIndex: 100,
+            padding: 16,
+          }}
+        >
+          <div
+            style={{
+              background: dialogBg,
+              color: ink,
+              borderRadius: 12,
+              padding: 24,
+              maxWidth: 360,
+              width: "100%",
+              boxShadow: "0 18px 40px -12px rgba(0,0,0,0.35)",
+            }}
+          >
+            <h3 style={{ fontSize: 16, fontWeight: 600, margin: "0 0 12px" }}>Add Group Members</h3>
+            
+            <div style={{ maxHeight: 200, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, margin: "12px 0 20px" }}>
+              {contacts
+                .filter((contact) => !groupParticipants.some((p) => String(p._id || p) === String(contact._id)))
+                .map((contact) => {
+                  const isChecked = selectedToAdd.includes(contact._id);
+                  return (
+                    <div
+                      key={contact._id}
+                      onClick={() => {
+                        setSelectedToAdd((prev) =>
+                          isChecked ? prev.filter((id) => id !== contact._id) : [...prev, contact._id]
+                        );
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "8px 10px",
+                        borderRadius: 8,
+                        background: rowBg,
+                        cursor: "pointer"
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        readOnly
+                        style={{ accentColor: accent }}
+                      />
+                      <img
+                        src={contact.profilePic || `https://ui-avatars.com/api/?name=${encodeURIComponent(contact.name)}`}
+                        alt=""
+                        style={{ width: 28, height: 28, borderRadius: "50%", objectFit: "cover" }}
+                      />
+                      <span style={{ fontSize: 13, color: ink }}>{contact.name}</span>
+                    </div>
+                  );
+                })}
+              {contacts.filter((contact) => !groupParticipants.some((p) => String(p._id || p) === String(contact._id))).length === 0 && (
+                <p style={{ fontSize: 13, color: sub, textAlign: "center", margin: "10px 0" }}>All your contacts are already in the group.</p>
+              )}
+            </div>
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => {
+                  setShowAddMembersModal(false);
+                  setSelectedToAdd([]);
+                }}
+                style={{
+                  flex: 1,
+                  padding: "10px 0",
+                  borderRadius: 8,
+                  border: `1.5px solid ${border}`,
+                  background: "transparent",
+                  color: ink,
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                disabled={selectedToAdd.length === 0 || isActionLoading}
+                onClick={handleAddMembers}
+                style={{
+                  flex: 1,
+                  padding: "10px 0",
+                  borderRadius: 8,
+                  border: "none",
+                  background: accent,
+                  color: "#fff",
+                  fontSize: 13.5,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  opacity: selectedToAdd.length === 0 || isActionLoading ? 0.5 : 1
+                }}
+              >
+                Add
               </button>
             </div>
           </div>

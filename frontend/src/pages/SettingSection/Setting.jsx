@@ -3,7 +3,7 @@ import useThemeStore from "../../store/useThemeStore";
 import useUserStore from "../../store/useUserStore";
 import useChatStore from "../../store/chatStore";
 import StatusSelector from "../../components/status/StatusSelector";
-import { updateUserProfile } from "../../services/user.service";
+import { updateUserProfile, updatePrivacySettings } from "../../services/user.service";
 import { toast } from "react-toastify";
 import axios from "axios";
 
@@ -18,8 +18,36 @@ const Setting = () => {
   const logout = useUserStore((state) => state.logout);
 
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [readReceipts, setReadReceipts] = useState(true);
-  const [showOnlineStatus, setShowOnlineStatus] = useState(true);
+
+  const updatePrivacy = async (key, value) => {
+    try {
+      const currentSettings = currentUser?.privacySettings || {
+        lastSeen: "everyone",
+        profilePhoto: "everyone",
+        about: "everyone",
+        readReceipts: true
+      };
+
+      const newSettings = {
+        ...currentSettings,
+        [key]: value
+      };
+
+      const res = await updatePrivacySettings(newSettings);
+      if (res && res.success) {
+        useUserStore.getState().updateProfile({
+          privacySettings: {
+            ...currentSettings,
+            ...res.data
+          }
+        });
+        toast.success("Privacy settings updated");
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update privacy settings");
+    }
+  };
 
   // Profile Edit States
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -444,13 +472,38 @@ const Setting = () => {
       <SectionLabel text="Privacy" />
       <ToggleRow
         label="Read receipts"
-        checked={readReceipts}
-        onChange={() => setReadReceipts((prev) => !prev)}
+        checked={currentUser?.privacySettings?.readReceipts !== false}
+        onChange={() => updatePrivacy("readReceipts", !(currentUser?.privacySettings?.readReceipts !== false))}
       />
-      <ToggleRow
-        label="Show online status"
-        checked={showOnlineStatus}
-        onChange={() => setShowOnlineStatus((prev) => !prev)}
+      <SelectRow
+        label="Last seen visibility"
+        value={currentUser?.privacySettings?.lastSeen || "everyone"}
+        options={[
+          { label: "Everyone", value: "everyone" },
+          { label: "My Contacts", value: "contacts" },
+          { label: "Nobody", value: "nobody" }
+        ]}
+        onChange={(val) => updatePrivacy("lastSeen", val)}
+      />
+      <SelectRow
+        label="Profile photo visibility"
+        value={currentUser?.privacySettings?.profilePhoto || "everyone"}
+        options={[
+          { label: "Everyone", value: "everyone" },
+          { label: "My Contacts", value: "contacts" },
+          { label: "Nobody", value: "nobody" }
+        ]}
+        onChange={(val) => updatePrivacy("profilePhoto", val)}
+      />
+      <SelectRow
+        label="About visibility"
+        value={currentUser?.privacySettings?.about || "everyone"}
+        options={[
+          { label: "Everyone", value: "everyone" },
+          { label: "My Contacts", value: "contacts" },
+          { label: "Nobody", value: "nobody" }
+        ]}
+        onChange={(val) => updatePrivacy("about", val)}
       />
 
       {/* Backup & Restore */}
@@ -536,6 +589,23 @@ const ToggleRow = ({ label, checked, onChange }) => (
         }`}
       />
     </button>
+  </div>
+);
+
+const SelectRow = ({ label, value, options, onChange }) => (
+  <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-200 dark:border-[#222222] bg-slate-50 dark:bg-[#111111]">
+    <span className="text-sm text-slate-800 dark:text-[#FFFFFF]">{label}</span>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="bg-transparent text-xs text-[#FF6B00] font-bold border-none outline-none cursor-pointer"
+    >
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value} className="bg-white dark:bg-[#111111] text-slate-800 dark:text-[#FFFFFF]">
+          {opt.label}
+        </option>
+      ))}
+    </select>
   </div>
 );
 

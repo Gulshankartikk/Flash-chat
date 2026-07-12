@@ -85,3 +85,30 @@ export const getAllUser = async () => {
     throw error.response ? error.response.data : error.message;
   }
 };
+
+export const blockUser = async (userId) => {
+  try {
+    const response = await axiosInstance.post(`/auth/block/${userId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : error.message;
+  }
+};
+
+export const unblockUser = async (userId) => {
+  try {
+    const response = await axiosInstance.post(`/auth/unblock/${userId}`);
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : error.message;
+  }
+};
+
+export const updatePrivacySettings = async (settings) => {
+  try {
+    const response = await axiosInstance.put(`/auth/privacy-settings`, settings);
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : error.message;
+  }
+};

@@ -11,6 +11,10 @@ Flash Chat is a production-grade, secure, and feature-rich real-time messaging a
 *   **Message Reactions & Replies**: Express yourself with quick reactions (👍❤️😂😢) and threaded replies.
 *   **Edit & Delete**: Edit messages or delete them for everyone.
 *   **Typing & Presence Indicators**: See when contacts are typing or online/offline.
+*   **Group Chats**: Create group conversations with custom names and profile pictures. Direct messaging and group notifications update in real-time.
+*   **Group Admin Controls**: Manage group membership (add/remove participants) and promote users to group admins.
+*   **User Blocking**: Block/unblock contacts to stop unwanted messages. Block status is enforced server-side and on sockets.
+*   **Privacy Visibility Settings**: Configure visibility settings (`everyone`, `contacts`, `nobody`) for your Last Seen status, profile photo, and "About" info. Toggle read receipts on or off.
 
 ### 🤖 Flash AI Chatbot
 *   **Integrated AI Assistant**: Chat directly with "Flash AI" via the quick-access sidebar banner.

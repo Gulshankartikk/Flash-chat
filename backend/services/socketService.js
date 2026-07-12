@@ -1,6 +1,7 @@
 const { Server } = require("socket.io");
 const User = require("../models/user");
 const Message = require("../models/message");
+const Conversation = require("../models/Conversation");
 
 // Map to store online users: userId -> socketId
 const onlineUsers = new Map();
@@ -65,31 +66,77 @@ const initilizeSocket = (server) => {
       try {
         if (!userId) return;
 
-        const receiverId = message.receiver?._id || message.receiverId;
-        const receiverSocketId = onlineUsers.get(receiverId);
+        const conversationId = message.conversation?._id || message.conversation || message.conversationId;
+        if (!conversationId) return;
 
-        if (receiverSocketId) {
-          io.to(receiverSocketId).emit("receive_message", message);
+        const conversationDoc = await Conversation.findById(conversationId);
+        if (!conversationDoc) return;
 
-          // Emit notification to receiver
-          const senderUser = await User.findById(userId).select("username profilePicture");
-          io.to(receiverSocketId).emit("new_notification", {
-            type: "message",
-            from: userId,
-            title: senderUser?.username || "New Message",
-            preview: message.content || message.message || "Sent an attachment",
-            avatar: senderUser?.profilePicture || "",
-          });
+        const isPrivate = conversationDoc.conversationType === "private";
 
-          
-          if (message._id) {
-            await Message.findByIdAndUpdate(message._id, {
+        if (isPrivate) {
+          const receiverId = message.receiver?._id || message.receiverId || conversationDoc.participants.find(p => String(p) !== String(userId));
+          if (!receiverId) return;
+
+          // Check block status
+          const senderUser = await User.findById(userId);
+          const receiverUser = await User.findById(receiverId);
+          if (!senderUser || !receiverUser) return;
+
+          const isReceiverBlockedByMe = (senderUser.blockedUsers || []).map(String).includes(String(receiverId));
+          const hasReceiverBlockedMe = (receiverUser.blockedUsers || []).map(String).includes(String(userId));
+
+          if (isReceiverBlockedByMe || hasReceiverBlockedMe) {
+            console.log(`Message blocked/dropped between ${userId} and ${receiverId}`);
+            return; // Silently drop
+          }
+
+          const receiverSocketId = onlineUsers.get(String(receiverId));
+          if (receiverSocketId) {
+            io.to(receiverSocketId).emit("receive_message", message);
+
+            // Emit notification to receiver
+            io.to(receiverSocketId).emit("new_notification", {
+              type: "message",
+              from: userId,
+              title: senderUser?.username || "New Message",
+              preview: message.content || message.message || "Sent an attachment",
+              avatar: senderUser?.profilePicture || "",
+            });
+
+            if (message._id) {
+              await Message.findByIdAndUpdate(message._id, {
+                messageStatus: "delivered",
+              });
+            }
+            socket.emit("message_status_update", {
+              messageId: message._id,
               messageStatus: "delivered",
             });
           }
-          socket.emit("message_status_update", {
-            messageId: message._id,
-            messageStatus: "delivered",
+        } else {
+          // Group messaging: broadcast to online members except sender
+          const senderUser = await User.findById(userId).select("username profilePicture");
+          conversationDoc.participants.forEach((p) => {
+            const pIdStr = String(p);
+            if (pIdStr !== String(userId)) {
+              const receiverSocketId = onlineUsers.get(pIdStr);
+              if (receiverSocketId) {
+                io.to(receiverSocketId).emit("receive_message", message);
+              }
+              // Send notifications to everyone else
+              const notifySocketId = onlineUsers.get(pIdStr);
+              if (notifySocketId) {
+                io.to(notifySocketId).emit("new_notification", {
+                  type: "message",
+                  from: userId,
+                  conversationId: conversationDoc._id,
+                  title: conversationDoc.groupName || "Group Message",
+                  preview: `${senderUser?.username || "Someone"}: ${message.content || "Sent an attachment"}`,
+                  avatar: conversationDoc.groupPhoto || "",
+                });
+              }
+            }
           });
         }
       } catch (error) {
@@ -103,19 +150,25 @@ const initilizeSocket = (server) => {
       try {
         if (!messageIds?.length) return;
 
+        // Check if the reader has read receipts enabled
+        const reader = await User.findById(userId).select("privacySettings");
+        const hasReadReceipts = reader?.privacySettings?.readReceipts !== false;
+
         await Message.updateMany(
           { _id: { $in: messageIds } },
           { $set: { messageStatus: "read" } }
         );
 
-        const senderSocketId = onlineUsers.get(senderId);
-        if (senderSocketId) {
-          messageIds.forEach((messageId) => {
-            io.to(senderSocketId).emit("message_status_update", {
-              messageId,
-              messageStatus: "read",
+        if (hasReadReceipts) {
+          const senderSocketId = onlineUsers.get(senderId);
+          if (senderSocketId) {
+            messageIds.forEach((messageId) => {
+              io.to(senderSocketId).emit("message_status_update", {
+                messageId,
+                messageStatus: "read",
+              });
             });
-          });
+          }
         }
       } catch (error) {
         console.error("Error updating message read status:", error);

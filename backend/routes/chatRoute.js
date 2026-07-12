@@ -72,4 +72,36 @@ router.post(
   chatController.importBackup
 );
 
+router.post(
+  "/group/create",
+  authMiddleware,
+  multerMiddleware,
+  chatController.createGroup
+);
+
+router.put(
+  "/group/:id/add-members",
+  authMiddleware,
+  chatController.addGroupMembers
+);
+
+router.put(
+  "/group/:id/remove-member",
+  authMiddleware,
+  chatController.removeGroupMember
+);
+
+router.put(
+  "/group/:id/promote-admin",
+  authMiddleware,
+  chatController.promoteGroupAdmin
+);
+
+router.put(
+  "/group/:id/info",
+  authMiddleware,
+  multerMiddleware,
+  chatController.updateGroupInfo
+);
+
 module.exports = router;

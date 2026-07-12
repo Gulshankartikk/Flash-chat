@@ -6,6 +6,24 @@ const User = require("../models/user");
 const response = require("../utils/responseHandler");
 const { generateAIResponse } = require("../services/aiService");
 
+let supportsTransactions = null;
+
+async function checkTransactionSupport() {
+  if (supportsTransactions !== null) return supportsTransactions;
+  try {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    await User.findOne().session(session);
+    await session.commitTransaction();
+    session.endSession();
+    supportsTransactions = true;
+  } catch (e) {
+    supportsTransactions = false;
+    console.warn("[MongoDB] Transactions are not supported on this MongoDB server configuration (Replica Set is not configured). Running in non-transactional mode.");
+  }
+  return supportsTransactions;
+}
+
 const EDIT_WINDOW_MS = 15 * 60 * 1000; // 15 minutes, like WhatsApp
 const DELETE_FOR_EVERYONE_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
@@ -87,19 +105,29 @@ async function handleAIResponse(req, senderId, receiverId, conversationId, userM
 
 // ================= SEND MESSAGE =================
 exports.sendMessage = async (req, res) => {
-  let { senderId, receiverId, content, messageStatus } = req.body;
+  let { senderId, receiverId, conversationId, content, messageStatus } = req.body;
 
   if (!senderId && req.user) {
     senderId = req.user.userId;
   }
 
-  if (!senderId || !receiverId) {
-    return response(res, 400, "senderId and receiverId are required");
+  if (!senderId) {
+    return response(res, 400, "senderId is required");
+  }
+
+  let isPrivate = true;
+  let isReceiverBlockedByMe = false;
+  let hasReceiverBlockedMe = false;
+
+  if (conversationId) {
+    // Checked inside transaction
+  } else if (!receiverId) {
+    return response(res, 400, "receiverId or conversationId is required");
   }
 
   const file = req.file;
 
-  if (senderId === receiverId) {
+  if (receiverId && String(senderId) === String(receiverId)) {
     return response(res, 400, "Cannot send a message to yourself");
   }
 
@@ -135,95 +163,176 @@ exports.sendMessage = async (req, res) => {
     contentType = "text";
   }
 
-  const session = await mongoose.startSession();
+  let session = null;
+  const useTx = await checkTransactionSupport();
+  if (useTx) {
+    session = await mongoose.startSession();
+  }
 
   try {
     let newMessage;
     let populatedMessage;
     let wasDeliveredImmediately = false;
     let isReceiverAIBot = false;
+    let conversationDoc;
 
-    await session.withTransaction(async () => {
-      const receiverUser = await User.findById(receiverId).session(session);
-      isReceiverAIBot = receiverUser?.isAIBot || false;
+    const executeOperations = async (sess) => {
+      if (conversationId) {
+        conversationDoc = await Conversation.findById(conversationId).session(sess);
+        if (!conversationDoc) {
+          throw { statusCode: 404, message: "Conversation not found" };
+        }
+        if (!conversationDoc.participants.map(String).includes(String(senderId))) {
+          throw { statusCode: 403, message: "You are not a participant in this conversation" };
+        }
+        isPrivate = conversationDoc.conversationType === "private";
+        if (isPrivate) {
+          receiverId = conversationDoc.participants.find(p => String(p) !== String(senderId));
+        }
+      } else {
+        const participants = [senderId, receiverId].sort();
+        conversationDoc = await Conversation.findOne({ participants }).session(sess);
+        if (!conversationDoc) {
+          conversationDoc = new Conversation({
+            participants,
+            participantsKey: participants.join("_"),
+            unreadCounts: new Map(),
+          });
+        }
+      }
 
-      const participants = [senderId, receiverId].sort();
+      // Check block status for private conversations
+      if (isPrivate && receiverId) {
+        const senderUser = await User.findById(senderId).session(sess);
+        const receiverUser = await User.findById(receiverId).session(sess);
 
-      let conversationDoc = await Conversation.findOne({ participants }).session(session);
+        if (!senderUser || !receiverUser) {
+          throw { statusCode: 404, message: "User not found" };
+        }
 
-      if (!conversationDoc) {
-        conversationDoc = new Conversation({
-          participants,
-          participantsKey: participants.join("_"),
-          unreadCounts: new Map(),
-        });
+        isReceiverAIBot = receiverUser.isAIBot || false;
+
+        isReceiverBlockedByMe = (senderUser.blockedUsers || []).map(String).includes(String(receiverId));
+        hasReceiverBlockedMe = (receiverUser.blockedUsers || []).map(String).includes(String(senderId));
+
+        if (isReceiverBlockedByMe) {
+          throw { statusCode: 400, message: "You have blocked this user" };
+        }
+
+        if (hasReceiverBlockedMe) {
+          throw { statusCode: 400, message: "Message delivery failed" };
+        }
       }
 
       newMessage = new Message({
         conversation: conversationDoc._id,
         sender: senderId,
-        receiver: receiverId,
+        receiver: isPrivate ? receiverId : undefined,
         content: content?.trim() || "",
         imageOrVideoUrl,
         contentType,
         messageStatus: messageStatus || "sent",
       });
 
-      if (isReceiverAIBot) {
-        newMessage.messageStatus = "seen";
-        newMessage.seenBy.push({ user: receiverId });
-        wasDeliveredImmediately = true;
-      } else {
-        // Mark delivered immediately if the receiver is currently online.
-        const receiverSocketId = req.socketUserMap?.get(String(receiverId));
-        if (receiverSocketId) {
-          newMessage.messageStatus = "delivered";
-          newMessage.deliveredTo.push({ user: receiverId });
+      if (isPrivate) {
+        if (isReceiverAIBot) {
+          newMessage.messageStatus = "seen";
+          newMessage.seenBy.push({ user: receiverId });
           wasDeliveredImmediately = true;
+        } else {
+          // Mark delivered immediately if the receiver is currently online.
+          const receiverSocketId = req.socketUserMap?.get(String(receiverId));
+          if (receiverSocketId) {
+            newMessage.messageStatus = "delivered";
+            newMessage.deliveredTo.push({ user: receiverId });
+            wasDeliveredImmediately = true;
+          }
         }
+
+        if (!isReceiverAIBot) {
+          if (!conversationDoc.unreadCounts) conversationDoc.unreadCounts = new Map();
+          const currentUnread = conversationDoc.unreadCounts.get(String(receiverId)) || 0;
+          conversationDoc.unreadCounts.set(String(receiverId), currentUnread + 1);
+        }
+      } else {
+        // Group chat unread counts update for all other participants
+        if (!conversationDoc.unreadCounts) conversationDoc.unreadCounts = new Map();
+        conversationDoc.participants.forEach(p => {
+          const pIdStr = String(p);
+          if (pIdStr !== String(senderId)) {
+            const currentUnread = conversationDoc.unreadCounts.get(pIdStr) || 0;
+            conversationDoc.unreadCounts.set(pIdStr, currentUnread + 1);
+          }
+        });
       }
 
-      await newMessage.save({ session });
+      await newMessage.save({ session: sess });
 
       conversationDoc.lastMessage = newMessage._id;
+      await conversationDoc.save({ session: sess });
+    };
 
-      if (!isReceiverAIBot) {
-        if (!conversationDoc.unreadCounts) conversationDoc.unreadCounts = new Map();
-        const currentUnread = conversationDoc.unreadCounts.get(String(receiverId)) || 0;
-        conversationDoc.unreadCounts.set(String(receiverId), currentUnread + 1);
-      }
-
-      await conversationDoc.save({ session });
-    });
+    if (session) {
+      await session.withTransaction(async () => {
+        await executeOperations(session);
+      });
+    } else {
+      await executeOperations(null);
+    }
 
     populatedMessage = await Message.findById(newMessage._id)
       .populate("sender", "username profilePicture")
       .populate("receiver", "username profilePicture")
       .populate("conversation", "participants lastMessage");
 
-    if (isReceiverAIBot) {
-      // Trigger background AI response
-      handleAIResponse(req, senderId, receiverId, newMessage.conversation, content?.trim() || "");
-    } else {
-      const receiverSocketId = req.socketUserMap?.get(String(receiverId));
-      if (receiverSocketId) {
-        emitToUser(req, receiverId, "receive_message", populatedMessage);
+    if (isPrivate) {
+      if (isReceiverAIBot) {
+        // Trigger background AI response
+        handleAIResponse(req, senderId, receiverId, newMessage.conversation, content?.trim() || "");
+      } else {
+        const receiverSocketId = req.socketUserMap?.get(String(receiverId));
+        if (receiverSocketId) {
+          emitToUser(req, receiverId, "receive_message", populatedMessage);
 
-        if (wasDeliveredImmediately) {
-          emitToUser(req, senderId, "message_status_update", {
-            messageId: newMessage._id,
-            messageStatus: "delivered",
-          });
+          if (wasDeliveredImmediately) {
+            emitToUser(req, senderId, "message_status_update", {
+              messageId: newMessage._id,
+              messageStatus: "delivered",
+            });
+          }
         }
       }
+    } else {
+      // Group message broadcast to all online participants except sender
+      conversationDoc.participants.forEach(p => {
+        const pIdStr = String(p);
+        if (pIdStr !== String(senderId)) {
+          const receiverSocketId = req.socketUserMap?.get(pIdStr);
+          if (receiverSocketId) {
+            emitToUser(req, pIdStr, "receive_message", populatedMessage);
+          }
+          // Emit socket notifications to offline/inactive users too
+          emitToUser(req, pIdStr, "new_notification", {
+            type: "message",
+            from: senderId,
+            conversationId: conversationDoc._id,
+            title: conversationDoc.groupName || "Group Message",
+            preview: `${populatedMessage.sender?.username || "Someone"}: ${content || "Sent an attachment"}`,
+            avatar: conversationDoc.groupPhoto || "",
+          });
+        }
+      });
     }
 
     return response(res, 200, "Message sent successfully", populatedMessage);
   } catch (error) {
+    if (error.statusCode) {
+      return response(res, error.statusCode, error.message);
+    }
     console.error(error);
     return response(res, 500, "Internal server error");
   } finally {
-    session.endSession();
+    if (session) session.endSession();
   }
 };
 
@@ -482,11 +591,10 @@ exports.getMessage = async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(limit);
 
-    // Mark this user's incoming, unseen messages as seen.
+    // Mark incoming, unseen messages as seen.
     const toMarkSeen = messages.filter(
       (m) =>
-        String(m.receiver?._id || m.receiver) === String(userId) &&
-        m.messageStatus !== "seen" &&
+        String(m.sender?._id || m.sender) !== String(userId) &&
         !m.seenBy.some((s) => String(s.user) === String(userId))
     );
 
@@ -501,11 +609,17 @@ exports.getMessage = async (req, res) => {
         }
       );
 
-      for (const msg of toMarkSeen) {
-        emitToUser(req, msg.sender._id || msg.sender, "message_status_update", {
-          messageId: msg._id,
-          messageStatus: "seen",
-        });
+      // Only emit seen status update to sender if viewer has read receipts enabled
+      const viewer = await User.findById(userId).select("privacySettings");
+      const hasReadReceipts = viewer?.privacySettings?.readReceipts !== false;
+
+      if (hasReadReceipts) {
+        for (const msg of toMarkSeen) {
+          emitToUser(req, msg.sender._id || msg.sender, "message_status_update", {
+            messageId: msg._id,
+            messageStatus: "seen",
+          });
+        }
       }
     }
 
@@ -536,8 +650,8 @@ exports.markAsRead = async (req, res) => {
   try {
     const messages = await Message.find({
       _id: { $in: messageIds },
-      receiver: userId,
-      messageStatus: { $ne: "seen" },
+      sender: { $ne: userId },
+      "seenBy.user": { $ne: userId },
     });
 
     if (messages.length === 0) {
@@ -552,11 +666,17 @@ exports.markAsRead = async (req, res) => {
       }
     );
 
-    for (const msg of messages) {
-      emitToUser(req, msg.sender, "message_status_update", {
-        messageId: msg._id,
-        messageStatus: "seen",
-      });
+    // Only emit status updates to sender if viewer has read receipts enabled
+    const viewer = await User.findById(userId).select("privacySettings");
+    const hasReadReceipts = viewer?.privacySettings?.readReceipts !== false;
+
+    if (hasReadReceipts) {
+      for (const msg of messages) {
+        emitToUser(req, msg.sender, "message_status_update", {
+          messageId: msg._id,
+          messageStatus: "seen",
+        });
+      }
     }
 
     // Keep the conversation list's unread badge in sync. Without this, a
@@ -836,13 +956,17 @@ exports.pinMessage = async (req, res) => {
   const { messageId } = req.params;
   const userId = req.user.userId;
 
-  const session = await mongoose.startSession();
+  let session = null;
+  const useTx = await checkTransactionSupport();
+  if (useTx) {
+    session = await mongoose.startSession();
+  }
 
   try {
     let populated;
 
-    await session.withTransaction(async () => {
-      const message = await Message.findById(messageId).session(session);
+    const executeOperations = async (sess) => {
+      const message = await Message.findById(messageId).session(sess);
       if (!message) {
         throw Object.assign(new Error("Message not found"), { statusCode: 404 });
       }
@@ -856,7 +980,7 @@ exports.pinMessage = async (req, res) => {
       }
 
       message.isPinned = !message.isPinned;
-      await message.save({ session });
+      await message.save({ session: sess });
 
       // WhatsApp only allows one pinned message per chat. Unpinning the
       // others happens inside the same transaction as the toggle above, so
@@ -865,15 +989,23 @@ exports.pinMessage = async (req, res) => {
         await Message.updateMany(
           { conversation: message.conversation, _id: { $ne: messageId } },
           { $set: { isPinned: false } },
-          { session }
+          { session: sess }
         );
       }
 
       populated = await Message.findById(message._id)
-        .session(session)
+        .session(sess)
         .populate("sender", "username profilePicture")
         .populate("receiver", "username profilePicture");
-    });
+    };
+
+    if (session) {
+      await session.withTransaction(async () => {
+        await executeOperations(session);
+      });
+    } else {
+      await executeOperations(null);
+    }
 
     const otherUserId = getOtherUserId(populated, userId);
     emitToUser(req, otherUserId, "message_pinned", {
@@ -891,5 +1023,258 @@ exports.pinMessage = async (req, res) => {
     return response(res, 500, "Internal server error");
   } finally {
     session.endSession();
+  }
+};
+
+// Helper to emit group update
+const emitGroupUpdate = (req, conversation) => {
+  if (!req.io || !req.socketUserMap) return;
+  conversation.participants.forEach(member => {
+    const memberId = String(member._id || member);
+    const socketId = req.socketUserMap.get(memberId);
+    if (socketId) {
+      req.io.to(socketId).emit("group_updated", conversation);
+    }
+  });
+};
+
+// CREATE GROUP
+exports.createGroup = async (req, res) => {
+  const { groupName, members: membersRaw } = req.body;
+  const creatorId = req.user.userId;
+
+  if (!groupName || !groupName.trim()) {
+    return response(res, 400, "Group name is required");
+  }
+
+  let members = [];
+  if (membersRaw) {
+    try {
+      members = Array.isArray(membersRaw) ? membersRaw : JSON.parse(membersRaw);
+    } catch (e) {
+      members = [];
+    }
+  }
+
+  // Ensure unique member IDs, remove the creator (added explicitly later)
+  const uniqueMembers = [...new Set(members.map(String))].filter(id => id !== String(creatorId));
+
+  try {
+    let groupPhotoUrl = "";
+    if (req.file) {
+      const uploadResult = await uploadFileCloudinary(req.file);
+      groupPhotoUrl = uploadResult?.secure_url || "";
+    }
+
+    const conversation = new Conversation({
+      participants: [creatorId, ...uniqueMembers],
+      conversationType: "group",
+      groupName: groupName.trim(),
+      groupAvatar: groupPhotoUrl,
+      groupPhoto: groupPhotoUrl,
+      groupAdmins: [creatorId],
+      createdBy: creatorId,
+      unreadCounts: new Map()
+    });
+
+    await conversation.save();
+
+    const populated = await Conversation.findById(conversation._id)
+      .populate("participants", "username profilePicture isOnline lastSeen");
+
+    // Emit group update so other members get notified
+    emitGroupUpdate(req, populated.toObject());
+
+    return response(res, 201, "Group created successfully", populated);
+  } catch (error) {
+    console.error("createGroup error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+// ADD GROUP MEMBERS
+exports.addGroupMembers = async (req, res) => {
+  const { id } = req.params;
+  const { members } = req.body;
+  const userId = req.user.userId;
+
+  if (!Array.isArray(members) || members.length === 0) {
+    return response(res, 400, "Members array is required");
+  }
+
+  try {
+    const conversation = await Conversation.findById(id);
+    if (!conversation || conversation.conversationType !== "group") {
+      return response(res, 404, "Group not found");
+    }
+
+    // Only admins can add members
+    if (!conversation.groupAdmins.map(String).includes(String(userId))) {
+      return response(res, 403, "Only admins can add members to the group");
+    }
+
+    const existingParticipants = conversation.participants.map(String);
+    const newMembers = members.filter(m => !existingParticipants.includes(String(m)));
+
+    if (newMembers.length > 0) {
+      conversation.participants.push(...newMembers);
+      await conversation.save();
+    }
+
+    const populated = await Conversation.findById(conversation._id)
+      .populate("participants", "username profilePicture isOnline lastSeen")
+      .populate("lastMessage");
+
+    emitGroupUpdate(req, populated.toObject());
+
+    return response(res, 200, "Members added successfully", populated);
+  } catch (error) {
+    console.error("addGroupMembers error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+// REMOVE GROUP MEMBER
+exports.removeGroupMember = async (req, res) => {
+  const { id } = req.params;
+  const { userId: targetUserId } = req.body;
+  const userId = req.user.userId;
+
+  if (!targetUserId) {
+    return response(res, 400, "User ID to remove is required");
+  }
+
+  try {
+    const conversation = await Conversation.findById(id);
+    if (!conversation || conversation.conversationType !== "group") {
+      return response(res, 404, "Group not found");
+    }
+
+    const isSelf = String(userId) === String(targetUserId);
+    const isAdmin = conversation.groupAdmins.map(String).includes(String(userId));
+
+    // Only admins can remove members, but users can leave the group themselves
+    if (!isSelf && !isAdmin) {
+      return response(res, 403, "Only admins can remove members");
+    }
+
+    // Capture original participants
+    const originalParticipants = [...conversation.participants];
+
+    conversation.participants = conversation.participants.filter(p => String(p) !== String(targetUserId));
+    conversation.groupAdmins = conversation.groupAdmins.filter(a => String(a) !== String(targetUserId));
+
+    // If no admins left but group still has participants, promote the first participant
+    if (conversation.participants.length > 0 && conversation.groupAdmins.length === 0) {
+      conversation.groupAdmins.push(conversation.participants[0]);
+    }
+
+    await conversation.save();
+
+    const populated = await Conversation.findById(conversation._id)
+      .populate("participants", "username profilePicture isOnline lastSeen")
+      .populate("lastMessage");
+
+    // Emit group update to original participants
+    if (req.io && req.socketUserMap) {
+      originalParticipants.forEach(member => {
+        const memberId = String(member._id || member);
+        const socketId = req.socketUserMap.get(memberId);
+        if (socketId) {
+          req.io.to(socketId).emit("group_updated", populated.toObject());
+        }
+      });
+    }
+
+    return response(res, 200, "Member removed successfully", populated);
+  } catch (error) {
+    console.error("removeGroupMember error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+// PROMOTE GROUP ADMIN
+exports.promoteGroupAdmin = async (req, res) => {
+  const { id } = req.params;
+  const { userId: targetUserId } = req.body;
+  const userId = req.user.userId;
+
+  if (!targetUserId) {
+    return response(res, 400, "User ID to promote is required");
+  }
+
+  try {
+    const conversation = await Conversation.findById(id);
+    if (!conversation || conversation.conversationType !== "group") {
+      return response(res, 404, "Group not found");
+    }
+
+    // Only admins can promote
+    if (!conversation.groupAdmins.map(String).includes(String(userId))) {
+      return response(res, 403, "Only admins can promote other members");
+    }
+
+    // Check target is a participant
+    if (!conversation.participants.map(String).includes(String(targetUserId))) {
+      return response(res, 400, "User is not a participant of this group");
+    }
+
+    if (!conversation.groupAdmins.map(String).includes(String(targetUserId))) {
+      conversation.groupAdmins.push(targetUserId);
+      await conversation.save();
+    }
+
+    const populated = await Conversation.findById(conversation._id)
+      .populate("participants", "username profilePicture isOnline lastSeen")
+      .populate("lastMessage");
+
+    emitGroupUpdate(req, populated.toObject());
+
+    return response(res, 200, "Member promoted to admin successfully", populated);
+  } catch (error) {
+    console.error("promoteGroupAdmin error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+// UPDATE GROUP INFO
+exports.updateGroupInfo = async (req, res) => {
+  const { id } = req.params;
+  const { groupName } = req.body;
+  const userId = req.user.userId;
+
+  try {
+    const conversation = await Conversation.findById(id);
+    if (!conversation || conversation.conversationType !== "group") {
+      return response(res, 404, "Group not found");
+    }
+
+    // Only admins can update info
+    if (!conversation.groupAdmins.map(String).includes(String(userId))) {
+      return response(res, 403, "Only admins can update group info");
+    }
+
+    if (groupName && groupName.trim()) {
+      conversation.groupName = groupName.trim();
+    }
+
+    if (req.file) {
+      const uploadResult = await uploadFileCloudinary(req.file);
+      conversation.groupAvatar = uploadResult?.secure_url || conversation.groupAvatar;
+      conversation.groupPhoto = uploadResult?.secure_url || conversation.groupPhoto;
+    }
+
+    await conversation.save();
+
+    const populated = await Conversation.findById(conversation._id)
+      .populate("participants", "username profilePicture isOnline lastSeen")
+      .populate("lastMessage");
+
+    emitGroupUpdate(req, populated.toObject());
+
+    return response(res, 200, "Group info updated successfully", populated);
+  } catch (error) {
+    console.error("updateGroupInfo error:", error);
+    return response(res, 500, "Internal server error");
   }
 };

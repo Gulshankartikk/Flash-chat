@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import axios from "axios";
+import { toast } from "react-toastify";
 import {
   initializeSocket,
   disconnectSocket,
@@ -255,6 +256,40 @@ const useChatStore = create((set, get) => ({
           }),
         }));
       });
+
+      s.off("group_updated");
+      s.on("group_updated", (updatedGroup) => {
+        const { conversations, activeConversation } = get();
+        const myId = get().currentUser?._id;
+        const isParticipant = updatedGroup.participants.some(
+          (p) => String(p._id || p) === String(myId)
+        );
+
+        if (!isParticipant) {
+          // We were removed from the group
+          set({
+            conversations: conversations.filter((c) => c._id !== updatedGroup._id),
+          });
+          if (activeConversation?._id === updatedGroup._id) {
+            set({ activeConversation: null, messages: [] });
+            toast.info(`You have been removed from the group "${updatedGroup.groupName}"`);
+          }
+        } else {
+          // Group metadata or participants updated
+          const exists = conversations.some((c) => c._id === updatedGroup._id);
+          let updatedList;
+          if (exists) {
+            updatedList = conversations.map((c) => (c._id === updatedGroup._id ? updatedGroup : c));
+          } else {
+            updatedList = [updatedGroup, ...conversations];
+          }
+          set({ conversations: updatedList });
+
+          if (activeConversation?._id === updatedGroup._id) {
+            set({ activeConversation: updatedGroup });
+          }
+        }
+      });
     }
   },
 
@@ -409,11 +444,17 @@ const useChatStore = create((set, get) => ({
         messageToSend = await encryptText(message, activeConversation._id);
       }
 
+      const isGroup = activeConversation.conversationType === "group";
+
       if (mediaFile) {
         const formData = new FormData();
         formData.append("file", mediaFile);
         formData.append("messageType", messageType);
-        formData.append("receiverId", receiverId);
+        if (isGroup) {
+          formData.append("conversationId", activeConversation._id);
+        } else {
+          formData.append("receiverId", receiverId);
+        }
         if (replyTo) formData.append("replyToId", replyTo._id);
         formData.append("senderId", get().currentUser?._id || "");
 
@@ -427,7 +468,7 @@ const useChatStore = create((set, get) => ({
         if (!wasDraft) {
           emitSendMessage({
             conversationId: activeConversation._id,
-            receiverId,
+            receiverId: isGroup ? undefined : receiverId,
             message: messageToSend,
             messageType,
             replyToId: replyTo?._id || null,
@@ -436,7 +477,8 @@ const useChatStore = create((set, get) => ({
 
         const { data: msgData } = await api.post(`/api/chat/send-message`, {
           senderId: get().currentUser?._id,
-          receiverId,
+          receiverId: isGroup ? undefined : receiverId,
+          conversationId: isGroup ? activeConversation._id : undefined,
           content: messageToSend,
           contentType: messageType,
         });

@@ -15,6 +15,7 @@ import NotificationPanel from "./notifications/NotificationPanel";
 import { getAllUser } from "../services/user.service";
 import StatusDot from "./status/StatusDot";
 import { CallContext } from "../context/CallContext";
+import axiosInstance from "../services/url.services";
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -52,6 +53,15 @@ const HomePage = () => {
   const [menuOpen, setMenuOpen]         = useState(false);
   const [notifPanelOpen, setNotifPanelOpen]       = useState(false);
   const menuRef = useRef(null);
+
+  // Group creation state
+  const [showNewGroupModal, setShowNewGroupModal] = useState(false);
+  const [groupName, setGroupName] = useState("");
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  const [groupPhotoFile, setGroupPhotoFile] = useState(null);
+  const [groupPhotoPreview, setGroupPhotoPreview] = useState("");
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [groupSearchQuery, setGroupSearchQuery] = useState("");
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -102,13 +112,14 @@ const HomePage = () => {
 
   // ── Build chat rows from conversations ──────────────────────────────────
   const chatRows = conversations.map((conv) => {
-    const other = conv.participants?.find((p) => p._id !== currentUser?._id);
+    const isGroup = conv.conversationType === "group";
+    const other = isGroup ? null : conv.participants?.find((p) => p._id !== currentUser?._id);
     return {
       _id:               conv._id,
-      name:              other?.username || other?.name || "Unknown",
-      profilePic:        other?.profilePicture || "",
-      isOnline:          other?.isOnline || false,
-      lastSeen:          other?.lastSeen || null,
+      name:              isGroup ? conv.groupName : (other?.username || other?.name || "Unknown"),
+      profilePic:        isGroup ? (conv.groupPhoto || conv.groupAvatar || "") : (other?.profilePicture || ""),
+      isOnline:          isGroup ? false : (other?.isOnline || false),
+      lastSeen:          isGroup ? null : (other?.lastSeen || null),
       lastMessage:       conv.lastMessage?.content || conv.lastMessage?.message || "",
       lastMessageTime:   conv.updatedAt,
       lastMessageMine:
@@ -308,6 +319,12 @@ const HomePage = () => {
                     <UsersIcon size={14} /> Contacts List
                   </button>
                   <button
+                    onClick={() => { setShowNewGroupModal(true); setMenuOpen(false); }}
+                    className="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-[#FFFFFF] hover:bg-slate-100 dark:hover:bg-[#222222] transition-colors w-full"
+                  >
+                    <UsersIcon size={14} /> New Group
+                  </button>
+                  <button
                     onClick={() => { navigate("/setting"); setMenuOpen(false); }}
                     className="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-[#FFFFFF] hover:bg-slate-100 dark:hover:bg-[#222222] transition-colors w-full"
                   >
@@ -436,9 +453,11 @@ const HomePage = () => {
                         {row.name?.charAt(0).toUpperCase() || "?"}
                       </div>
                     )}
-                    <div className="absolute bottom-0 right-0">
-                      <StatusDot isOnline={row.isOnline} size={10} />
-                    </div>
+                    {(!row._conv || row._conv.conversationType !== "group") && (
+                      <div className="absolute bottom-0 right-0">
+                        <StatusDot isOnline={row.isOnline} size={10} />
+                      </div>
+                    )}
                   </div>
 
                   {/* Text detail */}
@@ -499,6 +518,191 @@ const HomePage = () => {
       >
         {isContactsView ? <X size={20} /> : <MessageSquarePlus size={20} />}
       </button>
+
+      {/* Group Creation Modal */}
+      {showNewGroupModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#111111] w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-[#222222] flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="px-6 py-4 bg-[#FF6B00] text-white flex items-center justify-between">
+              <h3 className="text-base font-bold">Create New Group</h3>
+              <button
+                onClick={() => {
+                  setShowNewGroupModal(false);
+                  setGroupName("");
+                  setSelectedMembers([]);
+                  setGroupPhotoFile(null);
+                  setGroupPhotoPreview("");
+                }}
+                className="text-white hover:text-slate-200 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto flex-1 flex flex-col gap-4">
+              {/* Photo Upload */}
+              <div className="flex flex-col items-center gap-2">
+                <div className="relative w-20 h-20 rounded-full border-2 border-dashed border-slate-300 dark:border-[#333] flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-[#1c1c1c]">
+                  {groupPhotoPreview ? (
+                    <img src={groupPhotoPreview} alt="Group Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <UsersIcon size={28} className="text-slate-400 dark:text-[#555555]" />
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setGroupPhotoFile(file);
+                        setGroupPhotoPreview(URL.createObjectURL(file));
+                      }
+                    }}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
+                </div>
+                <span className="text-[10px] text-slate-400 dark:text-[#A0A0A0]">Upload Group Photo</span>
+              </div>
+
+              {/* Group Name */}
+              <div className="flex flex-col gap-1 text-left">
+                <label className="text-xs font-bold text-slate-500 dark:text-[#A0A0A0]">Group Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Project Alpha"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-[#1c1c1c] border border-slate-200 dark:border-[#222222] focus:border-[#FF6B00] rounded-xl text-xs text-slate-800 dark:text-[#FFFFFF] placeholder-slate-400 dark:placeholder-[#555555] focus:outline-none transition-colors"
+                />
+              </div>
+
+              {/* Search contacts to add */}
+              <div className="flex flex-col gap-1 text-left flex-1">
+                <label className="text-xs font-bold text-slate-500 dark:text-[#A0A0A0]">Select Members</label>
+                <div className="relative mb-2">
+                  <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-[#555555]" />
+                  <input
+                    type="text"
+                    placeholder="Search contacts..."
+                    value={groupSearchQuery}
+                    onChange={(e) => setGroupSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-[#1c1c1c] border border-slate-200 dark:border-[#222222] focus:border-[#FF6B00] rounded-xl text-xs text-slate-800 dark:text-[#FFFFFF] placeholder-slate-400 dark:placeholder-[#555555] focus:outline-none transition-colors"
+                  />
+                </div>
+
+                <div className="border border-slate-200 dark:border-[#222222] rounded-xl overflow-hidden max-h-48 overflow-y-auto flex flex-col divide-y divide-slate-100 dark:divide-[#222222]">
+                  {contacts
+                    .filter((c) => c.name.toLowerCase().includes(groupSearchQuery.toLowerCase()))
+                    .map((contact) => {
+                      const isSelected = selectedMembers.includes(contact._id);
+                      return (
+                        <div
+                          key={contact._id}
+                          onClick={() => {
+                            setSelectedMembers((prev) =>
+                              isSelected ? prev.filter((id) => id !== contact._id) : [...prev, contact._id]
+                            );
+                          }}
+                          className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-[#1c1c1c] transition-colors"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            readOnly
+                            className="rounded border-slate-300 dark:border-[#333] text-[#FF6B00] focus:ring-[#FF6B00] h-3.5 w-3.5"
+                          />
+                          {contact.profilePic ? (
+                            <img src={contact.profilePic} alt="" className="w-8 h-8 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-[#FF6B00]/10 text-[#FF6B00] flex items-center justify-center font-bold text-xs">
+                              {contact.name.charAt(0).toUpperCase()}
+                            </div>
+                          )}
+                          <span className="text-xs text-slate-700 dark:text-[#FFFFFF] font-medium truncate">
+                            {contact.name}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="px-6 py-4 border-t border-slate-100 dark:border-[#222222] flex gap-3">
+              <button
+                onClick={() => {
+                  setShowNewGroupModal(false);
+                  setGroupName("");
+                  setSelectedMembers([]);
+                  setGroupPhotoFile(null);
+                  setGroupPhotoPreview("");
+                }}
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-[#222222] hover:bg-slate-50 dark:hover:bg-[#1c1c1c] text-slate-700 dark:text-[#FFFFFF] text-xs font-bold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!groupName.trim()) {
+                    toast.error("Group name is required");
+                    return;
+                  }
+                  if (selectedMembers.length === 0) {
+                    toast.error("Select at least one member");
+                    return;
+                  }
+                  setIsCreatingGroup(true);
+                  try {
+                    const formData = new FormData();
+                    formData.append("groupName", groupName.trim());
+                    formData.append("members", JSON.stringify(selectedMembers));
+                    if (groupPhotoFile) {
+                      formData.append("file", groupPhotoFile);
+                    }
+                    const { data } = await axiosInstance.post("/chat/group/create", formData, {
+                      headers: { "Content-Type": "multipart/form-data" },
+                    });
+                    if (data && data.success) {
+                      toast.success("Group created successfully");
+                      setShowNewGroupModal(false);
+                      setGroupName("");
+                      setSelectedMembers([]);
+                      setGroupPhotoFile(null);
+                      setGroupPhotoPreview("");
+
+                      // Force refresh lists and activate the group chat
+                      await fetchConversations();
+                      openConversation(data.data);
+                      setSelectedContact({
+                        _id: data.data._id,
+                        name: data.data.groupName,
+                        profilePic: data.data.groupPhoto || "",
+                        isOnline: false,
+                        lastSeen: null,
+                        lastMessage: "",
+                        unreadCount: 0,
+                        _conv: data.data,
+                      });
+                    }
+                  } catch (err) {
+                    console.error(err);
+                    toast.error("Failed to create group");
+                  } finally {
+                    setIsCreatingGroup(false);
+                  }
+                }}
+                disabled={isCreatingGroup}
+                className="flex-1 py-2.5 rounded-xl bg-[#FF6B00] hover:bg-[#E05E00] text-white text-xs font-bold transition-colors disabled:opacity-50"
+              >
+                {isCreatingGroup ? "Creating..." : "Create Group"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notification panel */}
       <NotificationPanel

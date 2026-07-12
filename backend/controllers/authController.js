@@ -213,8 +213,18 @@ const getAllUser = async (req, res) => {
   const loggedInUser = req.user.userId;
 
   try {
-    const users = await User.find({ _id: { $ne: loggedInUser } })
-      .select("username profilePicture lastSeen isOnline about phoneNumber phoneSuffix")
+    // 1. Get logged-in user's blocked list and who blocked them
+    const loggedInUserDoc = await User.findById(loggedInUser).select("blockedUsers");
+    const blockedUserIds = loggedInUserDoc?.blockedUsers || [];
+
+    const usersWhoBlockedMe = await User.find({ blockedUsers: loggedInUser }).select("_id");
+    const blockedMeIds = usersWhoBlockedMe.map((u) => u._id.toString());
+    const allBlockIds = [...blockedUserIds.map((id) => id.toString()), ...blockedMeIds];
+
+    const users = await User.find({
+      _id: { $ne: loggedInUser, $nin: allBlockIds },
+    })
+      .select("username profilePicture lastSeen isOnline about phoneNumber phoneSuffix contacts privacySettings")
       .lean();
 
     const userIds = users.map((u) => u._id);
@@ -235,12 +245,56 @@ const getAllUser = async (req, res) => {
       if (otherId) conversationMap[otherId] = convo;
     }
 
-    const usersWithConversation = users.map((user) => ({
-      ...user,
-      conversation: conversationMap[user._id.toString()] || null,
-    }));
+    const formattedUsers = users.map((user) => {
+      let userObj = { ...user };
 
-    return response(res, 200, "Users fetched successfully", usersWithConversation);
+      // Apply visibility settings server-side based on relationship
+      const settings = userObj.privacySettings || {
+        lastSeen: "everyone",
+        profilePhoto: "everyone",
+        about: "everyone",
+        readReceipts: true,
+      };
+
+      const contactsList = (userObj.contacts || []).map((id) => String(id));
+      const isContact = contactsList.includes(String(loggedInUser));
+
+      // 1. lastSeen
+      if (
+        settings.lastSeen === "nobody" ||
+        (settings.lastSeen === "contacts" && !isContact)
+      ) {
+        delete userObj.lastSeen;
+        userObj.isOnline = false; // WhatsApp hides online status too if lastSeen is hidden
+      }
+
+      // 2. profilePhoto
+      if (
+        settings.profilePhoto === "nobody" ||
+        (settings.profilePhoto === "contacts" && !isContact)
+      ) {
+        delete userObj.profilePicture;
+      }
+
+      // 3. about
+      if (
+        settings.about === "nobody" ||
+        (settings.about === "contacts" && !isContact)
+      ) {
+        delete userObj.about;
+      }
+
+      // Strip sensitive arrays/settings before returning to client
+      delete userObj.contacts;
+      delete userObj.privacySettings;
+
+      return {
+        ...userObj,
+        conversation: conversationMap[user._id.toString()] || null,
+      };
+    });
+
+    return response(res, 200, "Users fetched successfully", formattedUsers);
   } catch (error) {
     console.error("getAllUser error:", error);
     return response(res, 500, "Internal server error");
@@ -305,6 +359,97 @@ const checkUsernameAvailability = async (req, res) => {
   }
 };
 
+// BLOCK USER
+const blockUser = async (req, res) => {
+  const targetUserId = req.params.userId;
+  const currentUserId = req.user.userId;
+
+  if (String(targetUserId) === String(currentUserId)) {
+    return response(res, 400, "You cannot block yourself");
+  }
+
+  try {
+    const user = await User.findById(currentUserId);
+    if (!user) return response(res, 404, "User not found");
+
+    if (!user.blockedUsers.includes(targetUserId)) {
+      user.blockedUsers.push(targetUserId);
+      await user.save();
+      await cache.del(`user:${currentUserId}`);
+    }
+
+    return response(res, 200, "User blocked successfully", user);
+  } catch (error) {
+    console.error("blockUser error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+// UNBLOCK USER
+const unblockUser = async (req, res) => {
+  const targetUserId = req.params.userId;
+  const currentUserId = req.user.userId;
+
+  try {
+    const user = await User.findById(currentUserId);
+    if (!user) return response(res, 404, "User not found");
+
+    user.blockedUsers = user.blockedUsers.filter(id => String(id) !== String(targetUserId));
+    await user.save();
+    await cache.del(`user:${currentUserId}`);
+
+    return response(res, 200, "User unblocked successfully", user);
+  } catch (error) {
+    console.error("unblockUser error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+// GET BLOCKED USERS
+const getBlockedUsers = async (req, res) => {
+  const currentUserId = req.user.userId;
+
+  try {
+    const user = await User.findById(currentUserId)
+      .populate("blockedUsers", "username profilePicture about")
+      .lean();
+    if (!user) return response(res, 404, "User not found");
+
+    return response(res, 200, "Blocked users fetched successfully", user.blockedUsers || []);
+  } catch (error) {
+    console.error("getBlockedUsers error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+// UPDATE PRIVACY SETTINGS
+const updatePrivacySettings = async (req, res) => {
+  const currentUserId = req.user.userId;
+  const { lastSeen, profilePhoto, about, readReceipts } = req.body;
+
+  try {
+    const user = await User.findById(currentUserId);
+    if (!user) return response(res, 404, "User not found");
+
+    if (!user.privacySettings) {
+      user.privacySettings = {};
+    }
+
+    if (lastSeen) user.privacySettings.lastSeen = lastSeen;
+    if (profilePhoto) user.privacySettings.profilePhoto = profilePhoto;
+    if (about) user.privacySettings.about = about;
+    if (typeof readReceipts !== "undefined") user.privacySettings.readReceipts = readReceipts;
+
+    await user.save();
+    await cache.del(`user:${currentUserId}`);
+
+    return response(res, 200, "Privacy settings updated successfully", user.privacySettings);
+  } catch (error) {
+    console.error("updatePrivacySettings error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
 module.exports = {
   sendOtp,
   verifyOtp,
@@ -314,4 +459,8 @@ module.exports = {
   getAllUser,
   updateUserStatus,
   checkUsernameAvailability,
+  blockUser,
+  unblockUser,
+  getBlockedUsers,
+  updatePrivacySettings,
 };
