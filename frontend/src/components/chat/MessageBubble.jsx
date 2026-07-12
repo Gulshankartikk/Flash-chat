@@ -287,7 +287,7 @@ const MessageBubble = ({
         // is moving INTO; if it's still inside rootRef (e.g. the emoji
         // picker or context menu, which are positioned absolutely but
         // nested inside rootRef), we don't close anything.
-        if (rootRef.current && e.relatedTarget && rootRef.current.contains(e.relatedTarget)) {
+        if (rootRef.current && e.relatedTarget instanceof Node && rootRef.current.contains(e.relatedTarget)) {
           return;
         }
         setHovered(false);
