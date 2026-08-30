@@ -5,6 +5,7 @@ import {
   Search, MoreVertical, MessageSquarePlus, X,
   Check, CheckCheck, LogOut, Settings as SettingsIcon,
   Users as UsersIcon, Bell, Video, Phone, CircleDot,
+  UserPlus,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -16,6 +17,41 @@ import NotificationPanel from "./notifications/NotificationPanel";
 import StatusDot from "./status/StatusDot";
 import { CallContext } from "../context/CallContext";
 import axiosInstance from "../services/url.services";
+
+const formatPreviewTime = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  const today = new Date();
+  return date.toDateString() === today.toDateString()
+    ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+    : date.toLocaleDateString([], { month: "short", day: "numeric" });
+};
+
+const formatLastSeen = (value) => {
+  if (!value) return "offline";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "offline";
+  const diff = Date.now() - date.getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  if (mins  <  1) return "last seen just now";
+  if (mins  < 60) return `last seen ${mins}m ago`;
+  if (hours < 24) return `last seen ${hours}h ago`;
+  return `last seen ${days}d ago`;
+};
+
+const StatusTick = ({ status }) => {
+  if (!status) return null;
+  if (status === "sent")
+    return <Check size={13} className="text-[#A0A0A0] flex-shrink-0" />;
+  if (status === "delivered")
+    return <CheckCheck size={13} className="text-[#A0A0A0] flex-shrink-0" />;
+  if (status === "seen" || status === "read")
+    return <CheckCheck size={13} className="text-[#38bdf8] flex-shrink-0" />;
+  return null;
+};
 
 const HomePage = () => {
   const navigate = useNavigate();
@@ -179,42 +215,6 @@ const HomePage = () => {
     c.name?.toLowerCase().includes(query.toLowerCase())
   );
 
-  // ── Formatters ──────────────────────────────────────────────────────────
-  const formatPreviewTime = (value) => {
-    if (!value) return "";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "";
-    const today = new Date();
-    return date.toDateString() === today.toDateString()
-      ? date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-      : date.toLocaleDateString([], { month: "short", day: "numeric" });
-  };
-
-  const formatLastSeen = (value) => {
-    if (!value) return "offline";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return "offline";
-    const diff = Date.now() - date.getTime();
-    const mins  = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    const days  = Math.floor(diff / 86400000);
-    if (mins  <  1) return "last seen just now";
-    if (mins  < 60) return `last seen ${mins}m ago`;
-    if (hours < 24) return `last seen ${hours}h ago`;
-    return `last seen ${days}d ago`;
-  };
-
-  const StatusTick = ({ status }) => {
-    if (!status) return null;
-    if (status === "sent")
-      return <Check size={13} className="text-[#A0A0A0] flex-shrink-0" />;
-    if (status === "delivered")
-      return <CheckCheck size={13} className="text-[#A0A0A0] flex-shrink-0" />;
-    if (status === "seen" || status === "read")
-      return <CheckCheck size={13} className="text-[#FFD166] flex-shrink-0" />;
-    return null;
-  };
-
   const activePeer = activeConversation?.participants?.find(
     (p) => p._id !== currentUser?._id
   );
@@ -290,6 +290,12 @@ const HomePage = () => {
               </button>
               {menuOpen && (
                 <div className="absolute right-0 top-full mt-1.5 bg-white dark:bg-[#1c1c1c] border border-slate-200 dark:border-[#222222] rounded-xl shadow-2xl py-1 w-44 z-20 text-left">
+                  <button
+                    onClick={() => { setActiveView("contacts"); setMenuOpen(false); }}
+                    className="flex items-center gap-2 px-3 py-2 text-xs text-[#FF6B00] hover:bg-slate-100 dark:hover:bg-[#222222] transition-colors w-full font-semibold"
+                  >
+                    <UserPlus size={14} /> Add New Contact
+                  </button>
                   <button
                     onClick={() => { setActiveView("contacts"); setMenuOpen(false); }}
                     className="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-[#FFFFFF] hover:bg-slate-100 dark:hover:bg-[#222222] transition-colors w-full"

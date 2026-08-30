@@ -31,6 +31,7 @@ import {
   blockContact as apiBlockContact,
   unblockContact as apiUnblockContact,
   deleteContact as apiDeleteContact,
+  addContactManuallyApi,
   startDirectConversation as apiStartDirectConversation,
 } from "../services/contact.service";
 
@@ -1027,6 +1028,19 @@ const useChatStore = create((set, get) => ({
       get().fetchConversations();
     } catch (err) {
       toast.error(err.message || "Failed to toggle mute");
+    }
+  },
+
+  addContactManually: async (identifier, name = "") => {
+    try {
+      const res = await addContactManuallyApi(identifier, name);
+      toast.success(res.message || "Contact added successfully!");
+      get().fetchContacts();
+      return res.data || res;
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Failed to add contact";
+      toast.error(msg);
+      throw new Error(msg);
     }
   },
 

@@ -429,3 +429,110 @@ exports.deleteContact = async (req, res) => {
     return response(res, 500, "Internal server error");
   }
 };
+
+// 10. ADD CONTACT MANUALLY (by Mobile Number or Flash ID)
+exports.addContactManually = async (req, res) => {
+  const currentUserId = req.user.userId;
+  const { identifier, name } = req.body;
+
+  if (!identifier || !identifier.trim()) {
+    return response(res, 400, "Mobile number or Flash ID is required.");
+  }
+
+  const cleanInput = identifier.trim();
+  const cleanDigits = cleanInput.replace(/\D/g, "");
+
+  try {
+    const searchConditions = [];
+
+    // Escape regex special chars
+    const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    // Flash ID search
+    if (/^fc-[a-z0-9]+$/i.test(cleanInput)) {
+      searchConditions.push({ flashId: new RegExp(`^${cleanInput}$`, "i") });
+    }
+
+    // Phone number search
+    if (cleanDigits.length >= 7) {
+      searchConditions.push({ phoneNumber: cleanDigits });
+      searchConditions.push({ phoneNumber: cleanDigits.slice(-10) });
+    }
+
+    // Username / Email search
+    searchConditions.push({ username: new RegExp(`^${escapeRegex(cleanInput)}$`, "i") });
+    if (cleanInput.includes("@")) {
+      searchConditions.push({ email: cleanInput.toLowerCase() });
+    }
+
+    const targetUser = await User.findOne({
+      _id: { $ne: currentUserId },
+      $or: searchConditions,
+    });
+
+    if (!targetUser) {
+      return response(res, 404, "This number or Flash ID is not registered on Flash Chat.");
+    }
+
+    // Check relationship
+    let contact = await Contact.findOne({
+      $or: [
+        { sender: currentUserId, receiver: targetUser._id },
+        { sender: targetUser._id, receiver: currentUserId },
+      ],
+    });
+
+    if (contact) {
+      if (contact.status === "accepted") {
+        return response(res, 200, "Contact already exists in your contacts list.", {
+          contact,
+          user: targetUser,
+          alreadyAdded: true,
+        });
+      }
+      contact.status = "accepted";
+      await contact.save();
+    } else {
+      contact = new Contact({
+        sender: currentUserId,
+        receiver: targetUser._id,
+        status: "accepted",
+      });
+      await contact.save();
+    }
+
+    // Add to user contacts
+    await User.findByIdAndUpdate(currentUserId, { $addToSet: { contacts: targetUser._id } });
+    await User.findByIdAndUpdate(targetUser._id, { $addToSet: { contacts: currentUserId } });
+
+    // Open direct conversation
+    const participantIds = [String(currentUserId), String(targetUser._id)].sort();
+    const participantsKey = participantIds.join("_");
+
+    let conversation = await Conversation.findOne({ participantsKey });
+    if (!conversation) {
+      conversation = new Conversation({
+        participants: participantIds,
+        participantsKey,
+        conversationType: "private",
+        unreadCounts: new Map(),
+      });
+      await conversation.save();
+    }
+
+    const populatedContact = await Contact.findById(contact._id)
+      .populate("sender", "username profilePicture displayName flashId about isOnline lastSeen")
+      .populate("receiver", "username profilePicture displayName flashId about isOnline lastSeen");
+
+    emitToUser(req, targetUser._id, "contact_request_accepted", populatedContact);
+
+    return response(res, 200, `Contact added successfully!`, {
+      contact: populatedContact,
+      user: targetUser,
+      conversationId: conversation._id,
+    });
+  } catch (error) {
+    console.error("addContactManually error:", error);
+    return response(res, 500, "Internal server error adding contact.");
+  }
+};

@@ -40,13 +40,227 @@ const Avatar = ({ src, name, size = 11, online }) => {
   );
 };
 
+const RelationshipButton = ({ user, actionState, onSendRequest }) => {
+  const state = actionState || user?.relationshipStatus;
+  if (state === "accepted") return (
+    <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold">
+      <UserCheck size={12} /> Contact
+    </span>
+  );
+  if (state === "request_sent" || state === "sent") return (
+    <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-[#1c1c1c] text-slate-500 dark:text-[#A0A0A0] text-[11px] font-bold">
+      <Clock size={12} /> Sent
+    </span>
+  );
+  if (state === "pending_incoming") return (
+    <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[11px] font-bold">
+      <Clock size={12} /> Incoming
+    </span>
+  );
+  if (state === "blocked") return (
+    <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-500/10 text-red-500 text-[11px] font-bold">
+      <Shield size={12} /> Blocked
+    </span>
+  );
+  if (state === "loading") return (
+    <button disabled className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#FF6B00] text-white text-[11px] font-bold opacity-70">
+      <Loader2 size={12} className="animate-spin" /> Sending...
+    </button>
+  );
+  return (
+    <button
+      onClick={() => onSendRequest(user)}
+      className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#FF6B00] text-white text-[11px] font-bold hover:bg-[#E05E00] transition-all shadow-md shadow-[#FF6B00]/20"
+    >
+      <UserPlus size={12} /> Add Contact
+    </button>
+  );
+};
+
+// ─── Add Contact Modal ───────────────────────────────────────────────────────
+
+const AddContactModal = ({ isOpen, onClose, onContactAdded }) => {
+  const addContactManually = useChatStore((s) => s.addContactManually);
+  const [identifier, setIdentifier] = useState("");
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [successResult, setSuccessResult] = useState(null);
+
+  if (!isOpen) return null;
+
+  const handleAdd = async (e) => {
+    e.preventDefault();
+    if (!identifier.trim()) {
+      setError("Please enter a mobile number or Flash ID.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setSuccessResult(null);
+
+    try {
+      const res = await addContactManually(identifier.trim(), name.trim());
+      setSuccessResult(res);
+      if (onContactAdded && res?.contact) {
+        onContactAdded(res.contact);
+      }
+    } catch (err) {
+      setError(err.message || "Failed to add contact.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStartChatNow = () => {
+    if (successResult?.contact && onContactAdded) {
+      onContactAdded(successResult.contact, true);
+    }
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md bg-white dark:bg-[#181818] border border-slate-200 dark:border-[#282828] rounded-3xl shadow-2xl p-6 space-y-5 text-left relative"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-2xl bg-[#FF6B00]/10 flex items-center justify-center text-[#FF6B00]">
+              <UserPlus size={20} />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-800 dark:text-white">Add New Contact</h3>
+              <p className="text-xs text-slate-400">Search by Mobile Number or Flash ID</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-full hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {error && (
+          <div className="p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 text-xs text-red-600 dark:text-red-300">
+            {error}
+          </div>
+        )}
+
+        {successResult ? (
+          <div className="space-y-4 py-2 text-center animate-fade-in">
+            <div className="w-14 h-14 mx-auto rounded-full bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+              <UserCheck size={28} />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-slate-800 dark:text-white">
+                {successResult.user?.displayName || successResult.user?.username || "Contact Added"}
+              </h4>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
+                Contact added successfully to your list!
+              </p>
+              {successResult.user?.flashId && (
+                <p className="text-[11px] font-mono text-slate-400 mt-1">
+                  ⚡ Flash ID: {successResult.user.flashId}
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-2.5 rounded-2xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-xs font-bold text-slate-700 dark:text-white transition-colors"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={handleStartChatNow}
+                className="flex-1 py-2.5 rounded-2xl bg-[#FF6B00] hover:bg-[#E05E00] text-xs font-bold text-white transition-all shadow-md shadow-[#FF6B00]/20 flex items-center justify-center gap-1.5"
+              >
+                <MessageSquare size={14} /> Start Chat
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleAdd} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Mobile Number or Flash ID <span className="text-[#FF6B00]">*</span>
+              </label>
+              <input
+                type="text"
+                value={identifier}
+                onChange={(e) => {
+                  setIdentifier(e.target.value);
+                  setError(null);
+                }}
+                placeholder="e.g. +91 9876543210 or FC-7K29X8"
+                autoFocus
+                className="w-full h-11 px-3.5 rounded-2xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-[#282828] text-xs text-slate-800 dark:text-white placeholder-slate-400 outline-none focus:border-[#FF6B00] transition-colors"
+              />
+              <p className="text-[10px] text-slate-400">
+                Enter full phone number with country code (e.g. +91) or the user's Flash ID.
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Contact Name (Optional)
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Rahul Sharma"
+                className="w-full h-11 px-3.5 rounded-2xl bg-slate-50 dark:bg-[#111111] border border-slate-200 dark:border-[#282828] text-xs text-slate-800 dark:text-white placeholder-slate-400 outline-none focus:border-[#FF6B00] transition-colors"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-1 py-3 rounded-2xl bg-slate-100 dark:bg-white/5 hover:bg-slate-200 dark:hover:bg-white/10 text-xs font-bold text-slate-700 dark:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading || !identifier.trim()}
+                className="flex-1 py-3 rounded-2xl bg-[#FF6B00] hover:bg-[#E05E00] text-xs font-bold text-white transition-all shadow-md shadow-[#FF6B00]/20 flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                {loading ? (
+                  <Loader2 size={14} className="animate-spin" />
+                ) : (
+                  <>
+                    <UserPlus size={14} /> Add Contact
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ─── Tab: Contacts (accepted) ────────────────────────────────────────────────
 
-const ContactsTab = ({ onStartChat }) => {
+const ContactsTab = ({ onStartChat, onOpenAddModal }) => {
   const contactsList = useChatStore((s) => s.contactsList);
   const isLoadingContacts = useChatStore((s) => s.isLoadingContacts);
   const fetchContacts = useChatStore((s) => s.fetchContacts);
   const blockContact = useChatStore((s) => s.blockContact);
+  const deleteContact = useChatStore((s) => s.deleteContact);
   const [query, setQuery] = useState("");
   const [actionId, setActionId] = useState(null);
 
@@ -56,7 +270,9 @@ const ContactsTab = ({ onStartChat }) => {
   }, []);
 
   const filtered = contactsList.filter((c) =>
-    c.user?.username?.toLowerCase().includes(query.toLowerCase())
+    (c.user?.displayName || c.user?.username || "")
+      .toLowerCase()
+      .includes(query.toLowerCase())
   );
 
   const handleBlock = async (c) => {
@@ -69,10 +285,22 @@ const ContactsTab = ({ onStartChat }) => {
     }
   };
 
+  const handleDelete = async (c) => {
+    if (actionId) return;
+    if (!window.confirm(`Remove ${c.user?.displayName || c.user?.username} from your contacts?`)) return;
+    setActionId(c._id);
+    try {
+      await deleteContact(c._id);
+    } finally {
+      setActionId(null);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full">
-      <div className="px-4 py-3 border-b border-slate-100 dark:border-[#222222]">
-        <div className="relative">
+      {/* Top Search & Add Contact Button Row */}
+      <div className="px-4 py-3 border-b border-slate-100 dark:border-[#222222] flex items-center gap-2">
+        <div className="relative flex-1">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-[#555555]" />
           <input
             type="text"
@@ -87,7 +315,30 @@ const ContactsTab = ({ onStartChat }) => {
             </button>
           )}
         </div>
+        <button
+          onClick={onOpenAddModal}
+          className="h-8 px-3 rounded-xl bg-[#FF6B00] hover:bg-[#E05E00] text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-[#FF6B00]/20 transition-all shrink-0"
+          title="Manually Add Contact"
+        >
+          <UserPlus size={13} />
+          <span>Add</span>
+        </button>
       </div>
+
+      {/* Action Banner: New Contact Item */}
+      <button
+        onClick={onOpenAddModal}
+        className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 dark:border-[#222222] hover:bg-slate-50 dark:hover:bg-[#111111] transition-colors text-left group"
+      >
+        <div className="w-11 h-11 rounded-full bg-[#FF6B00]/10 text-[#FF6B00] group-hover:bg-[#FF6B00] group-hover:text-white flex items-center justify-center transition-colors">
+          <UserPlus size={18} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-slate-800 dark:text-[#FFFFFF]">New Contact</p>
+          <p className="text-[11px] text-slate-400 dark:text-[#A0A0A0]">Add contact by mobile number or Flash ID</p>
+        </div>
+        <ChevronRight size={16} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+      </button>
 
       <div className="flex-1 overflow-y-auto">
         {isLoadingContacts ? (
@@ -105,8 +356,16 @@ const ContactsTab = ({ onStartChat }) => {
             <p className="text-xs text-slate-400 dark:text-[#A0A0A0]">
               {query
                 ? `No contact matches "${query}"`
-                : "Search for people in the People tab and send contact requests."}
+                : "Add friends by mobile number or Flash ID to start chatting."}
             </p>
+            {!query && (
+              <button
+                onClick={onOpenAddModal}
+                className="mt-2 px-4 py-2 rounded-xl bg-[#FF6B00] text-white text-xs font-bold hover:bg-[#E05E00] transition-all shadow-md shadow-[#FF6B00]/20 flex items-center gap-1.5"
+              >
+                <UserPlus size={14} /> Add Your First Contact
+              </button>
+            )}
           </div>
         ) : (
           <AnimatePresence initial={false}>
@@ -118,11 +377,18 @@ const ContactsTab = ({ onStartChat }) => {
                 exit={{ opacity: 0 }}
                 className="flex items-center gap-3 px-4 py-3 border-b border-slate-100 dark:border-[#222222] hover:bg-slate-50 dark:hover:bg-[#111111] transition-colors group"
               >
-                <Avatar src={c.user?.profilePicture} name={c.user?.username} size={11} online={c.user?.isOnline} />
+                <Avatar src={c.user?.profilePicture} name={c.user?.displayName || c.user?.username} size={11} online={c.user?.isOnline} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 dark:text-[#FFFFFF] truncate">
-                    {c.user?.username}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-[#FFFFFF] truncate">
+                      {c.user?.displayName || c.user?.username}
+                    </p>
+                    {c.user?.flashId && (
+                      <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-500/20 px-1.5 py-0.2 rounded shrink-0">
+                        {c.user.flashId}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-slate-400 dark:text-[#A0A0A0] truncate">
                     {c.user?.isOnline ? "Online" : (c.user?.about || "Hey there! I am using Flash Chat.")}
                   </p>
@@ -138,17 +404,20 @@ const ContactsTab = ({ onStartChat }) => {
                   <button
                     onClick={() => handleBlock(c)}
                     disabled={actionId === c._id}
-                    className="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all disabled:opacity-50"
-                    title="Block contact"
+                    className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-[#222222] text-slate-400 hover:text-amber-500 transition-colors"
+                    title="Block Contact"
                   >
-                    {actionId === c._id ? <Loader2 size={14} className="animate-spin" /> : <Shield size={14} />}
+                    <Shield size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(c)}
+                    disabled={actionId === c._id}
+                    className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-[#222222] text-slate-400 hover:text-rose-500 transition-colors"
+                    title="Remove Contact"
+                  >
+                    <UserX size={14} />
                   </button>
                 </div>
-                <ChevronRight
-                  size={14}
-                  className="text-slate-300 dark:text-[#444] group-hover:text-[#FF6B00] transition-colors flex-shrink-0 ml-1 cursor-pointer"
-                  onClick={() => onStartChat(c)}
-                />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -313,43 +582,6 @@ const PeopleTab = () => {
     }
   };
 
-  const RelationshipButton = ({ user }) => {
-    const state = actionMap[user._id] || user.relationshipStatus;
-    if (state === "accepted") return (
-      <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[11px] font-bold">
-        <UserCheck size={12} /> Contact
-      </span>
-    );
-    if (state === "request_sent" || state === "sent") return (
-      <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-[#1c1c1c] text-slate-500 dark:text-[#A0A0A0] text-[11px] font-bold">
-        <Clock size={12} /> Sent
-      </span>
-    );
-    if (state === "pending_incoming") return (
-      <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[11px] font-bold">
-        <Clock size={12} /> Incoming
-      </span>
-    );
-    if (state === "blocked") return (
-      <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-red-500/10 text-red-500 text-[11px] font-bold">
-        <Shield size={12} /> Blocked
-      </span>
-    );
-    if (state === "loading") return (
-      <button disabled className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#FF6B00] text-white text-[11px] font-bold opacity-70">
-        <Loader2 size={12} className="animate-spin" /> Sending...
-      </button>
-    );
-    return (
-      <button
-        onClick={() => handleSendRequest(user)}
-        className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#FF6B00] text-white text-[11px] font-bold hover:bg-[#E05E00] transition-all shadow-md shadow-[#FF6B00]/20"
-      >
-        <UserPlus size={12} /> Add Contact
-      </button>
-    );
-  };
-
   return (
     <div className="flex flex-col h-full">
       {/* My Flash ID banner */}
@@ -432,7 +664,11 @@ const PeopleTab = () => {
                   </div>
                   <p className="text-[11px] text-slate-400 dark:text-[#A0A0A0] truncate">{user.about || "Hey there! I am using Flash Chat"}</p>
                 </div>
-                <RelationshipButton user={user} />
+                <RelationshipButton
+                  user={user}
+                  actionState={actionMap[user._id]}
+                  onSendRequest={handleSendRequest}
+                />
               </motion.div>
             ))}
           </AnimatePresence>
@@ -452,6 +688,7 @@ const TABS = [
 
 const ContactsPanel = () => {
   const [activeTab, setActiveTab] = useState("contacts");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const pendingRequests = useChatStore((s) => s.pendingRequests);
   const contactsList = useChatStore((s) => s.contactsList);
   const startDirectConversation = useChatStore((s) => s.startDirectConversation);
@@ -468,18 +705,18 @@ const ContactsPanel = () => {
 
   const handleStartChat = useCallback(async (contactRecord) => {
     try {
-      const conversation = await startDirectConversation(
-        contactRecord.user?._id || contactRecord._id
-      );
+      const targetUserId = contactRecord.user?._id || contactRecord._id;
+      const conversation = await startDirectConversation(targetUserId);
+      const otherUserData = contactRecord.user || contactRecord;
       setSelectedContact({
         _id: conversation._id,
-        name: contactRecord.user?.username || contactRecord.name || "",
-        profilePic: contactRecord.user?.profilePicture || contactRecord.profilePic || "",
-        isOnline: contactRecord.user?.isOnline || false,
+        name: otherUserData.displayName || otherUserData.username || contactRecord.name || "",
+        profilePic: otherUserData.profilePicture || contactRecord.profilePic || "",
+        isOnline: otherUserData.isOnline || false,
         lastMessage: "",
         unreadCount: 0,
         _conv: conversation,
-        otherUser: contactRecord.user,
+        otherUser: otherUserData,
       });
       setActiveView("chats");
     } catch {
@@ -487,15 +724,32 @@ const ContactsPanel = () => {
     }
   }, [startDirectConversation, setSelectedContact, setActiveView]);
 
+  const handleContactAdded = (contactRecord, shouldStartChat = false) => {
+    fetchContacts();
+    if (shouldStartChat) {
+      handleStartChat(contactRecord);
+    }
+  };
+
   const requestBadge = pendingRequests.length;
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-[#000000] text-slate-800 dark:text-[#FFFFFF] font-sans">
+    <div className="h-full flex flex-col bg-white dark:bg-[#000000] text-slate-800 dark:text-[#FFFFFF] font-sans relative">
       {/* Header */}
       <div className="flex-shrink-0 bg-slate-50 dark:bg-[#111111] border-b border-slate-200 dark:border-[#222222] px-4 pt-4 pb-0 sticky top-0 z-10">
-        <h1 className="text-xl font-bold tracking-tight text-slate-800 dark:text-[#FFFFFF] mb-3">
-          Contacts
-        </h1>
+        <div className="flex items-center justify-between mb-3">
+          <h1 className="text-xl font-bold tracking-tight text-slate-800 dark:text-[#FFFFFF]">
+            Contacts
+          </h1>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="px-3 py-1.5 rounded-xl bg-[#FF6B00] hover:bg-[#E05E00] text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-[#FF6B00]/20 transition-all"
+            title="Add New Contact"
+          >
+            <UserPlus size={13} />
+            <span>Add Contact</span>
+          </button>
+        </div>
         {/* Tabs */}
         <div className="flex">
           {TABS.map((tab) => {
@@ -547,12 +801,24 @@ const ContactsPanel = () => {
             transition={{ duration: 0.15 }}
             className="h-full"
           >
-            {activeTab === "contacts" && <ContactsTab onStartChat={handleStartChat} />}
+            {activeTab === "contacts" && (
+              <ContactsTab
+                onStartChat={handleStartChat}
+                onOpenAddModal={() => setIsAddModalOpen(true)}
+              />
+            )}
             {activeTab === "requests" && <RequestsTab />}
             {activeTab === "people"   && <PeopleTab />}
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {/* Add Contact Modal */}
+      <AddContactModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onContactAdded={handleContactAdded}
+      />
     </div>
   );
 };

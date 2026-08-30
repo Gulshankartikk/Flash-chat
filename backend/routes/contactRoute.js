@@ -8,6 +8,7 @@ const router = express.Router();
 router.use(authMiddleware);
 
 router.post("/request", contactController.sendContactRequest);
+router.post("/add-manual", contactController.addContactManually);
 router.get("/", contactController.getContacts);
 router.get("/search", contactController.searchContacts);
 router.get("/requests", contactController.getPendingRequests);

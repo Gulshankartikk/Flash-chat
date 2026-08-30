@@ -18,6 +18,15 @@ export const sendContactRequest = async (userId) => {
   }
 };
 
+export const addContactManuallyApi = async (identifier, name = "") => {
+  try {
+    const response = await axiosInstance.post("/contacts/add-manual", { identifier, name });
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : error.message;
+  }
+};
+
 export const getContacts = async () => {
   try {
     const response = await axiosInstance.get("/contacts");
