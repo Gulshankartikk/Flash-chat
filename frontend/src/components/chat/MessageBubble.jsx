@@ -104,11 +104,11 @@ const Lightbox = ({ url, type, onClose }) => {
 };
 
 const StatusTick = ({ status }) => {
-  if (status === "sending") return <Clock size={10} className="text-[#A0A0A0]" />;
-  if (status === "failed") return <AlertCircle size={10} className="text-[#FF3D71]" />;
-  if (status === "sent") return <Check size={11} className="text-[#A0A0A0]" />;
-  if (status === "delivered") return <CheckCheck size={11} className="text-[#A0A0A0]" />;
-  if (status === "seen" || status === "read") return <CheckCheck size={11} className="text-[#FFD166]" />;
+  if (status === "sending") return <Clock size={10} className="text-slate-400" />;
+  if (status === "failed") return <AlertCircle size={10} className="text-rose-500" />;
+  if (status === "sent") return <Check size={11} className="text-slate-400" />;
+  if (status === "delivered") return <CheckCheck size={11} className="text-slate-400" />;
+  if (status === "seen" || status === "read") return <CheckCheck size={11} className="text-[#38bdf8]" />;
   return null;
 };
 

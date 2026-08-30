@@ -194,16 +194,18 @@ const ChatHeader = ({
                   </button>
                 </>
               ) : (
-                <button
-                  onClick={() => {
-                    if (onBlockToggle) onBlockToggle();
-                    setMenuOpen(false);
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 text-xs text-[#FF9E00] hover:bg-slate-50 dark:hover:bg-[#222222] transition-colors w-full"
-                >
-                  <ShieldAlert size={13} />
-                  {isBlocked ? "Unblock" : "Block User"}
-                </button>
+                <>
+                  <button
+                    onClick={() => {
+                      if (onBlockToggle) onBlockToggle();
+                      setMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 text-xs text-[#FF9E00] hover:bg-slate-50 dark:hover:bg-[#222222] transition-colors w-full"
+                  >
+                    <ShieldAlert size={13} />
+                    {isBlocked ? "Unblock Contact" : "Block Contact"}
+                  </button>
+                </>
               )}
             </div>
           )}

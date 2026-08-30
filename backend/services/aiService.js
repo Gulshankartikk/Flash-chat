@@ -1,3 +1,40 @@
+const SUPPORTED_MODELS = [
+  "gemini-3.6-flash",
+  "gemini-3.5-flash-lite",
+  "gemini-3.5-flash",
+];
+
+async function callGeminiAPI(apiKey, payload) {
+  for (const model of SUPPORTED_MODELS) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (textResponse) {
+          return textResponse.trim();
+        }
+      } else {
+        const errText = await response.text();
+        console.warn(`[Gemini] Model ${model} returned HTTP ${response.status}: ${errText.substring(0, 150)}`);
+      }
+    } catch (err) {
+      console.warn(`[Gemini] Error contacting model ${model}:`, err.message);
+    }
+  }
+  return null;
+}
+
 /**
  * Generates a response from the AI Chat Assistant.
  * If GEMINI_API_KEY is configured in the environment, it uses the Gemini API.
@@ -31,28 +68,15 @@ async function generateAIResponse(userMessage, chatHistory = []) {
         parts: [{ text: userMessage }]
       });
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            contents: formattedContents,
-            systemInstruction: {
-              parts: [{ text: "You are Flash AI, a helpful, friendly, and intelligent AI assistant integrated into Flash Chat. Keep your responses relatively concise, engaging, and formatted nicely with emojis." }]
-            }
-          })
+      const textResponse = await callGeminiAPI(apiKey, {
+        contents: formattedContents,
+        systemInstruction: {
+          parts: [{ text: "You are Flash AI, a helpful, friendly, and intelligent AI assistant integrated into Flash Chat. Keep your responses relatively concise, engaging, and formatted nicely with emojis." }]
         }
-      );
+      });
 
-      if (response.ok) {
-        const data = await response.json();
-        const textResponse = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (textResponse) {
-          return textResponse.trim();
-        }
+      if (textResponse) {
+        return textResponse;
       }
       console.warn("Gemini API call failed or returned empty response. Falling back to local responder.");
     } catch (err) {
@@ -141,31 +165,20 @@ async function summarizeChat(messages = [], userId) {
 
   if (apiKey) {
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
+      const summary = await callGeminiAPI(apiKey, {
+        contents: [
+          {
+            role: "user",
+            parts: [
               {
-                role: "user",
-                parts: [
-                  {
-                    text: `Summarize the following chat conversation concisely with bullet points and action items if any:\n\n${chatText}`,
-                  },
-                ],
+                text: `Summarize the following chat conversation concisely with bullet points and action items if any:\n\n${chatText}`,
               },
             ],
-          }),
-        }
-      );
+          },
+        ],
+      });
 
-      if (response.ok) {
-        const data = await response.json();
-        const summary = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (summary) return summary.trim();
-      }
+      if (summary) return summary.trim();
     } catch (err) {
       console.error("Gemini summarize error:", err);
     }
@@ -187,22 +200,11 @@ async function rewriteMessage(text, style = "professional", userId) {
   if (apiKey) {
     try {
       const prompt = `Rewrite the following draft text to be ${style}. Keep the core meaning but adapt the tone or language accurately. Return ONLY the rewritten text without quotation marks or explanations:\n\n"${text}"`;
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [{ role: "user", parts: [{ text: prompt }] }],
-          }),
-        }
-      );
+      const result = await callGeminiAPI(apiKey, {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+      });
 
-      if (response.ok) {
-        const data = await response.json();
-        const result = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (result) return result.trim();
-      }
+      if (result) return result.trim();
     } catch (err) {
       console.error("Gemini rewrite error:", err);
     }

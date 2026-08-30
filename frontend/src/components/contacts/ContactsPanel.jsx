@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import useChatStore from "../../store/chatStore";
+import useUserStore from "../../store/useUserStore";
 import useLayoutStore from "../../store/useLayoutStore";
 import { searchUsers } from "../../services/contact.service";
 import StatusDot from "../status/StatusDot";
@@ -264,11 +265,22 @@ const RequestsTab = () => {
 
 const PeopleTab = () => {
   const sendContactRequest = useChatStore((s) => s.sendContactRequest);
+  const currentUser = useUserStore((s) => s.user);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [actionMap, setActionMap] = useState({});
+  const [copied, setCopied] = useState(false);
   const debounceRef = useRef(null);
+
+  const myFlashId = currentUser?.flashId || (currentUser?._id ? `FC-${currentUser._id.slice(-6).toUpperCase()}` : "FC-FLASH");
+
+  const copyMyFlashId = () => {
+    navigator.clipboard?.writeText(myFlashId);
+    setCopied(true);
+    toast.success("Flash ID copied to clipboard!");
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const doSearch = useCallback(async (q) => {
     if (!q.trim()) { setResults([]); return; }
@@ -295,6 +307,7 @@ const PeopleTab = () => {
     try {
       await sendContactRequest(user._id);
       setActionMap((m) => ({ ...m, [user._id]: "sent" }));
+      toast.success(`Contact request sent to ${user.displayName || user.username}!`);
     } catch {
       setActionMap((m) => ({ ...m, [user._id]: null }));
     }
@@ -330,15 +343,32 @@ const PeopleTab = () => {
     return (
       <button
         onClick={() => handleSendRequest(user)}
-        className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#FF6B00] text-white text-[11px] font-bold hover:bg-[#E05E00] transition-all shadow-md shadow-[#FF6B00]/20"
+        className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#FF6B00] text-white text-[11px] font-bold hover:bg-[#E05E00] transition-all shadow-md shadow-[#FF6B00]/20"
       >
-        <UserPlus size={12} /> Add
+        <UserPlus size={12} /> Add Contact
       </button>
     );
   };
 
   return (
     <div className="flex flex-col h-full">
+      {/* My Flash ID banner */}
+      <div className="px-4 py-2.5 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border-b border-emerald-500/20 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-semibold text-emerald-400">⚡ Your Flash ID:</span>
+          <span className="font-mono font-bold text-xs text-slate-100 bg-slate-900/60 px-2 py-0.5 rounded border border-emerald-500/30">
+            {myFlashId}
+          </span>
+        </div>
+        <button
+          onClick={copyMyFlashId}
+          className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 bg-emerald-950/60 hover:bg-emerald-900/80 px-2 py-1 rounded-md border border-emerald-500/30 transition-colors"
+        >
+          {copied ? "Copied! ✓" : "Copy ID"}
+        </button>
+      </div>
+
+      {/* Search Input */}
       <div className="px-4 py-3 border-b border-slate-100 dark:border-[#222222]">
         <div className="relative">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-[#555555]" />
@@ -346,7 +376,7 @@ const PeopleTab = () => {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by name, email or phone..."
+            placeholder="Search by Flash ID (FC-...), phone, or name..."
             className="w-full pl-8 pr-8 py-2 bg-slate-50 dark:bg-[#1c1c1c] border border-slate-200 dark:border-[#222222] focus:border-[#FF6B00] rounded-xl text-xs text-slate-800 dark:text-[#FFFFFF] placeholder-slate-400 dark:placeholder-[#555555] focus:outline-none transition-colors"
             autoFocus
           />
@@ -370,13 +400,13 @@ const PeopleTab = () => {
             </div>
             <p className="text-sm font-semibold text-slate-700 dark:text-[#FFFFFF]">Find People</p>
             <p className="text-xs text-slate-400 dark:text-[#A0A0A0]">
-              Search by username, email or phone number to find and add contacts.
+              Search by Flash ID (e.g. {myFlashId}) or mobile number to connect with friends.
             </p>
           </div>
         ) : results.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-14 gap-3 text-center px-6">
-            <p className="text-sm font-semibold text-slate-700 dark:text-[#FFFFFF]">No users found</p>
-            <p className="text-xs text-slate-400 dark:text-[#A0A0A0]">Try a different search term.</p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-[#FFFFFF]">No Flash user found</p>
+            <p className="text-xs text-slate-400 dark:text-[#A0A0A0]">Check the Flash ID or mobile number and try again.</p>
           </div>
         ) : (
           <AnimatePresence initial={false}>
@@ -388,10 +418,19 @@ const PeopleTab = () => {
                 exit={{ opacity: 0 }}
                 className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-100 dark:border-[#222222] hover:bg-slate-50 dark:hover:bg-[#111111] transition-colors"
               >
-                <Avatar src={user.profilePicture} name={user.username} size={11} online={user.isOnline} />
+                <Avatar src={user.profilePicture || user.avatarUrl} name={user.displayName || user.username} size={11} online={user.isOnline} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 dark:text-[#FFFFFF] truncate">{user.username}</p>
-                  <p className="text-[11px] text-slate-400 dark:text-[#A0A0A0] truncate">{user.about || "Using Flash Chat"}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-[#FFFFFF] truncate">
+                      {user.displayName || user.username}
+                    </p>
+                    {user.flashId && (
+                      <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-500/20 px-1.5 py-0.2 rounded shrink-0">
+                        {user.flashId}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 dark:text-[#A0A0A0] truncate">{user.about || "Hey there! I am using Flash Chat"}</p>
                 </div>
                 <RelationshipButton user={user} />
               </motion.div>

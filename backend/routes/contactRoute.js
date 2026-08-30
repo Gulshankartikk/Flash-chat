@@ -9,9 +9,12 @@ router.use(authMiddleware);
 
 router.post("/request", contactController.sendContactRequest);
 router.get("/", contactController.getContacts);
+router.get("/search", contactController.searchContacts);
 router.get("/requests", contactController.getPendingRequests);
 router.patch("/:contactId/accept", contactController.acceptContactRequest);
 router.patch("/:contactId/reject", contactController.rejectContactRequest);
 router.patch("/:contactId/block", contactController.blockContact);
+router.patch("/:contactId/unblock", contactController.unblockContact);
+router.delete("/:contactId", contactController.deleteContact);
 
 module.exports = router;

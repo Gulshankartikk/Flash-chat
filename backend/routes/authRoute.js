@@ -7,12 +7,29 @@ const router = express.Router();
 
 router.post('/send-otp', authController.sendOtp);
 router.post('/verify-otp', authController.verifyOtp);
+router.post('/firebase-phone', authController.firebasePhoneAuth);
+router.post('/google', authController.googleAuth);
+router.post('/link-google', authMiddleware, authController.linkGoogleAccount);
+router.post('/link-phone', authMiddleware, authController.linkPhoneAccount);
 router.post('/refresh-token', authController.refreshAccessToken);
 router.get('/logout', authMiddleware, authController.logout);
 router.post('/logout', authMiddleware, authController.logout);
 router.get('/check-username/:username', authController.checkUsernameAvailability);
 
-// Protected routes
+// Protected profile routes
+router.post(
+  '/create-profile',
+  authMiddleware,
+  multerMiddleware,
+  authController.createProfile
+);
+router.put(
+  '/create-profile',
+  authMiddleware,
+  multerMiddleware,
+  authController.createProfile
+);
+
 router.put(
   '/update-profile',
   authMiddleware,

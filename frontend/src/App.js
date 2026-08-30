@@ -2,9 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import './App.css';
 import Login from './pages/user-login/Login';
+import CreateProfile from './pages/user-login/CreateProfile';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { ProtectedRoute, PublicRoute } from './ProtectedRoute';
+import { ProtectedRoute, PublicRoute, ProfileRoute } from './ProtectedRoute';
 import HomePage from './components/HomePage';
 import Layout from './components/Layout';
 import UserDetail from './components/UserDetail';
@@ -67,12 +68,17 @@ function App() {
         <ToastContainer position="top-right" autoClose={3000} />
         <Router>
           <Routes>
-          {/* Public-only: logged-in user bounced to "/" */}
+          {/* Public-only: logged-in user bounced to "/" or "/create-profile" */}
           <Route element={<PublicRoute />}>
             <Route path="/user-login" element={<Login />} />
           </Route>
 
-          {/* Protected: require valid session */}
+          {/* Profile Setup: Authenticated users who have not completed profile */}
+          <Route element={<ProfileRoute />}>
+            <Route path="/create-profile" element={<CreateProfile />} />
+          </Route>
+
+          {/* Protected: require valid session and completed profile */}
           <Route element={<ProtectedRoute />}>
             <Route
               path="/"

@@ -1,1451 +1,726 @@
 import React, { useState, useRef, useEffect } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import {
+  Smartphone,
+  ShieldCheck,
+  ArrowRight,
+  ArrowLeft,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle2,
+  ChevronDown,
+  Search,
+  Sun,
+  Moon,
+  Sparkles,
+  Zap,
+  Mail,
+} from "lucide-react";
+import { toast } from "react-toastify";
 
-/**
- * FlashChat — Login
- * --------------------------------------------------------------
- * Wired to real stores:
- * - useUserStore (Zustand + persist) for user/isAuthenticated
- * - react-router's useNavigate for the post-signup redirect
- * - step / userPhoneData / theme are still local state here;
- *   swap useLoginStoreMock / useThemeStoreMock below for your real
- *   Zustand stores too if you have them, same pattern as useUserStore
- * --------------------------------------------------------------
- */
-
-import useLoginStore from "../../store/useLoginStore";
 import useThemeStore from "../../store/useThemeStore";
 import useUserStore from "../../store/useUserStore";
+import { sendOtp, verifyOtp, googleSignIn } from "../../services/user.service";
 
-
-
-const MOCK_MODE = false;
-// eslint-disable-next-line no-unused-vars -- kept for clarity even though API_BASE is used directly below
-const API_BASE = "http://localhost:8000/api/auth";
-
-const countries = [
-  { alpha2: "US", dialCode: "+1", flag: "🇺🇸", name: "United States" },
+// Top countries dataset for quick selection
+const COUNTRIES = [
   { alpha2: "IN", dialCode: "+91", flag: "🇮🇳", name: "India" },
+  { alpha2: "US", dialCode: "+1", flag: "🇺🇸", name: "United States" },
   { alpha2: "GB", dialCode: "+44", flag: "🇬🇧", name: "United Kingdom" },
   { alpha2: "AE", dialCode: "+971", flag: "🇦🇪", name: "UAE" },
+  { alpha2: "CA", dialCode: "+1", flag: "🇨🇦", name: "Canada" },
   { alpha2: "AU", dialCode: "+61", flag: "🇦🇺", name: "Australia" },
   { alpha2: "DE", dialCode: "+49", flag: "🇩🇪", name: "Germany" },
   { alpha2: "FR", dialCode: "+33", flag: "🇫🇷", name: "France" },
   { alpha2: "BR", dialCode: "+55", flag: "🇧🇷", name: "Brazil" },
   { alpha2: "JP", dialCode: "+81", flag: "🇯🇵", name: "Japan" },
+  { alpha2: "SG", dialCode: "+65", flag: "🇸🇬", name: "Singapore" },
   { alpha2: "NG", dialCode: "+234", flag: "🇳🇬", name: "Nigeria" },
 ];
 
-const avatars = [
-  "https://api.dicebear.com/6.x/avataaars/svg?seed=Felix",
-  "https://api.dicebear.com/6.x/avataaars/svg?seed=Aneka",
-  "https://api.dicebear.com/6.x/avataaars/svg?seed=Mimi",
-  "https://api.dicebear.com/6.x/avataaars/svg?seed=Jasper",
-  "https://api.dicebear.com/6.x/avataaars/svg?seed=Luna",
-  "https://api.dicebear.com/6.x/avataaars/svg?seed=Zoe",
-];
-
-const STEPS = [
-  { id: 1, label: "Phone or email", icon: "phone" },
-  { id: 2, label: "Verify code", icon: "shield" },
-  { id: 3, label: "Set up profile", icon: "user" },
-];
-
-// ---------------------------------------------------------------
-// Tiny inline icon set (no external icon lib needed in artifact)
-// ---------------------------------------------------------------
-const Icon = ({ name, className = "w-5 h-5" }) => {
-  const paths = {
-    phone: "M6.6 10.8a15.5 15.5 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11 11 0 0 0 3.4.55 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1 11 11 0 0 0 .55 3.4 1 1 0 0 1-.25 1z",
-    shield: "M12 2 4 5v6c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V5z",
-    user: "M12 12a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9Zm0 2c-4 0-8 2-8 5v1h16v-1c0-3-4-5-8-5Z",
-    arrowLeft: "M19 12H5m6-7-7 7 7 7",
-    sun: "M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10ZM12 2v2m0 16v2M4.2 4.2l1.4 1.4m12.8 12.8 1.4 1.4M2 12h2m16 0h2M4.2 19.8l1.4-1.4m12.8-12.8 1.4-1.4",
-    moon: "M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z",
-    upload: "M12 16V4m0 0-4 4m4-4 4 4M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3",
-    check: "M5 12.5 10 17l9-10",
-    refresh: "M4 4v5h5M20 20v-5h-5M4.5 9a8 8 0 0 1 14.6-3M19.5 15a8 8 0 0 1-14.6 3",
-    alert: "M12 9v4m0 4h.01M10.3 3.9 2 18a1 1 0 0 0 .9 1.5h18.2A1 1 0 0 0 22 18L13.7 3.9a1 1 0 0 0-1.7 0Z",
-    spinner: "M12 2a10 10 0 1 0 10 10",
-  };
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path
-        d={paths[name]}
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-};
-
-// ---------------------------------------------------------------
-// Main component
-// ---------------------------------------------------------------
 export default function Login() {
   const navigate = useNavigate();
-
-  const { step, setStep, userPhoneData, setUserPhoneData, resetLoginState } =
-    useLoginStore();
   const { theme, setTheme } = useThemeStore();
-
-  // Real user store (persisted) — replaces useUserStoreMock
   const setUser = useUserStore((state) => state.setUser);
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
 
   const dark = theme === "dark";
   const toggleTheme = () => setTheme(dark ? "light" : "dark");
 
-  // ---- Step 1 state ----
-  const [loginMethod, setLoginMethod] = useState("phone"); // 'phone' | 'email'
-  const [selectedCountry, setSelectedCountry] = useState(countries[0]);
+  // Authentication mode: "select" | "phone" | "otp" | "google-email"
+  const [authStep, setAuthStep] = useState("select");
+  
+  // Phone State
+  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [email, setEmail] = useState("");
-  const [countryOpen, setCountryOpen] = useState(false);
+  const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [countrySearch, setCountrySearch] = useState("");
-  const [rememberDevice, setRememberDevice] = useState(true);
-  const [fieldErrors, setFieldErrors] = useState({});
 
-  const switchLoginMethod = (method) => {
-    setFieldErrors({});
-    setError("");
-    if (method === "phone") {
-      setEmail(""); // clear the unused field
-    } else {
-      setPhoneNumber("");
-    }
-    setLoginMethod(method);
-  };
+  // Google Email State (instant fallback when client id not present)
+  const [googleEmail, setGoogleEmail] = useState("");
 
-  // ---- Step 2 state ----
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const otpRefs = useRef([]);
-  const [resendCooldown, setResendCooldown] = useState(30);
-  const [resending, setResending] = useState(false);
+  // OTP State
+  const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""]);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const otpInputRefs = useRef([]);
 
-  // ---- Step 3 state ----
-  const [username, setUsername] = useState("");
-  const [usernameStatus, setUsernameStatus] = useState(null); // null | 'checking' | 'available' | 'taken'
-  const [agreed, setAgreed] = useState(false);
-  const [profilePicture, setProfilePicture] = useState(null);
-  const [profilePictureFile, setProfilePictureFile] = useState(null);
-  const [selectedAvatar, setSelectedAvatar] = useState(avatars[0]);
-  const [dragActive, setDragActive] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-
-  // ---- shared ----
-  const [error, setError] = useState("");
+  // Async UI State
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  // Resend cooldown ticker
+  // If already authenticated, redirect to home
   useEffect(() => {
-    if (step !== 2 || resendCooldown <= 0) return;
-    const t = setTimeout(() => setResendCooldown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [step, resendCooldown]);
+    if (isAuthenticated) {
+      navigate("/", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
-  // Debounced username availability check
+  // Resend Countdown Timer
   useEffect(() => {
-    if (!username || username.length < 3) {
-      setUsernameStatus(null);
+    let timer;
+    if (resendCooldown > 0) {
+      timer = setInterval(() => {
+        setResendCooldown((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
+
+  // Initialize Google Identity Services
+  useEffect(() => {
+    const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      if (window.google?.accounts?.id && clientId) {
+        try {
+          window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+            itp_support: true,
+          });
+
+          const btnContainer = document.getElementById("google-hidden-btn-container");
+          if (btnContainer) {
+            window.google.accounts.id.renderButton(btnContainer, {
+              theme: "outline",
+              size: "large",
+              type: "standard",
+            });
+          }
+        } catch (e) {
+          console.warn("Google Sign-In init warning:", e);
+        }
+      }
+    };
+    document.body.appendChild(script);
+
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Google Sign-In Handler
+  const handleGoogleCredentialResponse = async (response) => {
+    if (!response || !response.credential) {
+      setError("Google sign-in was cancelled or failed.");
       return;
     }
-    setUsernameStatus("checking");
-    const t = setTimeout(() => {
-      // MOCK: a few names are "taken" so the UI has something to show
-      const taken = ["admin", "test", "flashchat", "support"];
-      setUsernameStatus(
-        taken.includes(username.toLowerCase()) ? "taken" : "available"
-      );
-    }, 600);
-    return () => clearTimeout(t);
-  }, [username]);
+    setGoogleLoading(true);
+    setError(null);
 
-  const filteredCountries = countries.filter(
+    try {
+      const res = await googleSignIn({ credential: response.credential });
+      if (res?.data?.user) {
+        const userData = res.data.user;
+        setUser(userData);
+        if (userData.profileCompleted || res.data.profileCompleted) {
+          toast.success(`Welcome to Flash Chat, ${userData.displayName || "User"}!`);
+          navigate("/", { replace: true });
+        } else {
+          toast.info("Welcome! Please create your profile.");
+          navigate("/create-profile", { replace: true });
+        }
+      } else {
+        throw new Error(res?.message || "Google authentication failed.");
+      }
+    } catch (err) {
+      console.error("Google Auth Error:", err);
+      const msg =
+        typeof err === "string"
+          ? err
+          : err?.message || err?.error || "Google authentication failed. Please try again.";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const triggerGoogleSignIn = () => {
+    const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+    if (clientId && window.google?.accounts?.id) {
+      setError(null);
+      window.google.accounts.id.prompt((notification) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          const hiddenBtn = document.querySelector("#google-hidden-btn-container div[role=button]");
+          if (hiddenBtn) {
+            hiddenBtn.click();
+          }
+        }
+      });
+    } else {
+      // Fallback direct Google / Gmail entry
+      setError(null);
+      setAuthStep("google-email");
+    }
+  };
+
+  const handleDirectGoogleLogin = async (e) => {
+    e?.preventDefault();
+    const cleanEmail = googleEmail.trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      setError("Please enter a valid Google / Gmail address.");
+      return;
+    }
+
+    setGoogleLoading(true);
+    setError(null);
+
+    try {
+      const res = await googleSignIn({ email: cleanEmail });
+      if (res?.data?.user) {
+        const userData = res.data.user;
+        setUser(userData);
+        if (userData.profileCompleted || res.data.profileCompleted) {
+          toast.success(`Welcome to Flash Chat, ${userData.displayName || "User"}!`);
+          navigate("/", { replace: true });
+        } else {
+          toast.info("Welcome! Please complete your profile.");
+          navigate("/create-profile", { replace: true });
+        }
+      } else {
+        throw new Error(res?.message || "Google authentication failed.");
+      }
+    } catch (err) {
+      console.error("Google Auth Error:", err);
+      const msg =
+        typeof err === "string"
+          ? err
+          : err?.message || err?.error || "Google authentication failed. Please try again.";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  // Step 1: Send Mobile OTP
+  const handleSendOtp = async (e) => {
+    e?.preventDefault();
+    const cleanNumber = phoneNumber.trim().replace(/\D/g, "");
+    if (!cleanNumber || cleanNumber.length < 7 || cleanNumber.length > 15) {
+      setError("Please enter a valid mobile number.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await sendOtp(cleanNumber, selectedCountry.dialCode);
+      setAuthStep("otp");
+      setResendCooldown(30);
+      setOtpDigits(["", "", "", "", "", ""]);
+      toast.success(`OTP sent to ${selectedCountry.dialCode} ${cleanNumber}`);
+      setTimeout(() => {
+        otpInputRefs.current[0]?.focus();
+      }, 100);
+    } catch (err) {
+      console.error("Send OTP Error:", err);
+      const msg =
+        typeof err === "string"
+          ? err
+          : err?.message || "Failed to send OTP. Please check your number and try again.";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2: Verify Mobile OTP
+  const handleVerifyOtp = async (e) => {
+    e?.preventDefault();
+    const otp = otpDigits.join("").trim();
+    if (otp.length !== 6) {
+      setError("Please enter the complete 6-digit OTP.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const cleanNumber = phoneNumber.trim().replace(/\D/g, "");
+      const res = await verifyOtp(cleanNumber, selectedCountry.dialCode, otp);
+      if (res?.data?.user) {
+        const userData = res.data.user;
+        setUser(userData);
+        if (userData.profileCompleted || res.data.profileCompleted) {
+          toast.success(`Welcome to Flash Chat, ${userData.displayName || "User"}!`);
+          navigate("/", { replace: true });
+        } else {
+          toast.info("Welcome! Please create your profile.");
+          navigate("/create-profile", { replace: true });
+        }
+      } else {
+        throw new Error(res?.message || "Verification failed.");
+      }
+    } catch (err) {
+      console.error("Verify OTP Error:", err);
+      const msg =
+        typeof err === "string"
+          ? err
+          : err?.message || "Incorrect or expired OTP. Please try again.";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Segmented OTP Input Navigation
+  const handleOtpChange = (index, value) => {
+    const digit = value.replace(/\D/g, "").slice(-1);
+    const newDigits = [...otpDigits];
+    newDigits[index] = digit;
+    setOtpDigits(newDigits);
+    setError(null);
+
+    // Auto advance focus
+    if (digit && index < 5) {
+      otpInputRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index, e) => {
+    if (e.key === "Backspace" && !otpDigits[index] && index > 0) {
+      otpInputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (pasted) {
+      const newDigits = [...otpDigits];
+      for (let i = 0; i < 6; i++) {
+        newDigits[i] = pasted[i] || "";
+      }
+      setOtpDigits(newDigits);
+      if (pasted.length === 6) {
+        otpInputRefs.current[5]?.focus();
+      } else {
+        otpInputRefs.current[pasted.length]?.focus();
+      }
+    }
+  };
+
+  const filteredCountries = COUNTRIES.filter(
     (c) =>
       c.name.toLowerCase().includes(countrySearch.toLowerCase()) ||
       c.dialCode.includes(countrySearch)
   );
 
-  // ---------------- Step 1 submit ----------------
-  const validateStepOne = () => {
-    const errs = {};
-    if (loginMethod === "phone") {
-      if (!phoneNumber) {
-        errs.phoneNumber = "Enter your phone number.";
-      } else if (!/^\d{6,14}$/.test(phoneNumber)) {
-        errs.phoneNumber = "Enter a valid phone number.";
-      }
-    } else {
-      if (!email) {
-        errs.email = "Enter your email address.";
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        errs.email = "Enter a valid email address.";
-      }
-    }
-    setFieldErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
-  const onLoginSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    if (!validateStepOne()) return;
-    setLoading(true);
-    try {
-      const payload =
-        loginMethod === "phone"
-          ? { phoneNumber, phoneSuffix: selectedCountry.dialCode, email: null, rememberDevice }
-          : { phoneNumber: null, phoneSuffix: null, email, rememberDevice };
-
-      if (MOCK_MODE) {
-        await new Promise((r) => setTimeout(r, 700));
-      } else {
-        await axios.post(`${API_BASE}/send-otp`, payload, { withCredentials: true });
-      }
-
-      setUserPhoneData(payload);
-      setResendCooldown(30);
-      setStep(2);
-    } catch (err) {
-      setError(err?.response?.data?.message || "Failed to send code. Try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ---------------- Step 2: OTP ----------------
-  const handleOtpChange = (value, index) => {
-    if (!/^\d?$/.test(value)) return;
-    const next = [...otp];
-    next[index] = value;
-    setOtp(next);
-    if (value && index < 5) otpRefs.current[index + 1]?.focus();
-  };
-
-  const handleOtpKeyDown = (e, index) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleOtpPaste = (e) => {
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-    if (!pasted) return;
-    e.preventDefault();
-    const next = pasted.split("");
-    while (next.length < 6) next.push("");
-    setOtp(next);
-    const lastIndex = Math.min(pasted.length, 6) - 1;
-    otpRefs.current[lastIndex >= 0 ? lastIndex : 0]?.focus();
-  };
-
-  const onOtpSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    const code = otp.join("");
-    if (code.length !== 6) {
-      setError("Enter all 6 digits.");
-      return;
-    }
-    setLoading(true);
-    try {
-      if (MOCK_MODE) {
-        await new Promise((r) => setTimeout(r, 700));
-        if (code === "111111") throw new Error("mock-invalid");
-      } else {
-        // Backend returns 400 on invalid/expired OTP and 200 on success —
-        // axios throws on the 400, so we don't need to also inspect a
-        // status string in the body. The catch block below handles it.
-        const res = await axios.post(
-          `${API_BASE}/verify-otp`,
-          { ...userPhoneData, otp: code },
-          { withCredentials: true }
-        );
-
-        const verifiedUser = res.data?.data?.user ?? res.data?.user;
-        if (verifiedUser && verifiedUser.username && verifiedUser.agreed) {
-          setUser(verifiedUser);
-          setSuccess(true);
-          setTimeout(() => {
-            resetLoginState();
-            navigate("/");
-          }, 1800);
-          return;
-        }
-      }
-      setStep(3);
-    } catch (err) {
-      setError("That code didn't match. Check it and try again.");
-      setOtp(["", "", "", "", "", ""]);
-      otpRefs.current[0]?.focus();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResend = async () => {
-    if (resendCooldown > 0) return;
-    setResending(true);
-    setError("");
-    try {
-      if (MOCK_MODE) {
-        await new Promise((r) => setTimeout(r, 600));
-      } else {
-        await axios.post(`${API_BASE}/send-otp`, userPhoneData, { withCredentials: true });
-      }
-
-      setResendCooldown(30);
-      setOtp(["", "", "", "", "", ""]);
-      otpRefs.current[0]?.focus();
-    } finally {
-      setResending(false);
-    }
-  };
-
-  // ---------------- Step 3: profile ----------------
-  const validateAndSetFile = (file) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("Profile picture must be an image file.");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setError("Image must be smaller than 5MB.");
-      return;
-    }
-    setError("");
-    setProfilePictureFile(file);
-    setProfilePicture(URL.createObjectURL(file));
-  };
-
-  const handleFileInput = (e) => validateAndSetFile(e.target.files?.[0]);
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setDragActive(false);
-    validateAndSetFile(e.dataTransfer.files?.[0]);
-  };
-
-  const onProfileSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    if (!username.trim()) {
-      setError("Choose a username to continue.");
-      return;
-    }
-    if (usernameStatus === "taken") {
-      setError("That username is already taken.");
-      return;
-    }
-    if (!agreed) {
-      setError("You need to agree to the Terms and Privacy Policy.");
-      return;
-    }
-
-    setLoading(true);
-    setUploadProgress(0);
-    try {
-      const formData = new FormData();
-      formData.append("username", username.trim());
-      formData.append("agreed", agreed);
-      if (profilePictureFile) {
-        // field name must match the multer field name on the backend route
-        formData.append("profilePicture", profilePictureFile);
-      } else {
-        // no file chosen — sending the avatar URL as a plain field,
-        // matching `req.body.profilePicture` in updateProfile
-        formData.append("profilePicture", selectedAvatar);
-      }
-
-      let updatedUser;
-
-      if (MOCK_MODE) {
-        // simulate upload progress for the multipart request
-        for (let p = 20; p <= 100; p += 20) {
-          await new Promise((r) => setTimeout(r, 150));
-          setUploadProgress(p);
-        }
-        updatedUser = {
-          username: username.trim(),
-          profilePicture: profilePicture || selectedAvatar,
-          phoneNumber: userPhoneData?.phoneNumber,
-          email: userPhoneData?.email,
-        };
-      } else {
-        // withCredentials is required: updateProfile reads req.user.userId
-        // from auth middleware, which depends on the auth_token cookie
-        // set during verify-otp. Without this the request has no identity
-        // and the backend can't find the user to update.
-        const res = await axios.put(`${API_BASE}/update-profile`, formData, {
-          withCredentials: true,
-          headers: { "Content-Type": "multipart/form-data" },
-          onUploadProgress: (evt) =>
-            setUploadProgress(Math.round((evt.loaded / evt.total) * 100)),
-        });
-        // updateProfile returns the updated user in the response body —
-        // exact nesting depends on your responseHandler util, so this
-        // checks the common shapes defensively instead of assuming one.
-        updatedUser = res.data?.data ?? res.data?.user ?? res.data;
-      }
-
-      // Write into the REAL user store (persisted to localStorage).
-      // This is what the rest of the app checks for isAuthenticated.
-      setUser(updatedUser);
-
-      setSuccess(true);
-      setTimeout(() => {
-        resetLoginState();
-        navigate("/"); // <-- was commented out before; this is the actual redirect
-      }, 1800);
-    } catch (err) {
-      setError(err?.response?.data?.message || "Couldn't create your profile. Try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const goBack = () => {
-    setError("");
-    // Leaving the OTP step: restore step 1 with what was actually sent,
-    // so the person edits their existing number/email instead of
-    // retyping it from scratch.
-    if (step === 2 && userPhoneData) {
-      if (userPhoneData.phoneNumber) {
-        const match = countries.find((c) => c.dialCode === userPhoneData.phoneSuffix);
-        if (match) setSelectedCountry(match);
-        setPhoneNumber(userPhoneData.phoneNumber);
-        setLoginMethod("phone");
-      } else {
-        setPhoneNumber("");
-        setEmail(userPhoneData.email || "");
-        setLoginMethod("email");
-      }
-      setOtp(["", "", "", "", "", ""]);
-      setResendCooldown(0);
-    }
-    setStep(Math.max(1, step - 1));
-  };
-
-  // Explicit "change number / email" action from the OTP screen.
-  // Same restore behavior as goBack, kept as its own handler so the
-  // button label and intent stay clear in the UI.
-  const changeContact = () => goBack();
-
-  // ---------------- Theme tokens ----------------
-  const bg = dark ? "#000000" : "#F2EFE7";
-  const cardBg = dark ? "#111111" : "#FDFBF6";
-  const ink = dark ? "#FFFFFF" : "#16221F";
-  const sub = dark ? "#A0A0A0" : "#5C6B66";
-  const railBg = dark ? "#1c1c1c" : "#16332D";
-  const accent = "#FF6B00";
-  const amber = "#FF9E00";
-  const danger = "#E5604A";
-  const border = dark ? "rgba(255, 255, 255, 0.1)" : "rgba(22,34,31,0.12)";
-  const inputBg = dark ? "#1c1c1c" : "#FFFFFF";
-
   return (
-    <div
-      style={{
-        background: bg,
-        minHeight: "100vh",
-        fontFamily: "Inter, system-ui, sans-serif",
-        color: ink,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "24px",
-        position: "relative",
-        transition: "background 0.4s ease",
-      }}
-    >
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
-        * { box-sizing: border-box; }
-        .fc-display { font-family: 'Space Grotesk', sans-serif; }
-        .fc-fade-in { animation: fcFadeIn 0.45s ease both; }
-        @keyframes fcFadeIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
-        .fc-pop { animation: fcPop 0.25s cubic-bezier(.34,1.56,.64,1) both; }
-        @keyframes fcPop { from { transform: scale(0.6); opacity:0.4; } to { transform: scale(1); opacity:1; } }
-        .fc-spin { animation: fcSpin 0.9s linear infinite; }
-        @keyframes fcSpin { to { transform: rotate(360deg); } }
-        .fc-input:focus { outline: none; box-shadow: 0 0 0 3px ${accent}33; border-color: ${accent} !important; }
-        .fc-otp:focus { outline: none; box-shadow: 0 0 0 3px ${amber}40; border-color: ${amber} !important; }
-        .fc-btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
-        .fc-btn-primary:not(:disabled):hover { filter: brightness(1.07); }
-        .fc-rail-item { transition: opacity 0.3s ease; }
-        .fc-check-draw { stroke-dasharray: 40; stroke-dashoffset: 40; animation: fcDraw 0.6s ease forwards 0.2s; }
-        @keyframes fcDraw { to { stroke-dashoffset: 0; } }
-        @media (prefers-reduced-motion: reduce) {
-          .fc-fade-in, .fc-pop, .fc-spin, .fc-check-draw { animation: none !important; }
-        }
-        @media (max-width: 720px) {
-          .fc-rail { display: none !important; }
-        }
-        ::placeholder { color: ${sub}; opacity: 0.8; }
-      `}</style>
+    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-slate-50 dark:bg-[#0c0d0e] transition-colors duration-300 relative overflow-hidden font-sans">
+      {/* Background Ambience Glow */}
+      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-[#FF6B00]/10 dark:bg-[#FF6B00]/15 blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-emerald-500/10 dark:bg-emerald-500/15 blur-[120px] pointer-events-none" />
 
-      {/* Theme toggle */}
-      <button
-        onClick={toggleTheme}
-        aria-label="Toggle theme"
-        style={{
-          position: "absolute",
-          top: 20,
-          right: 20,
-          width: 40,
-          height: 40,
-          borderRadius: "50%",
-          border: `1px solid ${border}`,
-          background: cardBg,
-          color: ink,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-        }}
-      >
-        <Icon name={dark ? "sun" : "moon"} className="w-4 h-4" />
-      </button>
-
-      <div
-        className="fc-fade-in"
-        style={{
-          display: "flex",
-          width: "100%",
-          maxWidth: 880,
-          borderRadius: 24,
-          overflow: "hidden",
-          boxShadow: dark
-            ? "0 30px 70px -20px rgba(0,0,0,0.6)"
-            : "0 30px 70px -20px rgba(22,34,31,0.25)",
-        }}
-      >
-        {/* ---- Story rail (signature element) ---- */}
-        <div
-          className="fc-rail"
-          style={{
-            background: railBg,
-            width: 220,
-            flexShrink: 0,
-            padding: "32px 24px",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-          }}
+      {/* Top Navbar / Theme Switcher */}
+      <header className="absolute top-6 right-6 flex items-center gap-3">
+        <button
+          onClick={toggleTheme}
+          type="button"
+          aria-label="Toggle dark/light theme"
+          className="p-2.5 rounded-xl bg-white/80 dark:bg-[#18191b]/80 border border-slate-200 dark:border-white/10 shadow-sm hover:scale-105 active:scale-95 transition-all text-slate-700 dark:text-slate-300"
         >
-          <div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 40,
-              }}
-            >
-              <div
-                style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: 9,
-                  background: accent,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <Icon name="check" className="w-3.5 h-3.5" />
-              </div>
-              <span
-                className="fc-display"
-                style={{ color: "#FFFFFF", fontWeight: 700, fontSize: 16, letterSpacing: -0.3 }}
-              >
-                flashchat
-              </span>
-            </div>
+          {dark ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-700" />}
+        </button>
+      </header>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-              {STEPS.map((s) => {
-                const stateActive = s.id === step;
-                const stateDone = s.id < step;
-                return (
-                  <div
-                    key={s.id}
-                    className="fc-rail-item"
-                    style={{
-                      display: "flex",
-                      gap: 12,
-                      alignItems: "flex-start",
-                      opacity: stateActive ? 1 : stateDone ? 0.85 : 0.4,
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: "50%",
-                        flexShrink: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        background: stateDone
-                          ? accent
-                          : stateActive
-                          ? "rgba(255, 107, 0, 0.18)"
-                          : "transparent",
-                        border: stateActive ? `1.5px solid ${accent}` : `1.5px solid rgba(242,240,233,0.25)`,
-                        color: stateDone ? "#000000" : "#FFFFFF",
-                      }}
-                    >
-                      {stateDone ? (
-                        <Icon name="check" className="w-3 h-3" />
-                      ) : (
-                        <Icon name={s.icon} className="w-3 h-3" />
-                      )}
-                    </div>
-                    <div>
-                      <div
-                        style={{
-                          fontSize: 10.5,
-                          textTransform: "uppercase",
-                          letterSpacing: 0.6,
-                          color: "#A0A0A0",
-                          marginBottom: 2,
-                        }}
-                      >
-                        Step {s.id}
-                      </div>
-                      <div style={{ fontSize: 13.5, color: "#FFFFFF", fontWeight: 500 }}>
-                        {s.label}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+      {/* Main Authentication Card */}
+      <main className="w-full max-w-md bg-white dark:bg-[#141517] border border-slate-200/80 dark:border-white/10 rounded-3xl shadow-2xl p-8 sm:p-10 relative z-10 backdrop-blur-xl transition-all duration-300">
+        
+        {/* Brand Header */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-[#FF6B00] to-amber-500 text-white shadow-lg shadow-[#FF6B00]/25 mb-4 animate-pulse">
+            <Zap className="w-9 h-9 fill-current" />
           </div>
-
-          <p style={{ fontSize: 11.5, color: "#555555", lineHeight: 1.5 }}>
-            Your number stays private. Only people you message can see it.
+          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white flex items-center justify-center gap-1.5">
+            FLASH <span className="text-[#FF6B00]">⚡</span>
+          </h1>
+          <p className="text-sm font-medium text-[#FF6B00] dark:text-[#FF8822] mt-1 tracking-wider uppercase">
+            Connect. Chat. Call.
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            Private, fast, and encrypted real-time communication.
           </p>
         </div>
 
-        {/* ---- Form panel ---- */}
-        <div
-          style={{
-            background: cardBg,
-            flex: 1,
-            padding: "40px 40px",
-            position: "relative",
-            minWidth: 0,
-          }}
-        >
-          {step > 1 && !success && (
-            <button
-              onClick={goBack}
-              aria-label="Go back"
-              style={{
-                position: "absolute",
-                top: 28,
-                left: 28,
-                background: "none",
-                border: "none",
-                color: sub,
-                cursor: "pointer",
-                display: "flex",
-              }}
-            >
-              <Icon name="arrowLeft" className="w-4.5 h-4.5" />
-            </button>
-          )}
-
-          {success ? (
-            <SuccessView ink={ink} sub={sub} accent={accent} username={username} />
-          ) : (
-            <div key={step} className="fc-fade-in" style={{ paddingTop: step > 1 ? 28 : 0 }}>
-              <h1
-                className="fc-display"
-                style={{ fontSize: 26, fontWeight: 700, marginBottom: 6, letterSpacing: -0.4 }}
-              >
-                {step === 1 && "Let's get you in"}
-                {step === 2 && "Check your messages"}
-                {step === 3 && "Make it yours"}
-              </h1>
-              <p style={{ color: sub, fontSize: 14, marginBottom: 28 }}>
-                {step === 1 && (loginMethod === "phone"
-                  ? "Enter your phone number to get a code."
-                  : "Enter your email to get a code.")}
-                {step === 2 && (
-                  <>
-                    We sent a 6-digit code to{" "}
-                    <strong style={{ color: ink }}>
-                      {userPhoneData?.phoneNumber
-                        ? `${userPhoneData.phoneSuffix}${userPhoneData.phoneNumber}`
-                        : userPhoneData?.email}
-                    </strong>
-
-                  </>
-                )}
-                {step === 3 && "Pick a name and a face for your account."}
-              </p>
-
-              {error && (
-                <div
-                  className="fc-pop"
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    alignItems: "flex-start",
-                    background: `${danger}14`,
-                    border: `1px solid ${danger}40`,
-                    color: danger,
-                    borderRadius: 10,
-                    padding: "10px 12px",
-                    fontSize: 13,
-                    marginBottom: 18,
-                  }}
-                >
-                  <Icon name="alert" className="w-4 h-4" style={{ flexShrink: 0, marginTop: 1 }} />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {step === 1 && (
-                <StepOne
-                  {...{
-                    loginMethod,
-                    switchLoginMethod,
-                    selectedCountry,
-                    setSelectedCountry,
-                    phoneNumber,
-                    setPhoneNumber,
-                    email,
-                    setEmail,
-                    countryOpen,
-                    setCountryOpen,
-                    countrySearch,
-                    setCountrySearch,
-                    filteredCountries,
-                    rememberDevice,
-                    setRememberDevice,
-                    fieldErrors,
-                    onLoginSubmit,
-                    loading,
-                    inputBg,
-                    border,
-                    ink,
-                    sub,
-                    accent,
-                    danger,
-                  }}
-                />
-              )}
-
-              {step === 2 && (
-                <StepTwo
-                  {...{
-                    otp,
-                    otpRefs,
-                    handleOtpChange,
-                    handleOtpKeyDown,
-                    handleOtpPaste,
-                    onOtpSubmit,
-                    loading,
-                    resendCooldown,
-                    resending,
-                    handleResend,
-                    inputBg,
-                    border,
-                    ink,
-                    sub,
-                    amber,
-                    accent,
-                    userPhoneData,
-                    changeContact,
-                  }}
-                />
-              )}
-
-              {step === 3 && (
-                <StepThree
-                  {...{
-                    username,
-                    setUsername,
-                    usernameStatus,
-                    agreed,
-                    setAgreed,
-                    profilePicture,
-                    selectedAvatar,
-                    setSelectedAvatar,
-                    setProfilePicture,
-                    setProfilePictureFile,
-                    dragActive,
-                    setDragActive,
-                    handleDrop,
-                    handleFileInput,
-                    onProfileSubmit,
-                    loading,
-                    uploadProgress,
-                    inputBg,
-                    border,
-                    ink,
-                    sub,
-                    accent,
-                    amber,
-                    danger,
-                  }}
-                />
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// =================================================================
-// Step 1 — phone / email
-// =================================================================
-function StepOne({
-  loginMethod,
-  switchLoginMethod,
-  selectedCountry,
-  setSelectedCountry,
-  phoneNumber,
-  setPhoneNumber,
-  email,
-  setEmail,
-  countryOpen,
-  setCountryOpen,
-  countrySearch,
-  setCountrySearch,
-  filteredCountries,
-  rememberDevice,
-  setRememberDevice,
-  fieldErrors,
-  onLoginSubmit,
-  loading,
-  inputBg,
-  border,
-  ink,
-  sub,
-  accent,
-  danger,
-}) {
-  const inputStyle = {
-    width: "100%",
-    padding: "12px 14px",
-    borderRadius: 10,
-    border: `1.5px solid ${border}`,
-    background: inputBg,
-    color: ink,
-    fontSize: 14.5,
-    fontFamily: "Inter, sans-serif",
-  };
-
-  const tabStyle = (active) => ({
-    flex: 1,
-    padding: "9px 0",
-    textAlign: "center",
-    fontSize: 13.5,
-    fontWeight: 600,
-    borderRadius: 8,
-    border: "none",
-    cursor: "pointer",
-    background: active ? accent : "transparent",
-    color: active ? "#000000" : sub,
-    transition: "background 0.15s ease, color 0.15s ease",
-  });
-
-  return (
-    <form onSubmit={onLoginSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-      {/* Login method tabs */}
-      <div
-        role="tablist"
-        aria-label="Choose login method"
-        style={{
-          display: "flex",
-          gap: 4,
-          padding: 4,
-          borderRadius: 10,
-          border: `1.5px solid ${border}`,
-        }}
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={loginMethod === "phone"}
-          onClick={() => switchLoginMethod("phone")}
-          style={tabStyle(loginMethod === "phone")}
-        >
-          Phone number
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={loginMethod === "email"}
-          onClick={() => switchLoginMethod("email")}
-          style={tabStyle(loginMethod === "email")}
-        >
-          Email
-        </button>
-      </div>
-
-      {loginMethod === "phone" ? (
-        <div>
-          <label style={{ fontSize: 12.5, fontWeight: 600, color: sub, display: "block", marginBottom: 6 }}>
-            PHONE NUMBER
-          </label>
-          <div style={{ display: "flex", gap: 8, position: "relative" }}>
-            <button
-              type="button"
-              onClick={() => setCountryOpen((o) => !o)}
-              style={{
-                ...inputStyle,
-                width: 96,
-                flexShrink: 0,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                cursor: "pointer",
-              }}
-            >
-              <span>{selectedCountry.flag}</span>
-              <span style={{ fontSize: 13.5 }}>{selectedCountry.dialCode}</span>
-            </button>
-            <input
-              autoFocus
-              type="tel"
-              inputMode="numeric"
-              placeholder="98765 43210"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, ""))}
-              className="fc-input"
-              style={{ ...inputStyle, flex: 1, borderColor: fieldErrors.phoneNumber ? danger : border }}
-            />
-
-            {countryOpen && (
-              <div
-                style={{
-                  position: "absolute",
-                  top: "calc(100% + 6px)",
-                  left: 0,
-                  width: 260,
-                  maxHeight: 240,
-                  overflowY: "auto",
-                  background: inputBg,
-                  border: `1px solid ${border}`,
-                  borderRadius: 10,
-                  boxShadow: "0 12px 30px -10px rgba(0,0,0,0.3)",
-                  zIndex: 20,
-                  padding: 8,
-                }}
-              >
-                <input
-                  autoFocus
-                  placeholder="Search country…"
-                  value={countrySearch}
-                  onChange={(e) => setCountrySearch(e.target.value)}
-                  style={{
-                    ...inputStyle,
-                    padding: "8px 10px",
-                    fontSize: 13,
-                    marginBottom: 6,
-                  }}
-                />
-                {filteredCountries.map((c) => (
-                  <button
-                    key={c.alpha2}
-                    type="button"
-                    onClick={() => {
-                      setSelectedCountry(c);
-                      setCountryOpen(false);
-                      setCountrySearch("");
-                    }}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                      width: "100%",
-                      padding: "8px 10px",
-                      background: "transparent",
-                      border: "none",
-                      borderRadius: 8,
-                      cursor: "pointer",
-                      color: ink,
-                      fontSize: 13.5,
-                      textAlign: "left",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = `${accent}14`)}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                  >
-                    <span>{c.flag}</span>
-                    <span style={{ flex: 1 }}>{c.name}</span>
-                    <span style={{ color: sub }}>{c.dialCode}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+        {/* Global Error Banner */}
+        {error && (
+          <div className="mb-6 p-3.5 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800/60 flex items-start gap-3 animate-shake">
+            <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+            <p className="text-xs font-medium text-red-700 dark:text-red-300 leading-relaxed">
+              {error}
+            </p>
           </div>
-          {fieldErrors.phoneNumber && (
-            <p style={{ color: danger, fontSize: 12, marginTop: 5 }}>{fieldErrors.phoneNumber}</p>
-          )}
-        </div>
-      ) : (
-        <div>
-          <label style={{ fontSize: 12.5, fontWeight: 600, color: sub, display: "block", marginBottom: 6 }}>
-            EMAIL
-          </label>
-          <input
-            autoFocus
-            type="email"
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="fc-input"
-            style={{ ...inputStyle, borderColor: fieldErrors.email ? danger : border }}
-          />
-          {fieldErrors.email && (
-            <p style={{ color: danger, fontSize: 12, marginTop: 5 }}>{fieldErrors.email}</p>
-          )}
-        </div>
-      )}
-
-      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: sub, cursor: "pointer" }}>
-        <input
-          type="checkbox"
-          checked={rememberDevice}
-          onChange={(e) => setRememberDevice(e.target.checked)}
-          style={{ width: 15, height: 15, accentColor: accent }}
-        />
-        Remember this device for 30 days
-      </label>
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="fc-btn-primary"
-        style={{
-          background: accent,
-          color: "#000000",
-          fontWeight: 700,
-          fontSize: 14.5,
-          padding: "13px 0",
-          borderRadius: 10,
-          border: "none",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-          marginTop: 4,
-        }}
-      >
-        {loading && <Icon name="spinner" className="w-4 h-4 fc-spin" />}
-        {loading ? "Sending code…" : "Send code"}
-      </button>
-    </form>
-  );
-}
-
-// =================================================================
-// Step 2 — OTP
-// =================================================================
-function StepTwo({
-  otp,
-  otpRefs,
-  handleOtpChange,
-  handleOtpKeyDown,
-  handleOtpPaste,
-  onOtpSubmit,
-  loading,
-  resendCooldown,
-  resending,
-  handleResend,
-  inputBg,
-  border,
-  ink,
-  sub,
-  amber,
-  accent,
-  userPhoneData,
-  changeContact,
-}) {
-  const contactLabel = userPhoneData?.phoneNumber
-    ? "phone number"
-    : userPhoneData?.email
-    ? "email"
-    : "phone number or email";
-  return (
-    <form onSubmit={onOtpSubmit} style={{ display: "flex", flexDirection: "column", gap: 22 }}>
-      <div style={{ display: "flex", gap: 8, justifyContent: "center" }} onPaste={handleOtpPaste}>
-        {otp.map((digit, i) => (
-          <input
-            key={i}
-            ref={(el) => (otpRefs.current[i] = el)}
-            value={digit}
-            onChange={(e) => handleOtpChange(e.target.value, i)}
-            onKeyDown={(e) => handleOtpKeyDown(e, i)}
-            inputMode="numeric"
-            maxLength={1}
-            className={`fc-otp ${digit ? "fc-pop" : ""}`}
-            style={{
-              width: 46,
-              height: 52,
-              textAlign: "center",
-              fontSize: 19,
-              fontWeight: 700,
-              borderRadius: 10,
-              border: `1.5px solid ${border}`,
-              background: inputBg,
-              color: ink,
-              fontFamily: "Space Grotesk, sans-serif",
-            }}
-          />
-        ))}
-      </div>
-
-      <div style={{ textAlign: "center" }}>
-        <button
-          type="button"
-          onClick={handleResend}
-          disabled={resendCooldown > 0 || resending}
-          style={{
-            background: "none",
-            border: "none",
-            color: resendCooldown > 0 ? sub : amber,
-            fontSize: 13.5,
-            fontWeight: 600,
-            cursor: resendCooldown > 0 ? "default" : "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          {resending && <Icon name="spinner" className="w-3.5 h-3.5 fc-spin" />}
-          {resendCooldown > 0
-            ? `Resend code in 0:${String(resendCooldown).padStart(2, "0")}`
-            : resending
-            ? "Resending…"
-            : "Resend code"}
-        </button>
-      </div>
-
-      <p style={{ textAlign: "center", fontSize: 13, color: sub, margin: 0 }}>
-        Wrong {contactLabel}?{" "}
-        <button
-          type="button"
-          onClick={changeContact}
-          style={{
-            background: "none",
-            border: "none",
-            padding: 0,
-            color: accent,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: "pointer",
-            textDecoration: "underline",
-          }}
-        >
-          Change it
-        </button>
-      </p>
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="fc-btn-primary"
-        style={{
-          background: accent,
-          color: "#000000",
-          fontWeight: 700,
-          fontSize: 14.5,
-          padding: "13px 0",
-          borderRadius: 10,
-          border: "none",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-        }}
-      >
-        {loading && <Icon name="spinner" className="w-4 h-4 fc-spin" />}
-        {loading ? "Verifying…" : "Verify and continue"}
-      </button>
-
-
-    </form>
-  );
-}
-
-// =================================================================
-// Step 3 — profile
-// =================================================================
-function StepThree({
-  username,
-  setUsername,
-  usernameStatus,
-  agreed,
-  setAgreed,
-  profilePicture,
-  selectedAvatar,
-  setSelectedAvatar,
-  setProfilePicture,
-  setProfilePictureFile,
-  dragActive,
-  setDragActive,
-  handleDrop,
-  handleFileInput,
-  onProfileSubmit,
-  loading,
-  uploadProgress,
-  inputBg,
-  border,
-  ink,
-  sub,
-  accent,
-  amber,
-  danger,
-}) {
-  const statusColor =
-    usernameStatus === "available" ? accent : usernameStatus === "taken" ? danger : sub;
-
-  return (
-    <form onSubmit={onProfileSubmit} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Avatar / upload zone */}
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragActive(true);
-        }}
-        onDragLeave={() => setDragActive(false)}
-        onDrop={handleDrop}
-        style={{
-          display: "flex",
-          gap: 18,
-          alignItems: "center",
-          padding: 16,
-          borderRadius: 14,
-          border: `1.5px dashed ${dragActive ? accent : border}`,
-          background: dragActive ? `${accent}0d` : "transparent",
-          transition: "all 0.15s ease",
-        }}
-      >
-        <img
-          src={profilePicture || selectedAvatar}
-          alt="Profile preview"
-          style={{
-            width: 72,
-            height: 72,
-            borderRadius: "50%",
-            objectFit: "cover",
-            border: `3px solid ${accent}`,
-            flexShrink: 0,
-          }}
-        />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <label
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 13,
-              fontWeight: 600,
-              color: accent,
-              cursor: "pointer",
-            }}
-          >
-            <Icon name="upload" className="w-3.5 h-3.5" />
-            Upload a photo
-            <input type="file" accept="image/*" onChange={handleFileInput} style={{ display: "none" }} />
-          </label>
-          <p style={{ fontSize: 11.5, color: sub, marginTop: 3 }}>
-            Drag & drop, or click — JPG/PNG up to 5MB
-          </p>
-        </div>
-      </div>
-
-      <div>
-        <p style={{ fontSize: 12, color: sub, marginBottom: 8, fontWeight: 600 }}>
-          OR PICK AN AVATAR
-        </p>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {avatars.map((a) => (
-            <button
-              type="button"
-              key={a}
-              onClick={() => {
-                setSelectedAvatar(a);
-                setProfilePicture(null);
-                setProfilePictureFile(null);
-              }}
-              style={{
-                width: 42,
-                height: 42,
-                borderRadius: "50%",
-                padding: 0,
-                border: "none",
-                cursor: "pointer",
-                outline: selectedAvatar === a && !profilePicture ? `2.5px solid ${accent}` : "2.5px solid transparent",
-                outlineOffset: 2,
-              }}
-            >
-              <img src={a} alt="" style={{ width: "100%", height: "100%", borderRadius: "50%" }} />
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {loading && uploadProgress > 0 && uploadProgress < 100 && (
-        <div>
-          <div style={{ height: 5, borderRadius: 4, background: border, overflow: "hidden" }}>
-            <div
-              style={{
-                height: "100%",
-                width: `${uploadProgress}%`,
-                background: accent,
-                transition: "width 0.15s ease",
-              }}
-            />
-          </div>
-          <p style={{ fontSize: 11, color: sub, marginTop: 4 }}>Uploading photo… {uploadProgress}%</p>
-        </div>
-      )}
-
-      <div>
-        <label style={{ fontSize: 12.5, fontWeight: 600, color: sub, display: "block", marginBottom: 6 }}>
-          USERNAME
-        </label>
-        <div style={{ position: "relative" }}>
-          <input
-            type="text"
-            placeholder="Choose a username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value.replace(/\s/g, ""))}
-            className="fc-input"
-            style={{
-              width: "100%",
-              padding: "12px 14px",
-              paddingRight: 36,
-              borderRadius: 10,
-              border: `1.5px solid ${usernameStatus === "taken" ? danger : border}`,
-              background: inputBg,
-              color: ink,
-              fontSize: 14.5,
-            }}
-          />
-          <span
-            style={{
-              position: "absolute",
-              right: 12,
-              top: "50%",
-              transform: "translateY(-50%)",
-              display: "flex",
-            }}
-          >
-            {usernameStatus === "checking" && <Icon name="spinner" className="w-4 h-4 fc-spin" style={{ color: sub }} />}
-            {usernameStatus === "available" && <Icon name="check" className="w-4 h-4" style={{ color: accent }} />}
-            {usernameStatus === "taken" && <Icon name="alert" className="w-4 h-4" style={{ color: danger }} />}
-          </span>
-        </div>
-        {usernameStatus && (
-          <p style={{ fontSize: 12, marginTop: 5, color: statusColor }}>
-            {usernameStatus === "checking" && "Checking availability…"}
-            {usernameStatus === "available" && "That username is available."}
-            {usernameStatus === "taken" && "Already taken — try another."}
-          </p>
         )}
-      </div>
 
-      <label style={{ display: "flex", gap: 9, alignItems: "flex-start", fontSize: 13, color: sub, cursor: "pointer" }}>
-        <input
-          type="checkbox"
-          checked={agreed}
-          onChange={(e) => setAgreed(e.target.checked)}
-          style={{ width: 15, height: 15, marginTop: 2, accentColor: accent, flexShrink: 0 }}
-        />
-        <span>
-          I agree to the <strong style={{ color: ink }}>Terms of Service</strong> and{" "}
-          <strong style={{ color: ink }}>Privacy Policy</strong>
-        </span>
-      </label>
+        {/* ======================================================== */}
+        {/* VIEW 1: METHOD SELECTION SCREEN                          */}
+        {/* ======================================================== */}
+        {authStep === "select" && (
+          <div className="space-y-4 animate-fade-in">
+            {/* Continue with Mobile */}
+            <button
+              onClick={() => {
+                setError(null);
+                setAuthStep("phone");
+              }}
+              type="button"
+              className="w-full h-14 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold text-sm flex items-center justify-center gap-3 shadow-lg hover:shadow-xl hover:opacity-95 active:scale-[0.98] transition-all"
+            >
+              <Smartphone className="w-5 h-5 text-[#FF6B00]" />
+              Continue with Mobile Number
+            </button>
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="fc-btn-primary"
-        style={{
-          background: accent,
-          color: "#000000",
-          fontWeight: 700,
-          fontSize: 14.5,
-          padding: "13px 0",
-          borderRadius: 10,
-          border: "none",
-          cursor: "pointer",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 8,
-        }}
-      >
-        {loading && <Icon name="spinner" className="w-4 h-4 fc-spin" />}
-        {loading ? "Creating your account…" : "Create account"}
-      </button>
-    </form>
-  );
-}
+            {/* Continue with Google */}
+            <button
+              onClick={triggerGoogleSignIn}
+              disabled={googleLoading}
+              type="button"
+              className="w-full h-14 rounded-2xl bg-white dark:bg-[#1e2024] border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white font-semibold text-sm flex items-center justify-center gap-3 shadow-sm hover:bg-slate-50 dark:hover:bg-[#25282d] active:scale-[0.98] transition-all disabled:opacity-50"
+            >
+              {googleLoading ? (
+                <RefreshCw className="w-5 h-5 animate-spin text-[#FF6B00]" />
+              ) : (
+                <svg className="w-5 h-5" viewBox="0 0 24 24">
+                  <path
+                    fill="#4285F4"
+                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.33 24 12 24Z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 10.03 0 12s.45 3.82 1.25 5.42l4.03-3.15Z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"
+                  />
+                </svg>
+              )}
+              <span>{googleLoading ? "Signing in..." : "Continue with Google"}</span>
+            </button>
 
-// =================================================================
-// Success view
-// =================================================================
-function SuccessView({ ink, sub, accent, username }) {
-  return (
-    <div
-      className="fc-fade-in"
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        textAlign: "center",
-        minHeight: 320,
-        gap: 16,
-      }}
-    >
-      <div
-        style={{
-          width: 68,
-          height: 68,
-          borderRadius: "50%",
-          background: `${accent}1a`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <svg viewBox="0 0 24 24" width="30" height="30" fill="none">
-          <path
-            d="M5 12.5 10 17l9-10"
-            stroke={accent}
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="fc-check-draw"
-          />
-        </svg>
-      </div>
-      <div>
-        <h2 className="fc-display" style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>
-          You're in, {username || "friend"}
-        </h2>
-        <p style={{ color: sub, fontSize: 13.5 }}>Taking you to your chats…</p>
-      </div>
+            {/* Hidden container for Google Sign In Button anchor */}
+            <div id="google-hidden-btn-container" style={{ display: "none" }} />
+
+            {/* Feature Badges */}
+            <div className="pt-6 border-t border-slate-100 dark:border-white/5 grid grid-cols-2 gap-3 text-left">
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-white/[0.03]">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                  End-to-End Encrypted
+                </span>
+              </div>
+              <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-white/[0.03]">
+                <Sparkles className="w-4 h-4 text-[#FF6B00]" />
+                <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400">
+                  Instant Access
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ======================================================== */}
+        {/* VIEW 2: PHONE NUMBER ENTRY SCREEN                        */}
+        {/* ======================================================== */}
+        {authStep === "phone" && (
+          <form onSubmit={handleSendOtp} className="space-y-5 animate-fade-in">
+            <div className="flex items-center justify-between mb-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setAuthStep("select");
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" /> Back
+              </button>
+              <span className="text-xs font-medium text-slate-400">Step 1 of 2</span>
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="phone-input" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Enter your mobile number
+              </label>
+
+              <div className="flex items-center gap-2">
+                {/* Country Code Selector */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setCountryDropdownOpen(!countryDropdownOpen)}
+                    className="h-12 px-3 rounded-2xl bg-slate-100 dark:bg-[#1e2024] border border-slate-200 dark:border-white/10 flex items-center gap-1.5 text-sm font-semibold text-slate-800 dark:text-white hover:bg-slate-200/70 dark:hover:bg-[#25282d] transition-colors"
+                  >
+                    <span>{selectedCountry.flag}</span>
+                    <span>{selectedCountry.dialCode}</span>
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  </button>
+
+                  {/* Dropdown Menu */}
+                  {countryDropdownOpen && (
+                    <div className="absolute top-14 left-0 w-64 max-h-60 overflow-y-auto bg-white dark:bg-[#1e2024] border border-slate-200 dark:border-white/10 rounded-2xl shadow-xl z-50 p-2 space-y-1">
+                      <div className="sticky top-0 bg-white dark:bg-[#1e2024] pb-1">
+                        <div className="relative">
+                          <Search className="w-3.5 h-3.5 absolute left-2.5 top-3 text-slate-400" />
+                          <input
+                            type="text"
+                            placeholder="Search country..."
+                            value={countrySearch}
+                            onChange={(e) => setCountrySearch(e.target.value)}
+                            className="w-full h-8 pl-8 pr-2 rounded-xl bg-slate-50 dark:bg-white/5 text-xs text-slate-800 dark:text-white outline-none border border-transparent focus:border-[#FF6B00]"
+                          />
+                        </div>
+                      </div>
+                      {filteredCountries.map((c) => (
+                        <button
+                          key={c.alpha2 + c.dialCode}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCountry(c);
+                            setCountryDropdownOpen(false);
+                            setCountrySearch("");
+                          }}
+                          className="w-full px-2.5 py-1.5 rounded-xl flex items-center justify-between text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors"
+                        >
+                          <span className="flex items-center gap-2">
+                            <span>{c.flag}</span>
+                            <span>{c.name}</span>
+                          </span>
+                          <span className="font-mono text-slate-400">{c.dialCode}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Mobile Number Input */}
+                <input
+                  id="phone-input"
+                  type="tel"
+                  placeholder="98765 43210"
+                  value={phoneNumber}
+                  autoFocus
+                  onChange={(e) => {
+                    setPhoneNumber(e.target.value.replace(/\D/g, ""));
+                    setError(null);
+                  }}
+                  className="flex-1 h-12 px-4 rounded-2xl bg-slate-100 dark:bg-[#1e2024] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-medium text-sm outline-none focus:border-[#FF6B00] dark:focus:border-[#FF6B00] transition-colors"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading || !phoneNumber.trim()}
+              className="w-full h-13 py-3.5 rounded-2xl bg-[#FF6B00] hover:bg-[#ff7b1a] text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#FF6B00]/30 active:scale-[0.98] transition-all disabled:opacity-50"
+            >
+              {loading ? (
+                <RefreshCw className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <span>Send OTP</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* ======================================================== */}
+        {/* VIEW 2B: GOOGLE / GMAIL ENTRY SCREEN                     */}
+        {/* ======================================================== */}
+        {authStep === "google-email" && (
+          <form onSubmit={handleDirectGoogleLogin} className="space-y-5 animate-fade-in">
+            <div className="flex items-center justify-between mb-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setAuthStep("select");
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" /> Back
+              </button>
+              <span className="text-xs font-medium text-slate-400">Google Sign-In</span>
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label htmlFor="google-email-input" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Enter your Google / Gmail address
+              </label>
+
+              <div className="relative">
+                <Mail className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  id="google-email-input"
+                  type="email"
+                  placeholder="yourname@gmail.com"
+                  value={googleEmail}
+                  autoFocus
+                  onChange={(e) => {
+                    setGoogleEmail(e.target.value);
+                    setError(null);
+                  }}
+                  className="w-full h-12 pl-11 pr-4 rounded-2xl bg-slate-100 dark:bg-[#1e2024] border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-medium text-sm outline-none focus:border-[#FF6B00] dark:focus:border-[#FF6B00] transition-colors"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={googleLoading || !googleEmail.trim()}
+              className="w-full h-13 py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:opacity-95 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-500/25 active:scale-[0.98] transition-all disabled:opacity-50"
+            >
+              {googleLoading ? (
+                <RefreshCw className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <span>Continue with Google</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </form>
+        )}
+
+        {/* ======================================================== */}
+        {/* VIEW 3: 6-DIGIT OTP VERIFICATION SCREEN                  */}
+        {/* ======================================================== */}
+        {authStep === "otp" && (
+          <form onSubmit={handleVerifyOtp} className="space-y-6 animate-fade-in">
+            <div className="flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  setAuthStep("phone");
+                }}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" /> Change number
+              </button>
+              <span className="text-xs font-medium text-slate-400">Step 2 of 2</span>
+            </div>
+
+            <div className="text-left space-y-1">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">
+                Enter 6-digit code
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Code sent to{" "}
+                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                  {selectedCountry.dialCode} {phoneNumber}
+                </span>
+              </p>
+            </div>
+
+            {/* 6 Segmented OTP Boxes */}
+            <div className="flex items-center justify-between gap-2 on-paste-container" onPaste={handleOtpPaste}>
+              {otpDigits.map((digit, idx) => (
+                <input
+                  key={idx}
+                  ref={(el) => (otpInputRefs.current[idx] = el)}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={digit}
+                  onChange={(e) => handleOtpChange(idx, e.target.value)}
+                  onKeyDown={(e) => handleOtpKeyDown(idx, e.key)}
+                  className="w-12 h-14 rounded-2xl bg-slate-100 dark:bg-[#1e2024] border-2 border-slate-200 dark:border-white/10 text-center text-xl font-bold text-slate-900 dark:text-white outline-none focus:border-[#FF6B00] dark:focus:border-[#FF6B00] focus:scale-105 transition-all"
+                />
+              ))}
+            </div>
+
+            {/* Verify Button */}
+            <button
+              type="submit"
+              disabled={loading || otpDigits.join("").length !== 6}
+              className="w-full h-13 py-3.5 rounded-2xl bg-gradient-to-r from-[#FF6B00] to-amber-500 hover:opacity-95 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-[#FF6B00]/30 active:scale-[0.98] transition-all disabled:opacity-50"
+            >
+              {loading ? (
+                <RefreshCw className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Verify and Continue</span>
+                </>
+              )}
+            </button>
+
+            {/* Resend OTP */}
+            <div className="text-center pt-2">
+              {resendCooldown > 0 ? (
+                <p className="text-xs font-medium text-slate-400">
+                  Resend code in <span className="font-bold text-slate-600 dark:text-slate-300">{resendCooldown}s</span>
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSendOtp}
+                  disabled={loading}
+                  className="text-xs font-bold text-[#FF6B00] hover:underline"
+                >
+                  Resend code
+                </button>
+              )}
+            </div>
+          </form>
+        )}
+
+        {/* Footer Policy Notice */}
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center mt-8 leading-relaxed">
+          By continuing, you agree to Flash Chat's{" "}
+          <span className="underline hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer">
+            Terms of Service
+          </span>{" "}
+          and{" "}
+          <span className="underline hover:text-slate-600 dark:hover:text-slate-300 cursor-pointer">
+            Privacy Policy
+          </span>
+          .
+        </p>
+      </main>
     </div>
   );
 }

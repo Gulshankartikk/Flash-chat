@@ -233,3 +233,96 @@ exports.leaveGroup = async (req, res) => {
   }
 };
 
+// Toggle Pin Conversation (Per user)
+exports.togglePinConversation = async (req, res) => {
+  const { id } = req.params;
+  const currentUserId = req.user.userId;
+
+  try {
+    const conversation = await Conversation.findById(id);
+    if (!conversation) {
+      return response(res, 404, "Conversation not found");
+    }
+
+    if (!conversation.pinnedBy) conversation.pinnedBy = [];
+    const isPinned = conversation.pinnedBy.some((u) => String(u) === String(currentUserId));
+
+    if (isPinned) {
+      conversation.pinnedBy = conversation.pinnedBy.filter((u) => String(u) !== String(currentUserId));
+    } else {
+      conversation.pinnedBy.push(currentUserId);
+    }
+
+    await conversation.save();
+    return response(res, 200, isPinned ? "Chat unpinned" : "Chat pinned", {
+      isPinned: !isPinned,
+      conversationId: conversation._id,
+    });
+  } catch (error) {
+    console.error("togglePinConversation error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+// Toggle Archive Conversation (Per user)
+exports.toggleArchiveConversation = async (req, res) => {
+  const { id } = req.params;
+  const currentUserId = req.user.userId;
+
+  try {
+    const conversation = await Conversation.findById(id);
+    if (!conversation) {
+      return response(res, 404, "Conversation not found");
+    }
+
+    if (!conversation.archivedBy) conversation.archivedBy = [];
+    const isArchived = conversation.archivedBy.some((u) => String(u) === String(currentUserId));
+
+    if (isArchived) {
+      conversation.archivedBy = conversation.archivedBy.filter((u) => String(u) !== String(currentUserId));
+    } else {
+      conversation.archivedBy.push(currentUserId);
+    }
+
+    await conversation.save();
+    return response(res, 200, isArchived ? "Chat unarchived" : "Chat archived", {
+      isArchived: !isArchived,
+      conversationId: conversation._id,
+    });
+  } catch (error) {
+    console.error("toggleArchiveConversation error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+// Toggle Mute Conversation (Per user)
+exports.toggleMuteConversation = async (req, res) => {
+  const { id } = req.params;
+  const currentUserId = req.user.userId;
+
+  try {
+    const conversation = await Conversation.findById(id);
+    if (!conversation) {
+      return response(res, 404, "Conversation not found");
+    }
+
+    if (!conversation.mutedBy) conversation.mutedBy = [];
+    const isMuted = conversation.mutedBy.some((u) => String(u) === String(currentUserId));
+
+    if (isMuted) {
+      conversation.mutedBy = conversation.mutedBy.filter((u) => String(u) !== String(currentUserId));
+    } else {
+      conversation.mutedBy.push(currentUserId);
+    }
+
+    await conversation.save();
+    return response(res, 200, isMuted ? "Notifications unmuted" : "Notifications muted", {
+      isMuted: !isMuted,
+      conversationId: conversation._id,
+    });
+  } catch (error) {
+    console.error("toggleMuteConversation error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+

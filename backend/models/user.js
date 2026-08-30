@@ -4,14 +4,20 @@ const userSchema = new mongoose.Schema(
   {
     phoneNumber: { type: String, unique: true, sparse: true },
     phoneSuffix: { type: String }, // country code, e.g. "+91"
+    phoneVerified: { type: Boolean, default: false },
 
+    googleId: { type: String, unique: true, sparse: true },
+
+    displayName: { type: String },
     username: { type: String, unique: true, sparse: true },
+    flashId: { type: String, unique: true, sparse: true }, // e.g. "FC-7K29X8"
+    profileCompleted: { type: Boolean, default: false },
 
     email: {
       type: String,
       lowercase: true,
       unique: true,
-      sparse: true, // many WhatsApp accounts are phone-only, no email
+      sparse: true,
       validate: {
         validator: function (value) {
           if (!value) return true; // skip validation when not set
@@ -20,19 +26,22 @@ const userSchema = new mongoose.Schema(
         message: "Invalid email address format",
       },
     },
+    emailVerified: { type: Boolean, default: false },
 
     emailOtp: { type: String },
     emailOtpExpiry: { type: Date },
 
     profilePicture: { type: String },
+    avatarUrl: { type: String },
     password: { type: String },
     about: { type: String, default: "Hey there! I am using FlashChat" },
 
     lastSeen: { type: Date },
+    lastLoginAt: { type: Date, default: Date.now },
 
     isOnline: { type: Boolean, default: false },
     isVerified: { type: Boolean, default: false },
-    agreed: { type: Boolean, default: false },
+    agreed: { type: Boolean, default: true },
     isAIBot: { type: Boolean, default: false },
 
     // ---- WhatsApp-style social/contact features ----

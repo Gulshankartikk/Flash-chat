@@ -294,3 +294,138 @@ exports.blockContact = async (req, res) => {
     return response(res, 500, "Internal server error");
   }
 };
+
+// 7. SEARCH CONTACT BY FLASH ID, PHONE NUMBER, OR USERNAME
+exports.searchContacts = async (req, res) => {
+  const currentUserId = req.user.userId;
+  const rawQuery = req.query.query || req.query.q;
+
+  if (!rawQuery || !rawQuery.trim()) {
+    return response(res, 400, "Search query is required");
+  }
+
+  const raw = rawQuery.trim();
+  const cleanDigits = raw.replace(/\D/g, "");
+
+  try {
+    const searchConditions = [
+      { flashId: new RegExp(`^${raw}$`, "i") },
+      { username: new RegExp(`^${raw.replace(/^@/, "")}$`, "i") },
+      { displayName: new RegExp(raw, "i") },
+    ];
+
+    if (cleanDigits.length >= 7) {
+      searchConditions.push({ phoneNumber: cleanDigits });
+      searchConditions.push({ phoneNumber: cleanDigits.slice(-10) });
+    }
+
+    const matchedUsers = await User.find({
+      _id: { $ne: currentUserId },
+      $or: searchConditions,
+    })
+      .select("_id displayName username flashId profilePicture avatarUrl about isOnline lastSeen")
+      .limit(10)
+      .lean();
+
+    if (!matchedUsers || matchedUsers.length === 0) {
+      return response(res, 200, "No Flash users found", []);
+    }
+
+    // Fetch existing relationships
+    const targetIds = matchedUsers.map((u) => u._id);
+    const existingContacts = await Contact.find({
+      $or: [
+        { sender: currentUserId, receiver: { $in: targetIds } },
+        { sender: { $in: targetIds }, receiver: currentUserId },
+      ],
+    }).lean();
+
+    const contactMap = {};
+    for (const c of existingContacts) {
+      const otherId = String(c.sender) === String(currentUserId) ? String(c.receiver) : String(c.sender);
+      contactMap[otherId] = c;
+    }
+
+    const results = matchedUsers.map((targetUser) => {
+      const contact = contactMap[String(targetUser._id)];
+      let relationshipStatus = "none";
+      let isSender = false;
+      let contactId = null;
+
+      if (contact) {
+        relationshipStatus = contact.status;
+        contactId = contact._id;
+        isSender = String(contact.sender) === String(currentUserId);
+        if (contact.status === "pending") {
+          relationshipStatus = isSender ? "request_sent" : "pending_incoming";
+        }
+      }
+
+      return {
+        _id: targetUser._id,
+        displayName: targetUser.displayName || targetUser.username || "Flash User",
+        username: targetUser.username,
+        flashId: targetUser.flashId || `FC-${targetUser._id.toString().slice(-6).toUpperCase()}`,
+        profilePicture: targetUser.profilePicture || targetUser.avatarUrl || "",
+        about: targetUser.about || "Hey there! I am using Flash Chat",
+        isOnline: !!targetUser.isOnline,
+        lastSeen: targetUser.lastSeen,
+        relationshipStatus,
+        isSender,
+        contactId,
+      };
+    });
+
+    return response(res, 200, "Users found", results);
+  } catch (error) {
+    console.error("searchContacts error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+// 8. UNBLOCK CONTACT
+exports.unblockContact = async (req, res) => {
+  const currentUserId = req.user.userId;
+  const { contactId } = req.params;
+
+  try {
+    const contact = await Contact.findById(contactId);
+    if (!contact) {
+      return response(res, 404, "Contact not found");
+    }
+
+    const targetUserId = String(contact.sender) === String(currentUserId) ? contact.receiver : contact.sender;
+    contact.status = "accepted";
+    await contact.save();
+
+    await User.findByIdAndUpdate(currentUserId, { $pull: { blockedUsers: targetUserId } });
+    return response(res, 200, "Contact unblocked successfully", contact);
+  } catch (error) {
+    console.error("unblockContact error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+// 9. DELETE CONTACT
+exports.deleteContact = async (req, res) => {
+  const currentUserId = req.user.userId;
+  const { contactId } = req.params;
+
+  try {
+    const contact = await Contact.findById(contactId);
+    if (!contact) {
+      return response(res, 404, "Contact not found");
+    }
+
+    const targetUserId = String(contact.sender) === String(currentUserId) ? contact.receiver : contact.sender;
+
+    await Contact.findByIdAndDelete(contactId);
+    await User.findByIdAndUpdate(currentUserId, { $pull: { contacts: targetUserId } });
+    await User.findByIdAndUpdate(targetUserId, { $pull: { contacts: currentUserId } });
+
+    return response(res, 200, "Contact deleted successfully");
+  } catch (error) {
+    console.error("deleteContact error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};

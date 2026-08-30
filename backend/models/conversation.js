@@ -78,6 +78,22 @@ const conversationSchema = new mongoose.Schema(
       },
     ],
 
+    // Pinned conversations, per-user
+    pinnedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
+    // Archived conversations, per-user
+    archivedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
     // Group invite link unique token
     inviteCode: {
       type: String,

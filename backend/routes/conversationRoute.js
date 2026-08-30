@@ -9,6 +9,9 @@ router.get("/:id/invite-link", authMiddleware, conversationController.getGroupIn
 router.post("/join/:inviteCode", authMiddleware, conversationController.joinGroupByInvite);
 router.patch("/:id/permissions", authMiddleware, conversationController.toggleGroupPermissions);
 router.post("/:id/leave", authMiddleware, conversationController.leaveGroup);
+router.patch("/:id/pin", authMiddleware, conversationController.togglePinConversation);
+router.patch("/:id/archive", authMiddleware, conversationController.toggleArchiveConversation);
+router.patch("/:id/mute", authMiddleware, conversationController.toggleMuteConversation);
 
 module.exports = router;
 

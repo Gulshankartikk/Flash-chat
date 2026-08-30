@@ -27,6 +27,36 @@ export const verifyOtp = async (phoneNumber, phoneSuffix, otp, email) => {
   }
 };
 
+export const googleSignIn = async (authPayload) => {
+  try {
+    const response = await axiosInstance.post("/auth/google", authPayload);
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : error.message;
+  }
+};
+
+export const createProfile = async (formDataOrData) => {
+  try {
+    const isFormData = formDataOrData instanceof FormData;
+    const response = await axiosInstance.post("/auth/create-profile", formDataOrData, {
+      headers: isFormData ? { "Content-Type": "multipart/form-data" } : undefined,
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : error.message;
+  }
+};
+
+export const searchContactApi = async (query) => {
+  try {
+    const response = await axiosInstance.get(`/contacts/search?query=${encodeURIComponent(query)}`);
+    return response.data;
+  } catch (error) {
+    throw error.response ? error.response.data : error.message;
+  }
+};
+
 // ✅ Supports both plain JSON updates (name/about) and a profile-picture
 // upload (FormData) — previously every caller had to build the right
 // payload shape themselves and there was no way to send a File at all.

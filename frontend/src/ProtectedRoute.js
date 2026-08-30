@@ -67,6 +67,7 @@ const useAuthCheck = () => {
 export const ProtectedRoute = () => {
   const location = useLocation();
   const { isChecking, isAuthenticated } = useAuthCheck();
+  const user = useUserStore((state) => state.user);
 
   if (isChecking) {
     return <Loader />;
@@ -76,18 +77,47 @@ export const ProtectedRoute = () => {
     return <Navigate to="/user-login" state={{ from: location }} replace />;
   }
 
+  // If authenticated but profile is not completed yet, force /create-profile
+  if (!user?.profileCompleted && location.pathname !== "/create-profile") {
+    return <Navigate to="/create-profile" replace />;
+  }
+
   // user is authenticated — render the protected route
+  return <Outlet />;
+};
+
+export const ProfileRoute = () => {
+  const { isChecking, isAuthenticated } = useAuthCheck();
+  const user = useUserStore((state) => state.user);
+
+  if (isChecking) {
+    return <Loader />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/user-login" replace />;
+  }
+
+  // If already completed profile, go to Home
+  if (user?.profileCompleted) {
+    return <Navigate to="/" replace />;
+  }
+
   return <Outlet />;
 };
 
 export const PublicRoute = () => {
   const { isChecking, isAuthenticated } = useAuthCheck();
+  const user = useUserStore((state) => state.user);
 
   if (isChecking) {
     return <Loader />;
   }
 
   if (isAuthenticated) {
+    if (!user?.profileCompleted) {
+      return <Navigate to="/create-profile" replace />;
+    }
     return <Navigate to="/" replace />;
   }
 

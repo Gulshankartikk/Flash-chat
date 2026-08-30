@@ -29,6 +29,8 @@ import {
   acceptContactRequest as apiAcceptContactRequest,
   rejectContactRequest as apiRejectContactRequest,
   blockContact as apiBlockContact,
+  unblockContact as apiUnblockContact,
+  deleteContact as apiDeleteContact,
   startDirectConversation as apiStartDirectConversation,
 } from "../services/contact.service";
 
@@ -971,6 +973,60 @@ const useChatStore = create((set, get) => ({
     } catch (err) {
       toast.error(err.message || "Failed to block contact");
       throw err;
+    }
+  },
+
+  unblockContact: async (contactId) => {
+    try {
+      await apiUnblockContact(contactId);
+      toast.success("Contact unblocked");
+      get().fetchContacts();
+    } catch (err) {
+      toast.error(err.message || "Failed to unblock contact");
+      throw err;
+    }
+  },
+
+  deleteContact: async (contactId) => {
+    try {
+      await apiDeleteContact(contactId);
+      toast.success("Contact removed");
+      set((s) => ({
+        contactsList: s.contactsList.filter(c => String(c._id) !== String(contactId))
+      }));
+    } catch (err) {
+      toast.error(err.message || "Failed to remove contact");
+      throw err;
+    }
+  },
+
+  togglePinConversation: async (conversationId) => {
+    try {
+      const { data } = await api.patch(`/conversations/${conversationId}/pin`);
+      toast.success(data.message || "Updated pin status");
+      get().fetchConversations();
+    } catch (err) {
+      toast.error(err.message || "Failed to toggle pin");
+    }
+  },
+
+  toggleArchiveConversation: async (conversationId) => {
+    try {
+      const { data } = await api.patch(`/conversations/${conversationId}/archive`);
+      toast.success(data.message || "Updated archive status");
+      get().fetchConversations();
+    } catch (err) {
+      toast.error(err.message || "Failed to toggle archive");
+    }
+  },
+
+  toggleMuteConversation: async (conversationId) => {
+    try {
+      const { data } = await api.patch(`/conversations/${conversationId}/mute`);
+      toast.success(data.message || "Updated mute status");
+      get().fetchConversations();
+    } catch (err) {
+      toast.error(err.message || "Failed to toggle mute");
     }
   },
 
