@@ -27,6 +27,7 @@ const AISummaryModal = ({ isOpen, onClose, conversationId }) => {
     if (isOpen && conversationId) {
       fetchSummary();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, conversationId]);
 
   if (!isOpen) return null;

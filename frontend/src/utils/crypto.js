@@ -1,26 +1,14 @@
-import { encryptMessage, decryptMessage, initializeUserE2EE } from "./e2ee";
+import {
+  encryptMessage,
+  decryptMessage,
+  initializeUserE2EE,
+  exportEncryptedIdentityBackup,
+  restoreEncryptedIdentityBackup,
+  computeIdentityFingerprint,
+} from "../crypto/index";
 
 /**
- * Helper to derive a 256-bit AES-GCM key from a conversation ID (Legacy v1 fallback).
- * 
- * @param {string} conversationId - The unique ID of the conversation.
- * @returns {Promise<CryptoKey>} The derived cryptographic key.
- */
-async function getLegacyEncryptionKey(conversationId) {
-  const enc = new TextEncoder();
-  const rawKey = enc.encode(conversationId);
-  const hash = await crypto.subtle.digest("SHA-256", rawKey);
-  return crypto.subtle.importKey(
-    "raw",
-    hash,
-    { name: "AES-GCM" },
-    false,
-    ["encrypt", "decrypt"]
-  );
-}
-
-/**
- * Encrypts plaintext using True Asymmetric E2EE (v2) with legacy fallback.
+ * Encrypts plaintext using True Asymmetric E2EE (ECDH + HKDF + AES-256-GCM).
  * 
  * @param {string} plainText - The message content to encrypt.
  * @param {string} conversationId - The conversation ID.
@@ -29,40 +17,16 @@ async function getLegacyEncryptionKey(conversationId) {
  * @returns {Promise<string>} The encrypted ciphertext string.
  */
 export async function encryptText(plainText, conversationId, recipientUserId, currentUserId) {
-  try {
-    if (!plainText) return plainText;
-
-    if (recipientUserId && currentUserId) {
-      return await encryptMessage(plainText, recipientUserId, currentUserId, conversationId);
-    }
-    
-    if (!conversationId) return plainText;
-
-    // Legacy v1 AES-GCM fallback
-    const key = await getLegacyEncryptionKey(conversationId);
-    const enc = new TextEncoder();
-    const encodedText = enc.encode(plainText);
-    
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ciphertext = await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv },
-      key,
-      encodedText
-    );
-    
-    const ivHex = Array.from(iv).map(b => b.toString(16).padStart(2, "0")).join("");
-    const cipherHex = Array.from(new Uint8Array(ciphertext)).map(b => b.toString(16).padStart(2, "0")).join("");
-    
-    return `e2ee:${ivHex}:${cipherHex}`;
-  } catch (err) {
-    console.error("Client-side encryption failed:", err);
-    return plainText;
+  if (!plainText) return plainText;
+  if (recipientUserId && currentUserId) {
+    return encryptMessage(plainText, recipientUserId, currentUserId, conversationId);
   }
+  return plainText;
 }
 
 /**
  * Decrypts an encrypted ciphertext string back to plaintext.
- * Seamlessly handles v2 True E2EE (ECDH), v1 legacy, and plaintext.
+ * Handles True E2EE v2 envelopes locally on the viewer's device.
  * 
  * @param {string} encryptedText - The formatted ciphertext string.
  * @param {string} conversationId - The conversation ID.
@@ -71,42 +35,16 @@ export async function encryptText(plainText, conversationId, recipientUserId, cu
  * @returns {Promise<string>} The decrypted plaintext.
  */
 export async function decryptText(encryptedText, conversationId, senderUserId, currentUserId) {
-  try {
-    if (!encryptedText || typeof encryptedText !== "string") return encryptedText;
-    
-    // v2 True E2EE (ECDH)
-    if (encryptedText.startsWith("e2ee:v2:")) {
-      return await decryptMessage(encryptedText, senderUserId, currentUserId, conversationId);
-    }
-
-    // Not encrypted
-    if (!encryptedText.startsWith("e2ee:")) return encryptedText;
-    
-    // Legacy v1 AES-GCM format
-    const parts = encryptedText.split(":");
-    if (parts.length !== 3) return encryptedText;
-    
-    const [, ivHex, cipherHex] = parts;
-    if (!conversationId) return "🔒 [Encrypted Message]";
-    
-    const iv = new Uint8Array(ivHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-    const cipherBytes = new Uint8Array(cipherHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
-    
-    const key = await getLegacyEncryptionKey(conversationId);
-    const decrypted = await crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
-      key,
-      cipherBytes
-    );
-    
-    return new TextDecoder().decode(decrypted);
-  } catch (err) {
-    console.warn("Client-side decryption failed:", err);
-    return "🔒 [Encrypted Message]";
-  }
+  if (!encryptedText || typeof encryptedText !== "string") return encryptedText;
+  return decryptMessage(encryptedText, senderUserId, currentUserId, conversationId);
 }
 
-export { initializeUserE2EE };
+export {
+  initializeUserE2EE,
+  exportEncryptedIdentityBackup,
+  restoreEncryptedIdentityBackup,
+  computeIdentityFingerprint,
+};
 
 /**
  * Encrypts a backup JSON object using a user-provided password.

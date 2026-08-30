@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Users, CheckCircle, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
+import { Users, AlertCircle, ArrowRight, Loader2 } from "lucide-react";
 import axiosInstance from "../services/url.services";
 import useChatStore from "../store/chatStore";
 import useLayoutStore from "../store/useLayoutStore";
@@ -11,7 +11,6 @@ const JoinGroup = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [groupData, setGroupData] = useState(null);
 
   const fetchConversations = useChatStore((s) => s.fetchConversations);
   const openConversation = useChatStore((s) => s.openConversation);

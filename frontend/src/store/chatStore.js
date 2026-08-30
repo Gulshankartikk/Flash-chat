@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import axios from "axios";
 import { toast } from "react-toastify";
+import axiosInstance from "../services/url.services";
 import {
   initializeSocket,
   disconnectSocket,
@@ -32,9 +32,7 @@ import {
   startDirectConversation as apiStartDirectConversation,
 } from "../services/contact.service";
 
-const API = process.env.REACT_APP_API_URL;
-
-const api = axios.create({ baseURL: API, withCredentials: true });
+const api = axiosInstance;
 
 const TYPING_AUTO_CLEAR_MS = 5000;
 const typingTimeouts = {};
@@ -402,7 +400,7 @@ const useChatStore = create((set, get) => ({
   fetchConversations: async () => {
     set({ isLoadingConversations: true, error: null });
     try {
-      const { data } = await api.get("/api/chat/conversation");
+      const { data } = await api.get("/chat/conversation");
       const list = data?.data || data;
       const sorted = [...list].sort(
         (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
@@ -454,7 +452,7 @@ const useChatStore = create((set, get) => ({
 
     try {
       const { data } = await api.get(
-        `/api/chat/conversation/${conversation._id}/message`
+        `/chat/conversation/${conversation._id}/message`
       );
       const list = (data?.data || data).map(normalizeMessage);
       set({ messages: list, isLoadingMessages: false });
@@ -520,7 +518,18 @@ const useChatStore = create((set, get) => ({
 
     try {
       let savedMessage;
-      const isAIBot = activeConversation.participants?.some(p => p.isAIBot || p.email === "ai@flashchat.com");
+      const isAIBot =
+        activeConversation.participants?.some(
+          (p) =>
+            p.isAIBot ||
+            p.email === "ai@flashchat.com" ||
+            p.username === "Flash AI" ||
+            p.name === "Flash AI"
+        ) ||
+        activeConversation.name === "Flash AI" ||
+        activeConversation.otherUser?.isAIBot ||
+        activeConversation.otherUser?.username === "Flash AI" ||
+        activeConversation.otherUser?.name === "Flash AI";
       const shouldEncrypt = messageType === "text" && activeConversation.conversationType === "private" && !isAIBot;
       
       let messageToSend = message;
@@ -549,7 +558,7 @@ const useChatStore = create((set, get) => ({
         formData.append("senderId", get().currentUser?._id || "");
 
         const { data: mediaData } = await api.post(
-          `/api/chat/send-message`,
+          `/chat/send-message`,
           formData,
           { headers: { "Content-Type": "multipart/form-data" } }
         );
@@ -565,7 +574,7 @@ const useChatStore = create((set, get) => ({
           });
         }
 
-        const { data: msgData } = await api.post(`/api/chat/send-message`, {
+        const { data: msgData } = await api.post(`/chat/send-message`, {
           senderId: get().currentUser?._id,
           receiverId: isGroup ? undefined : receiverId,
           conversationId: isGroup ? activeConversation._id : undefined,
@@ -654,7 +663,7 @@ const useChatStore = create((set, get) => ({
     }
 
     try {
-      await api.delete(`/api/chat/message/${messageId}`, {
+      await api.delete(`/chat/message/${messageId}`, {
         data: { deleteForEveryone: deleteFor === "everyone" },
       });
     } catch (err) {
@@ -662,7 +671,7 @@ const useChatStore = create((set, get) => ({
       const { activeConversation } = get();
       if (activeConversation?._id) {
         const { data } = await api.get(
-          `/api/chat/conversation/${activeConversation._id}/message`
+          `/chat/conversation/${activeConversation._id}/message`
         ).catch(() => ({ data: null }));
         if (data) set({ messages: (data?.data || data).map(normalizeMessage) });
       }
@@ -694,7 +703,7 @@ const useChatStore = create((set, get) => ({
     }));
 
     try {
-      const { data } = await api.post(`/api/chat/message/${messageId}/react`, { emoji });
+      const { data } = await api.post(`/chat/message/${messageId}/react`, { emoji });
       const saved = data?.data || data;
       set((s) => ({
         messages: s.messages.map((m) => (m._id === messageId ? normalizeMessage(saved) : m)),
@@ -721,7 +730,7 @@ const useChatStore = create((set, get) => ({
   deleteSelectedMessages: async (deleteFor = "me") => {
     const { selectedMessages } = get();
     try {
-      await api.post("/api/chat/message/bulk-delete", {
+      await api.post("/chat/message/bulk-delete", {
         messageIds: selectedMessages,
         deleteFor,
       });
@@ -757,7 +766,7 @@ const useChatStore = create((set, get) => ({
     }));
 
     try {
-      const { data } = await api.put(`/api/chat/message/${messageId}`, { content: newContent });
+      const { data } = await api.put(`/chat/message/${messageId}`, { content: newContent });
       const updated = normalizeMessage(data?.data || data);
       set((s) => ({
         messages: s.messages.map((m) => (m._id === messageId ? updated : m)),
@@ -771,7 +780,7 @@ const useChatStore = create((set, get) => ({
   // ── 12. PIN MESSAGE ────────────────────────────────────────────────────────
   pinMessage: async (messageId) => {
     try {
-      const { data } = await api.put(`/api/chat/message/${messageId}/pin`);
+      const { data } = await api.put(`/chat/message/${messageId}/pin`);
       const updated = normalizeMessage(data?.data || data);
       set((s) => ({
         messages: s.messages.map((m) => {
@@ -788,7 +797,7 @@ const useChatStore = create((set, get) => ({
   // ── 13. FORWARD MESSAGE ────────────────────────────────────────────────────
   forwardMessage: async (message, targetUserIds) => {
     const promises = targetUserIds.map((receiverId) =>
-      api.post(`/api/chat/send-message`, {
+      api.post(`/chat/send-message`, {
         senderId: get().currentUser?._id,
         receiverId,
         content: message.content || message.message || "",

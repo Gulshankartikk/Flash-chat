@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import useSocket from "../../hooks/useSocket";
 import useUserStore from "../../store/useUserStore";
-import axios from "axios";
+import axiosInstance from "../../services/url.services";
 import { toast } from "react-toastify";
 
 const StatusSelector = () => {
@@ -21,11 +21,7 @@ const StatusSelector = () => {
     }
 
     try {
-      await axios.patch(
-        `${process.env.REACT_APP_API_URL}/api/users/${user._id}/status`,
-        { status },
-        { withCredentials: true }
-      );
+      await axiosInstance.patch(`/users/${user._id}/status`, { status });
       updateProfile({ status });
       toast.success(`Status set to ${status}`);
     } catch (e) {
@@ -40,11 +36,9 @@ const StatusSelector = () => {
     if (!customText.trim()) return;
 
     try {
-      await axios.patch(
-        `${process.env.REACT_APP_API_URL}/api/users/${user._id}/status`,
-        { customStatusText: customText.trim() },
-        { withCredentials: true }
-      );
+      await axiosInstance.patch(`/users/${user._id}/status`, {
+        customStatusText: customText.trim(),
+      });
       updateProfile({ about: customText.trim() });
       toast.success("Status message updated");
     } catch (e) {

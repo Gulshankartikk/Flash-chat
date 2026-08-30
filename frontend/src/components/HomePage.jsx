@@ -145,6 +145,8 @@ const HomePage = () => {
           profilePicture: contact.profilePic,
           isOnline:       contact.isOnline,
           lastSeen:       contact.lastSeen,
+          isAIBot:        Boolean(contact.isAIBot || contact._raw?.isAIBot || contact.name === "Flash AI"),
+          email:          contact.email || (contact.name === "Flash AI" ? "ai@flashchat.com" : undefined),
         };
         const draftConv = createConversation(participant);
 

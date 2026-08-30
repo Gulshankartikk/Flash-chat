@@ -5,12 +5,11 @@ import useChatStore from "../../store/chatStore";
 import StatusSelector from "../../components/status/StatusSelector";
 import { updateUserProfile, updatePrivacySettings } from "../../services/user.service";
 import { toast } from "react-toastify";
-import axios from "axios";
+import axiosInstance from "../../services/url.services";
 import ActiveSessionsModal from "../../components/settings/ActiveSessionsModal";
 import BackupPreviewModal from "../../components/settings/BackupPreviewModal";
 
-const API = process.env.REACT_APP_API_URL || "http://localhost:8000";
-const api = axios.create({ baseURL: API, withCredentials: true });
+const api = axiosInstance;
 
 const Setting = () => {
   const { theme, toggleTheme } = useThemeStore();
@@ -75,7 +74,7 @@ const Setting = () => {
 
     setIsExporting(true);
     try {
-      const { data } = await api.get("/api/chat/backup");
+      const { data } = await api.get("/chat/backup");
       if (data && data.success && data.data) {
         // Client-side Encrypt the backup
         const { encryptBackup } = await import("../../utils/crypto");
@@ -151,7 +150,7 @@ const Setting = () => {
 
     setIsImporting(true);
     try {
-      const { data } = await api.post("/api/chat/restore", {
+      const { data } = await api.post("/chat/restore", {
         backupData: previewBackupData,
         mergeStrategy,
       });

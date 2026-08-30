@@ -61,11 +61,17 @@ async function handleAIResponse(req, senderId, receiverId, conversationId, userM
     // reverse to chronological order
     history.reverse();
 
-    // 3. Generate response
-    const aiReply = await generateAIResponse(userMessageContent, history);
+    // If message was somehow encrypted with e2ee prefix, use clean text
+    let promptContent = userMessageContent;
+    if (typeof promptContent === "string" && promptContent.startsWith("e2ee:")) {
+      promptContent = "Hello";
+    }
 
-    // 4. Simulate typing delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    // 3. Generate response
+    const aiReply = await generateAIResponse(promptContent || "Hello", history);
+
+    // 4. Simulate natural typing delay (800ms)
+    await new Promise(resolve => setTimeout(resolve, 800));
 
     // 5. Save AI's response in DB
     const aiMessage = new Message({
@@ -80,8 +86,8 @@ async function handleAIResponse(req, senderId, receiverId, conversationId, userM
     await aiMessage.save();
 
     const populatedAIResponse = await Message.findById(aiMessage._id)
-      .populate("sender", "username profilePicture")
-      .populate("receiver", "username profilePicture")
+      .populate("sender", "username profilePicture isAIBot email")
+      .populate("receiver", "username profilePicture isAIBot email")
       .populate("conversation", "participants lastMessage");
 
     // Update conversation's lastMessage
@@ -210,7 +216,10 @@ exports.sendMessage = async (req, res) => {
           throw { statusCode: 404, message: "User not found" };
         }
 
-        isReceiverAIBot = receiverUser.isAIBot || false;
+        isReceiverAIBot =
+          receiverUser.isAIBot === true ||
+          receiverUser.email === "ai@flashchat.com" ||
+          receiverUser.username === "Flash AI";
 
         isReceiverBlockedByMe = (senderUser.blockedUsers || []).map(String).includes(String(receiverId));
         hasReceiverBlockedMe = (receiverUser.blockedUsers || []).map(String).includes(String(senderId));

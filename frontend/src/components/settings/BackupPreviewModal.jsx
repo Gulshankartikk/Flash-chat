@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { HardDrive, MessageSquare, Users, Calendar, AlertTriangle, Check, X, ShieldCheck } from "lucide-react";
+import { MessageSquare, Users, Calendar, X, ShieldCheck } from "lucide-react";
 
 const BackupPreviewModal = ({ isOpen, onClose, backupData, onConfirmRestore, isRestoring }) => {
   const [mergeStrategy, setMergeStrategy] = useState("merge"); // "merge" | "overwrite"

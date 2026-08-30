@@ -26,9 +26,13 @@ const ConversationItem = ({ item, isActive, onClick, currentUser }) => {
   useEffect(() => {
     let active = true;
     const performDecryption = async () => {
-      if (lastMsg.startsWith("e2ee:") && item.id) {
+      const convId = item._id || item.id;
+      const otherUserId = item.otherUser?._id || item.otherUserId || item.id;
+      const currentUserId = currentUser?._id;
+
+      if (lastMsg.startsWith("e2ee:")) {
         const { decryptText } = await import("../../utils/crypto");
-        const decrypted = await decryptText(lastMsg, item.id);
+        const decrypted = await decryptText(lastMsg, convId, otherUserId, currentUserId);
         if (active) {
           setDecryptedLastMsg(decrypted);
         }
@@ -42,7 +46,7 @@ const ConversationItem = ({ item, isActive, onClick, currentUser }) => {
     return () => {
       active = false;
     };
-  }, [lastMsg, item.id]);
+  }, [lastMsg, item._id, item.id, item.otherUser?._id, currentUser?._id]);
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" || e.key === " ") {

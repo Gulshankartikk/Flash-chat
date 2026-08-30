@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Mic, Square, Send, Trash2 } from "lucide-react";
+import { Square, Send, Trash2 } from "lucide-react";
 import { toast } from "react-toastify";
 
 const VoiceRecorder = ({ onSendVoice, onCancel }) => {
@@ -18,6 +18,7 @@ const VoiceRecorder = ({ onSendVoice, onCancel }) => {
     return () => {
       stopCleanup();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startRecording = async () => {

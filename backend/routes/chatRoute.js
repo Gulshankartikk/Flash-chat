@@ -19,7 +19,7 @@ router.get(
 );
 
 router.get(
- "/conversation/:conversationId/message",
+  "/conversation/:conversationId/message",
   authMiddleware,
   chatController.getMessage
 );
@@ -84,14 +84,29 @@ router.put(
   authMiddleware,
   chatController.addGroupMembers
 );
+router.post(
+  "/group/:id/add-members",
+  authMiddleware,
+  chatController.addGroupMembers
+);
 
 router.put(
   "/group/:id/remove-member",
   authMiddleware,
   chatController.removeGroupMember
 );
+router.post(
+  "/group/:id/remove-member",
+  authMiddleware,
+  chatController.removeGroupMember
+);
 
 router.put(
+  "/group/:id/promote-admin",
+  authMiddleware,
+  chatController.promoteGroupAdmin
+);
+router.post(
   "/group/:id/promote-admin",
   authMiddleware,
   chatController.promoteGroupAdmin

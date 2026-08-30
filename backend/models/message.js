@@ -54,7 +54,7 @@ const messageSchema = new mongoose.Schema(
     // this reflect the "weakest" status (sent until everyone has it).
     messageStatus: {
       type: String,
-      enum: ["sent", "delivered", "seen"],
+      enum: ["sent", "delivered", "seen", "read"],
       default: "sent",
     },
 
