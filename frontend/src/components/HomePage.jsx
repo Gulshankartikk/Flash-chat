@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
+import ContactsPanel from "./contacts/ContactsPanel";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, MoreVertical, MessageSquarePlus, X,
@@ -34,8 +35,9 @@ const HomePage = () => {
   const activeView         = useLayoutStore((s) => s.activeView);
   const setActiveView      = useLayoutStore((s) => s.setActiveView);
   const contacts           = useLayoutStore((s) => s.contacts);
-  const setContacts        = useLayoutStore((s) => s.setContacts);
   const setSelectedContact = useLayoutStore((s) => s.setSelectedContact);
+  // Real contacts list (accepted) from chatStore – used in group modal
+  const contactsList       = useChatStore((s) => s.contactsList);
 
   // ── User store ──────────────────────────────────────────────────────────
   const currentUser = useUserStore((s) => s.user);
@@ -48,7 +50,6 @@ const HomePage = () => {
   } = useNotifications();
 
   const [query, setQuery]               = useState("");
-  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
   const [startingChatId, setStartingChatId]       = useState(null);
   const [menuOpen, setMenuOpen]         = useState(false);
   const [notifPanelOpen, setNotifPanelOpen]       = useState(false);
@@ -79,36 +80,7 @@ const HomePage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch all users for the contacts list
-  useEffect(() => {
-    const loadUsers = async () => {
-      setIsLoadingContacts(true);
-      try {
-        const res = await getAllUser();
-        const users = res?.data || [];
-        const mapped = users.map((u) => ({
-          _id:        u._id,
-          name:       u.username || u.name || "Unknown",
-          profilePic: u.profilePicture || "",
-          isOnline:   u.isOnline || false,
-          lastSeen:   u.lastSeen || null,
-          phone:      u.phoneSuffix && u.phoneNumber
-                        ? `${u.phoneSuffix} ${u.phoneNumber}`
-                        : "",
-          // keep the raw backend object so createConversation gets full data
-          _raw: u,
-        }));
-        setContacts(mapped);
-      } catch (err) {
-        console.error("Failed to load contacts:", err);
-        toast.error("Could not load contacts");
-      } finally {
-        setIsLoadingContacts(false);
-      }
-    };
-    loadUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // Contacts are now managed by ContactsPanel / chatStore
 
   // ── Build chat rows from conversations ──────────────────────────────────
   const chatRows = conversations.map((conv) => {
@@ -245,6 +217,11 @@ const HomePage = () => {
   const activePeer = activeConversation?.participants?.find(
     (p) => p._id !== currentUser?._id
   );
+
+  // ── Short-circuit: delegate the entire contacts view to ContactsPanel ──
+  if (isContactsView) {
+    return <ContactsPanel />;
+  }
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-[#000000] text-slate-800 dark:text-[#FFFFFF] font-sans relative">
@@ -593,16 +570,17 @@ const HomePage = () => {
                 </div>
 
                 <div className="border border-slate-200 dark:border-[#222222] rounded-xl overflow-hidden max-h-48 overflow-y-auto flex flex-col divide-y divide-slate-100 dark:divide-[#222222]">
-                  {contacts
-                    .filter((c) => c.name.toLowerCase().includes(groupSearchQuery.toLowerCase()))
-                    .map((contact) => {
-                      const isSelected = selectedMembers.includes(contact._id);
+                  {contactsList
+                    .filter((c) => c.user?.username?.toLowerCase().includes(groupSearchQuery.toLowerCase()))
+                    .map((c) => {
+                      const memberId = c.user?._id;
+                      const isSelected = selectedMembers.includes(memberId);
                       return (
                         <div
-                          key={contact._id}
+                          key={c._id}
                           onClick={() => {
                             setSelectedMembers((prev) =>
-                              isSelected ? prev.filter((id) => id !== contact._id) : [...prev, contact._id]
+                              isSelected ? prev.filter((id) => id !== memberId) : [...prev, memberId]
                             );
                           }}
                           className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-[#1c1c1c] transition-colors"
@@ -613,15 +591,15 @@ const HomePage = () => {
                             readOnly
                             className="rounded border-slate-300 dark:border-[#333] text-[#FF6B00] focus:ring-[#FF6B00] h-3.5 w-3.5"
                           />
-                          {contact.profilePic ? (
-                            <img src={contact.profilePic} alt="" className="w-8 h-8 rounded-full object-cover" />
+                          {c.user?.profilePicture ? (
+                            <img src={c.user.profilePicture} alt="" className="w-8 h-8 rounded-full object-cover" />
                           ) : (
                             <div className="w-8 h-8 rounded-full bg-[#FF6B00]/10 text-[#FF6B00] flex items-center justify-center font-bold text-xs">
-                              {contact.name.charAt(0).toUpperCase()}
+                              {(c.user?.username || "?").charAt(0).toUpperCase()}
                             </div>
                           )}
                           <span className="text-xs text-slate-700 dark:text-[#FFFFFF] font-medium truncate">
-                            {contact.name}
+                            {c.user?.username}
                           </span>
                         </div>
                       );

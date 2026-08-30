@@ -17,7 +17,20 @@ import {
   onMessageRead,
   onUserOnline,
   onUserOffline,
+  onContactRequestReceived,
+  onContactRequestAccepted,
+  onContactRequestRejected,
+  onConversationCreated,
 } from "../services/chat.services";
+import {
+  getContacts,
+  getPendingRequests,
+  sendContactRequest as apiSendContactRequest,
+  acceptContactRequest as apiAcceptContactRequest,
+  rejectContactRequest as apiRejectContactRequest,
+  blockContact as apiBlockContact,
+  startDirectConversation as apiStartDirectConversation,
+} from "../services/contact.service";
 
 const API = process.env.REACT_APP_API_URL;
 
@@ -90,7 +103,11 @@ const useChatStore = create((set, get) => ({
   isLoadingConversations: false,
   isLoadingMessages: false,
   isSendingMessage: false,
+  isLoadingContacts: false,
+  isLoadingRequests: false,
   error: null,
+  contactsList: [],
+  pendingRequests: [],
 
   // ── 1. SOCKET connect ──────────────────────────────────────────────────────
   connectSocket: (user) => {
@@ -291,6 +308,66 @@ const useChatStore = create((set, get) => ({
         }
       });
     }
+
+    onContactRequestReceived((populatedContact) => {
+      set((s) => ({
+        pendingRequests: [populatedContact, ...s.pendingRequests],
+      }));
+    });
+
+    onContactRequestAccepted((populatedContact) => {
+      const currentUserId = get().currentUser?._id;
+      if (!currentUserId) return;
+      
+      const isMeSender = String(populatedContact.sender._id) === String(currentUserId);
+      const otherUser = isMeSender ? populatedContact.receiver : populatedContact.sender;
+
+      set((s) => {
+        const updatedRequests = s.pendingRequests.filter(
+          (r) => String(r._id) !== String(populatedContact._id)
+        );
+        
+        const alreadyExists = s.contactsList.some(
+          (c) => String(c.user?._id || c.user) === String(otherUser._id)
+        );
+        
+        if (alreadyExists) {
+          return { pendingRequests: updatedRequests };
+        }
+
+        const newContactRecord = {
+          _id: populatedContact._id,
+          user: otherUser,
+          conversation: null,
+          status: "accepted",
+          createdAt: populatedContact.createdAt,
+          updatedAt: populatedContact.updatedAt,
+        };
+
+        return {
+          contactsList: [newContactRecord, ...s.contactsList],
+          pendingRequests: updatedRequests,
+        };
+      });
+    });
+
+    onContactRequestRejected((populatedContact) => {
+      set((s) => ({
+        pendingRequests: s.pendingRequests.filter(
+          (r) => String(r._id) !== String(populatedContact._id)
+        ),
+      }));
+    });
+
+    onConversationCreated((newConvo) => {
+      set((s) => {
+        const already = s.conversations.some((c) => c._id === newConvo._id);
+        if (already) return {};
+        return {
+          conversations: [newConvo, ...s.conversations],
+        };
+      });
+    });
   },
 
   clearTypingUser: (conversationId, userId) => {
@@ -777,6 +854,123 @@ const useChatStore = create((set, get) => ({
   getUnreadCount: (conversationId) => get().unreadCounts[conversationId] || 0,
   getTotalUnread: () => Object.values(get().unreadCounts).reduce((s, n) => s + n, 0),
   clearError: () => set({ error: null }),
+
+  // ── 18. CONTACTS & REQUESTS ────────────────────────────────────────────────
+  fetchContacts: async () => {
+    set({ isLoadingContacts: true });
+    try {
+      const res = await getContacts();
+      set({ contactsList: res.data || [], isLoadingContacts: false });
+    } catch (err) {
+      set({ error: err.message || "Failed to load contacts", isLoadingContacts: false });
+    }
+  },
+
+  fetchPendingRequests: async () => {
+    set({ isLoadingRequests: true });
+    try {
+      const res = await getPendingRequests();
+      set({ pendingRequests: res.data || [], isLoadingRequests: false });
+    } catch (err) {
+      set({ error: err.message || "Failed to load requests", isLoadingRequests: false });
+    }
+  },
+
+  sendContactRequest: async (userId) => {
+    try {
+      const res = await apiSendContactRequest(userId);
+      toast.success("Contact request sent successfully!");
+      return res.data;
+    } catch (err) {
+      toast.error(err.message || "Failed to send contact request");
+      throw err;
+    }
+  },
+
+  acceptContactRequest: async (contactId) => {
+    try {
+      const res = await apiAcceptContactRequest(contactId);
+      toast.success("Contact request accepted!");
+      set((s) => {
+        const acceptedRequest = s.pendingRequests.find(r => String(r._id) === String(contactId));
+        const otherUser = acceptedRequest?.sender;
+        
+        const updatedRequests = s.pendingRequests.filter(
+          (r) => String(r._id) !== String(contactId)
+        );
+        
+        if (!otherUser) {
+          return { pendingRequests: updatedRequests };
+        }
+
+        const newContactRecord = {
+          _id: contactId,
+          user: otherUser,
+          conversation: null,
+          status: "accepted",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        return {
+          contactsList: [newContactRecord, ...s.contactsList],
+          pendingRequests: updatedRequests,
+        };
+      });
+      return res.data;
+    } catch (err) {
+      toast.error(err.message || "Failed to accept contact request");
+      throw err;
+    }
+  },
+
+  rejectContactRequest: async (contactId) => {
+    try {
+      await apiRejectContactRequest(contactId);
+      toast.success("Contact request rejected");
+      set((s) => ({
+        pendingRequests: s.pendingRequests.filter(
+          (r) => String(r._id) !== String(contactId)
+        ),
+      }));
+    } catch (err) {
+      toast.error(err.message || "Failed to reject request");
+      throw err;
+    }
+  },
+
+  blockContact: async (contactId) => {
+    try {
+      await apiBlockContact(contactId);
+      toast.success("Contact blocked successfully");
+      set((s) => ({
+        contactsList: s.contactsList.filter(c => String(c._id) !== String(contactId))
+      }));
+    } catch (err) {
+      toast.error(err.message || "Failed to block contact");
+      throw err;
+    }
+  },
+
+  startDirectConversation: async (userId) => {
+    try {
+      const { data: conversation } = await apiStartDirectConversation(userId);
+      set((s) => {
+        const already = s.conversations.some((c) => c._id === conversation._id);
+        const updatedConvs = already
+          ? s.conversations
+          : [conversation, ...s.conversations];
+        return {
+          conversations: updatedConvs,
+        };
+      });
+      get().openConversation(conversation);
+      return conversation;
+    } catch (err) {
+      toast.error(err.message || "Failed to start direct conversation");
+      throw err;
+    }
+  },
 }));
 
 export default useChatStore;

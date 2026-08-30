@@ -118,6 +118,14 @@ app.use('/api/auth', authRoute);
 app.use('/api/chat', chatRoute);
 app.use('/api/status', statusRoute);
 
+const userRoute = require('./routes/userRoute');
+const contactRoute = require('./routes/contactRoute');
+const conversationRoute = require('./routes/conversationRoute');
+
+app.use('/api/users', userRoute);
+app.use('/api/contacts', contactRoute);
+app.use('/api/conversations', conversationRoute);
+
 const authMiddleware = require('./middleware/authMiddleware');
 const authController = require('./controllers/authController');
 app.patch('/api/users/:id/status', authMiddleware, authController.updateUserStatus);

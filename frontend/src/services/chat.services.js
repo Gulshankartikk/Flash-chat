@@ -13,6 +13,10 @@ const callbacks = {
   userOffline: null,
   receiveMessage: null,
   messageRead: null,
+  contactRequestReceived: null,
+  contactRequestAccepted: null,
+  contactRequestRejected: null,
+  conversationCreated: null,
 };
 
 // ─── Internal: attach all persistent listeners ───────────────────────────────
@@ -46,6 +50,30 @@ function attachPersistentListeners(user) {
   socket.off("message_status_update");
   socket.on("message_status_update", (data) => {
     callbacks.messageRead?.(data);
+  });
+
+  // ── contact_request_received ──
+  socket.off("contact_request_received");
+  socket.on("contact_request_received", (data) => {
+    callbacks.contactRequestReceived?.(data);
+  });
+
+  // ── contact_request_accepted ──
+  socket.off("contact_request_accepted");
+  socket.on("contact_request_accepted", (data) => {
+    callbacks.contactRequestAccepted?.(data);
+  });
+
+  // ── contact_request_rejected ──
+  socket.off("contact_request_rejected");
+  socket.on("contact_request_rejected", (data) => {
+    callbacks.contactRequestRejected?.(data);
+  });
+
+  // ── conversation_created ──
+  socket.off("conversation_created");
+  socket.on("conversation_created", (data) => {
+    callbacks.conversationCreated?.(data);
   });
 
   // Re-announce presence so the backend doesn't think we went offline
@@ -217,6 +245,22 @@ export const joinConversation = (conversationId) => {
 export const leaveConversation = (conversationId) => {
   if (!conversationId) return;
   socket?.emit("leave_conversation", conversationId);
+};
+
+export const onContactRequestReceived = (callback) => {
+  callbacks.contactRequestReceived = callback;
+};
+
+export const onContactRequestAccepted = (callback) => {
+  callbacks.contactRequestAccepted = callback;
+};
+
+export const onContactRequestRejected = (callback) => {
+  callbacks.contactRequestRejected = callback;
+};
+
+export const onConversationCreated = (callback) => {
+  callbacks.conversationCreated = callback;
 };
 
 // ─── Disconnect ───────────────────────────────────────────────────────────────
