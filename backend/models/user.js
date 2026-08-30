@@ -50,14 +50,19 @@ const userSchema = new mongoose.Schema(
     // Local device contacts matched against registered phone numbers —
     // this is how WhatsApp shows "people from your contacts" instead
     // of a global user search. Synced periodically from the client.
-    contacts: [
+    // E2EE Public Key (JWK JSON string or SPKI base64)
+    publicKey: { type: String },
+
+    // Active login sessions for device tracking & token revocation
+    activeSessions: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+        sessionId: { type: String, required: true },
+        refreshToken: { type: String },
+        device: { type: String },
+        ip: { type: String },
+        lastActive: { type: Date, default: Date.now },
       },
     ],
-
-
     privacySettings: {
       lastSeen: {
         type: String,

@@ -1,22 +1,35 @@
 # Dependency directories
 node_modules/
+*/node_modules/
 backend/node_modules/
 frontend/node_modules/
 
+# Production builds
+build/
+frontend/build/
+dist/
+out/
+
 # Environment files
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
+!.env.example
 backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
 
-# Logs
+# Logs & debugging
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
 # OS files
+.DS_Store
 Thumbs.db
 ehthumbs.db
 Desktop.ini
@@ -29,3 +42,7 @@ Desktop.ini
 *.njsproj
 *.sln
 *.sw?
+
+# Coverage & Tests
+coverage/
+.nyc_output/

@@ -6,6 +6,8 @@ import StatusSelector from "../../components/status/StatusSelector";
 import { updateUserProfile, updatePrivacySettings } from "../../services/user.service";
 import { toast } from "react-toastify";
 import axios from "axios";
+import ActiveSessionsModal from "../../components/settings/ActiveSessionsModal";
+import BackupPreviewModal from "../../components/settings/BackupPreviewModal";
 
 const API = process.env.REACT_APP_API_URL || "http://localhost:8000";
 const api = axios.create({ baseURL: API, withCredentials: true });
@@ -100,11 +102,14 @@ const Setting = () => {
     }
   };
 
+  const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false);
+  const [previewBackupData, setPreviewBackupData] = useState(null);
+  const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
+
   const handleImportBackup = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    setIsImporting(true);
     try {
       const reader = new FileReader();
       reader.onload = async (event) => {
@@ -115,47 +120,58 @@ const Setting = () => {
           if (fileContent.startsWith("e2ee-backup:")) {
             const password = window.prompt("This backup file is encrypted. Please enter the password to decrypt it:");
             if (!password) {
-              setIsImporting(false);
               e.target.value = "";
               return;
             }
             const { decryptBackup } = await import("../../utils/crypto");
             backupData = await decryptBackup(fileContent, password);
           } else {
-            // Support legacy unencrypted backups
-            if (!window.confirm("This backup file is unencrypted. Do you want to proceed with restoring it?")) {
-              setIsImporting(false);
-              e.target.value = "";
-              return;
-            }
             backupData = JSON.parse(fileContent);
           }
 
-          const { data } = await api.post("/api/chat/restore", { backupData });
-          
-          if (data && data.success) {
-            toast.success(data.message || "Backup restored successfully!");
-            const fetchConversations = useChatStore.getState().fetchConversations;
-            if (fetchConversations) {
-              await fetchConversations();
-            }
-          } else {
-            toast.error(data?.message || "Failed to restore backup");
-          }
+          setPreviewBackupData(backupData);
+          setIsRestoreModalOpen(true);
         } catch (parseErr) {
           console.error("Failed to parse or decrypt file:", parseErr);
           toast.error("Decryption or parsing failed: " + parseErr.message);
         } finally {
-          setIsImporting(false);
           e.target.value = "";
         }
       };
       reader.readAsText(file);
     } catch (err) {
       console.error("Import error:", err);
-      toast.error("Failed to restore backup: " + err.message);
-      setIsImporting(false);
+      toast.error("Failed to read backup file: " + err.message);
       e.target.value = "";
+    }
+  };
+
+  const handleConfirmRestore = async (mergeStrategy) => {
+    if (!previewBackupData) return;
+
+    setIsImporting(true);
+    try {
+      const { data } = await api.post("/api/chat/restore", {
+        backupData: previewBackupData,
+        mergeStrategy,
+      });
+
+      if (data && data.success) {
+        toast.success(data.message || "Backup restored successfully!");
+        setIsRestoreModalOpen(false);
+        setPreviewBackupData(null);
+        const fetchConversations = useChatStore.getState().fetchConversations;
+        if (fetchConversations) {
+          await fetchConversations();
+        }
+      } else {
+        toast.error(data?.message || "Failed to restore backup");
+      }
+    } catch (err) {
+      console.error("Restore error:", err);
+      toast.error("Failed to restore backup: " + (err.response?.data?.message || err.message));
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -533,6 +549,19 @@ const Setting = () => {
         </div>
       </div>
 
+      {/* Security & Sessions */}
+      <SectionLabel text="Security & Devices" />
+      <div
+        onClick={() => setIsSessionsModalOpen(true)}
+        className="cursor-pointer hover:bg-slate-100 dark:hover:bg-[#1a1a1a] transition-colors"
+      >
+        <SettingRow
+          label="Active login sessions"
+          value="Manage devices"
+          arrow={true}
+        />
+      </div>
+
       {/* Help */}
       <SectionLabel text="Help" />
       <SettingRow label="App version" value="1.0.0" arrow={false} />
@@ -552,6 +581,23 @@ const Setting = () => {
           Delete account
         </button>
       </div>
+
+      {/* Modals */}
+      <ActiveSessionsModal
+        isOpen={isSessionsModalOpen}
+        onClose={() => setIsSessionsModalOpen(false)}
+      />
+
+      <BackupPreviewModal
+        isOpen={isRestoreModalOpen}
+        onClose={() => {
+          setIsRestoreModalOpen(false);
+          setPreviewBackupData(null);
+        }}
+        backupData={previewBackupData}
+        onConfirmRestore={handleConfirmRestore}
+        isRestoring={isImporting}
+      />
     </div>
   );
 };

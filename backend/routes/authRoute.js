@@ -7,8 +7,9 @@ const router = express.Router();
 
 router.post('/send-otp', authController.sendOtp);
 router.post('/verify-otp', authController.verifyOtp);
-router.get('/logout', authController.logout);
-router.post('/logout', authController.logout);
+router.post('/refresh-token', authController.refreshAccessToken);
+router.get('/logout', authMiddleware, authController.logout);
+router.post('/logout', authMiddleware, authController.logout);
 router.get('/check-username/:username', authController.checkUsernameAvailability);
 
 // Protected routes

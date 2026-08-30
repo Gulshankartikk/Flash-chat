@@ -90,3 +90,164 @@ exports.searchUsers = async (req, res) => {
     return response(res, 500, "Internal server error");
   }
 };
+
+// ================= E2EE PUBLIC KEY MANAGEMENT =================
+
+exports.updatePublicKey = async (req, res) => {
+  const currentUserId = req.user.userId;
+  const { publicKey } = req.body;
+
+  if (!publicKey || typeof publicKey !== "string") {
+    return response(res, 400, "Valid publicKey string (JWK format) is required");
+  }
+
+  try {
+    const user = await User.findByIdAndUpdate(
+      currentUserId,
+      { publicKey },
+      { new: true }
+    ).select("_id username publicKey");
+
+    if (!user) {
+      return response(res, 404, "User not found");
+    }
+
+    return response(res, 200, "Public key updated successfully", {
+      userId: user._id,
+      publicKey: user.publicKey,
+    });
+  } catch (error) {
+    console.error("updatePublicKey error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+exports.getUserPublicKey = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const user = await User.findById(userId).select("_id username publicKey");
+    if (!user) {
+      return response(res, 404, "User not found");
+    }
+
+    return response(res, 200, "Public key fetched successfully", {
+      userId: user._id,
+      username: user.username,
+      publicKey: user.publicKey || null,
+    });
+  } catch (error) {
+    console.error("getUserPublicKey error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+exports.getBatchPublicKeys = async (req, res) => {
+  const { userIds } = req.body;
+
+  if (!Array.isArray(userIds) || userIds.length === 0) {
+    return response(res, 400, "userIds array is required");
+  }
+
+  try {
+    const users = await User.find({ _id: { $in: userIds } }).select("_id username publicKey");
+    const keyMap = {};
+    users.forEach((u) => {
+      keyMap[u._id.toString()] = {
+        userId: u._id,
+        username: u.username,
+        publicKey: u.publicKey || null,
+      };
+    });
+
+    return response(res, 200, "Batch public keys fetched successfully", keyMap);
+  } catch (error) {
+    console.error("getBatchPublicKeys error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+// ================= SESSION MANAGEMENT =================
+
+exports.getActiveSessions = async (req, res) => {
+  const currentUserId = req.user.userId;
+
+  try {
+    const user = await User.findById(currentUserId).select("activeSessions");
+    if (!user) return response(res, 404, "User not found");
+
+    return response(res, 200, "Active sessions fetched", user.activeSessions || []);
+  } catch (error) {
+    console.error("getActiveSessions error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+exports.revokeSession = async (req, res) => {
+  const currentUserId = req.user.userId;
+  const { sessionId } = req.params;
+
+  try {
+    const user = await User.findById(currentUserId);
+    if (!user) return response(res, 404, "User not found");
+
+    user.activeSessions = (user.activeSessions || []).filter(
+      (s) => s.sessionId !== sessionId
+    );
+    await user.save();
+
+    return response(res, 200, "Session revoked successfully");
+  } catch (error) {
+    console.error("revokeSession error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+exports.revokeAllOtherSessions = async (req, res) => {
+  const currentUserId = req.user.userId;
+  const currentSessionId = req.user.sessionId;
+
+  try {
+    const user = await User.findById(currentUserId);
+    if (!user) return response(res, 404, "User not found");
+
+    if (currentSessionId) {
+      user.activeSessions = (user.activeSessions || []).filter(
+        (s) => s.sessionId === currentSessionId
+      );
+    } else {
+      user.activeSessions = [];
+    }
+    await user.save();
+
+    return response(res, 200, "All other sessions revoked successfully");
+  } catch (error) {
+    console.error("revokeAllOtherSessions error:", error);
+    return response(res, 500, "Internal server error");
+  }
+};
+
+exports.getAIBotUser = async (req, res) => {
+  try {
+    let aiUser = await User.findOne({ isAIBot: true });
+    if (!aiUser) {
+      aiUser = await User.findOne({ email: "ai@flashchat.com" });
+    }
+    if (!aiUser) {
+      aiUser = await User.create({
+        username: "Flash AI",
+        email: "ai@flashchat.com",
+        about: "Your AI Chat Assistant. Ask me anything!",
+        isVerified: true,
+        isOnline: true,
+        isAIBot: true,
+        profilePicture: "https://robohash.org/flash-ai.png?set=set4",
+      });
+    }
+    return response(res, 200, "AI Bot fetched successfully", aiUser);
+  } catch (error) {
+    console.error("getAIBotUser error:", error);
+    return response(res, 500, "Failed to fetch AI bot");
+  }
+};
+

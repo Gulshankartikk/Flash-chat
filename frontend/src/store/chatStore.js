@@ -114,6 +114,14 @@ const useChatStore = create((set, get) => ({
     if (user) set({ currentUser: user });
     initializeSocket(user || get().currentUser);
 
+    // Initialize client-side E2EE keypair
+    const u = user || get().currentUser;
+    if (u?._id) {
+      import("../utils/crypto")
+        .then((m) => m.initializeUserE2EE(u._id))
+        .catch((err) => console.warn("E2EE key init error:", err));
+    }
+
     // Online / Offline
     onUserOnline(({ userId }) => {
       set((s) => ({
@@ -518,7 +526,12 @@ const useChatStore = create((set, get) => ({
       let messageToSend = message;
       if (shouldEncrypt) {
         const { encryptText } = await import("../utils/crypto");
-        messageToSend = await encryptText(message, activeConversation._id);
+        messageToSend = await encryptText(
+          message,
+          activeConversation._id,
+          receiverId,
+          get().currentUser?._id
+        );
       }
 
       const isGroup = activeConversation.conversationType === "group";

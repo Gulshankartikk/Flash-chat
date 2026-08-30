@@ -13,7 +13,6 @@ import useUserStore from "../store/useUserStore";
 import useLayoutStore from "../store/useLayoutStore";
 import useNotifications from "../hooks/useNotifications";
 import NotificationPanel from "./notifications/NotificationPanel";
-import { getAllUser } from "../services/user.service";
 import StatusDot from "./status/StatusDot";
 import { CallContext } from "../context/CallContext";
 import axiosInstance from "../services/url.services";
@@ -347,16 +346,55 @@ const HomePage = () => {
         {!isContactsView && !query && (
           <div
             onClick={async () => {
-              const aiContact = contacts.find(c => c._raw?.isAIBot || c.name === "Flash AI");
-              if (aiContact) {
-                handleStartChat(aiContact);
-              } else {
-                // If not found in contacts yet, we can try to find it dynamically from raw list
-                toast.info("Opening AI Assistant...");
-                // Fallback: search contacts or show info
-                const rawAI = contacts.find(c => c.name?.toLowerCase().includes("ai"));
-                if (rawAI) handleStartChat(rawAI);
-                else toast.error("AI Assistant not found. Please refresh.");
+              try {
+                // 1. Check if an active conversation with Flash AI already exists
+                const existingAIConv = conversations.find((c) =>
+                  c.participants?.some(
+                    (p) => p.isAIBot || p.email === "ai@flashchat.com" || p.username === "Flash AI"
+                  )
+                );
+
+                if (existingAIConv) {
+                  openConversation(existingAIConv);
+                  const aiParticipant =
+                    existingAIConv.participants?.find((p) => p._id !== currentUser?._id) || {
+                      username: "Flash AI",
+                      isAIBot: true,
+                      profilePicture: "https://robohash.org/flash-ai.png?set=set4",
+                      isOnline: true,
+                    };
+                  setSelectedContact({
+                    _id: existingAIConv._id,
+                    name: "Flash AI",
+                    profilePic: aiParticipant.profilePicture || "https://robohash.org/flash-ai.png?set=set4",
+                    isOnline: true,
+                    lastSeen: null,
+                    lastMessage: existingAIConv.lastMessage?.content || "",
+                    unreadCount: 0,
+                    _conv: existingAIConv,
+                    otherUser: aiParticipant,
+                  });
+                  return;
+                }
+
+                // 2. Fetch AI user directly from backend
+                const res = await axiosInstance.get("/users/ai-bot");
+                const aiUser = res?.data?.data;
+                if (aiUser) {
+                  handleStartChat({
+                    _id: aiUser._id,
+                    name: aiUser.username || "Flash AI",
+                    profilePic: aiUser.profilePicture || "https://robohash.org/flash-ai.png?set=set4",
+                    isOnline: true,
+                    lastSeen: null,
+                    _raw: aiUser,
+                  });
+                } else {
+                  toast.error("Could not load AI Assistant. Please check connection.");
+                }
+              } catch (err) {
+                console.error("AI open error:", err);
+                toast.error("Failed to connect to Flash AI");
               }
             }}
             className="flex items-center gap-3.5 px-4 py-3.5 bg-gradient-to-r from-[#FF6B00]/10 to-purple-500/10 hover:from-[#FF6B00]/15 hover:to-purple-500/15 cursor-pointer border-b border-slate-100 dark:border-[#222222] transition-all group"
@@ -381,7 +419,7 @@ const HomePage = () => {
           </div>
         )}
 
-        {(isLoading || (isContactsView && isLoadingContacts)) ? (
+        {isLoading ? (
           <div className="flex justify-center py-10">
             <div className="w-6 h-6 border-2 border-[#FF6B00] border-t-transparent rounded-full animate-spin" />
           </div>

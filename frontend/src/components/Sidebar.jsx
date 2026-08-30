@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import useThemeStore from "../store/useThemeStore";
 import useLayoutStore from "../store/useLayoutStore";
 import useUserStore from "../store/useUserStore";
+import useChatStore from "../store/chatStore";
 
 const NAV_ITEMS = [
   { id: "chats", label: "Chats", icon: MessageCircle, path: "/" },
@@ -27,6 +28,7 @@ const Sidebar = () => {
 
   const currentUser = useUserStore((state) => state.user);
   const logout = useUserStore((state) => state.logout);
+  const pendingRequests = useChatStore((s) => s.pendingRequests);
 
   const isMobileWidth = window.innerWidth < 768;
 
@@ -95,6 +97,7 @@ const Sidebar = () => {
         {NAV_ITEMS.map((item) => {
           const isActive = activeView === item.id;
           const Icon = item.icon;
+          const badge = item.id === "contacts" ? pendingRequests.length : 0;
           return (
             <button
               key={item.id}
@@ -107,6 +110,12 @@ const Sidebar = () => {
               title={item.label}
             >
               <Icon size={20} />
+              {/* Pending requests badge on Contacts icon */}
+              {badge > 0 && (
+                <span className="absolute top-1.5 right-1.5 min-w-[14px] h-3.5 rounded-full bg-[#FF6B00] text-white text-[8px] font-black flex items-center justify-center px-0.5 shadow-md shadow-[#FF6B00]/40 animate-pulse">
+                  {badge > 99 ? "99+" : badge}
+                </span>
+              )}
               {/* Active bar (desktop: left edge indicator, mobile: small bottom dot) */}
               {isActive && !isMobileWidth && (
                 <span className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-[#FF6B00] rounded-r-full shadow-[0_0_8px_#FF6B00]" />

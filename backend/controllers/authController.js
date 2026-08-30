@@ -3,7 +3,8 @@ const sendOtpToEmail = require("../services/emailService");
 const otpGenerate = require("../utils/otpGenerater");
 const response = require("../utils/responseHandler");
 const twilioService = require("../services/twilloService");
-const generateToken = require("../utils/generateToken");
+const crypto = require("crypto");
+const { generateAccessToken, generateRefreshToken } = require("../utils/generateToken");
 const { uploadFileToCloudinary } = require("../config/cloudinaryConfig");
 const Conversation = require("../models/Conversation");
 const jwt = require("jsonwebtoken");
@@ -104,28 +105,124 @@ const verifyOtp = async (req, res) => {
       await user.save();
     }
 
-    const token = generateToken(user._id);
+    const sessionId = crypto.randomUUID();
+    const accessToken = generateAccessToken(user._id, sessionId);
+    const refreshToken = generateRefreshToken(user._id, sessionId);
 
-    // ✅ Added secure + sameSite for production safety
-    res.cookie("auth_token", token, {
+    // Track active session
+    const device = req.headers["user-agent"] || "Unknown Device";
+    const ip = req.ip || req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+
+    if (!user.activeSessions) user.activeSessions = [];
+    user.activeSessions.push({
+      sessionId,
+      refreshToken,
+      device,
+      ip,
+      lastActive: new Date(),
+    });
+    // Keep max 10 active sessions
+    if (user.activeSessions.length > 10) {
+      user.activeSessions = user.activeSessions.slice(-10);
+    }
+    await user.save();
+
+    // Short-lived access token cookie (15 minutes)
+    res.cookie("auth_token", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
-      maxAge: 1000 * 60 * 60 * 24 * 365,
+      maxAge: 15 * 60 * 1000, // 15m
     });
 
-    // ✅ Tells the frontend whether this person already finished profile
-    // setup (returning user → go straight into the app) or hasn't set a
-    // username yet (first-time → still needs the profile-setup step).
-    // Without this, every login — new or returning — was being routed
-    // back through "set up your profile", overwriting the user's
-    // existing username/photo on every sign-in.
+    // Long-lived rotating refresh token cookie (7 days)
+    res.cookie("refresh_token", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/api/auth",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7d
+    });
+
     const isNewUser = !user.username;
 
-    return response(res, 200, "OTP verified successfully", { token, user, isNewUser });
+    return response(res, 200, "OTP verified successfully", {
+      token: accessToken,
+      user,
+      isNewUser,
+      sessionId,
+    });
   } catch (error) {
     console.error("verifyOtp error:", error);
     return response(res, 500, error.message || "Internal server error");
+  }
+};
+
+// REFRESH TOKEN ROTATION
+const refreshAccessToken = async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.refresh_token;
+    if (!refreshToken) {
+      return response(res, 401, "Refresh token missing");
+    }
+
+    const secret = process.env.REFRESH_TOKEN_SECRET || process.env.JWT_SECRET + "_refresh";
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, secret);
+    } catch (err) {
+      res.clearCookie("auth_token");
+      res.clearCookie("refresh_token", { path: "/api/auth" });
+      return response(res, 401, "Invalid or expired refresh token");
+    }
+
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return response(res, 401, "User not found");
+    }
+
+    // Check if session exists in DB
+    const sessionIndex = (user.activeSessions || []).findIndex(
+      (s) => s.sessionId === decoded.sessionId
+    );
+
+    if (sessionIndex === -1) {
+      res.clearCookie("auth_token");
+      res.clearCookie("refresh_token", { path: "/api/auth" });
+      return response(res, 401, "Session has been revoked");
+    }
+
+    // Rotate tokens
+    const newSessionId = decoded.sessionId;
+    const newAccessToken = generateAccessToken(user._id, newSessionId);
+    const newRefreshToken = generateRefreshToken(user._id, newSessionId);
+
+    user.activeSessions[sessionIndex].refreshToken = newRefreshToken;
+    user.activeSessions[sessionIndex].lastActive = new Date();
+    await user.save();
+
+    res.cookie("auth_token", newAccessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.cookie("refresh_token", newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/api/auth",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return response(res, 200, "Token refreshed successfully", {
+      token: newAccessToken,
+      user,
+    });
+  } catch (error) {
+    console.error("refreshAccessToken error:", error);
+    return response(res, 500, "Internal server error");
   }
 };
 
@@ -153,9 +250,6 @@ const updateProfile = async (req, res) => {
     await cache.del(`user:${userId}`);
     return response(res, 200, "Profile updated successfully", user);
   } catch (error) {
-    // Duplicate key on the unique username index — most likely two
-    // requests racing for the same name after both passed the
-    // client-side availability check.
     if (error.code === 11000 && error.keyPattern?.username) {
       return response(res, 409, "That username is already taken. Please choose another.");
     }
@@ -165,12 +259,27 @@ const updateProfile = async (req, res) => {
 };
 
 // LOGOUT
-const logout = (req, res) => {
+const logout = async (req, res) => {
   try {
+    const sessionId = req.user?.sessionId;
+    const userId = req.user?.userId;
+
+    if (userId && sessionId) {
+      await User.findByIdAndUpdate(userId, {
+        $pull: { activeSessions: { sessionId } },
+      });
+    }
+
     res.clearCookie("auth_token", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "strict",
+    });
+    res.clearCookie("refresh_token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path: "/api/auth",
     });
     return response(res, 200, "Logged out successfully");
   } catch (error) {
@@ -453,6 +562,7 @@ const updatePrivacySettings = async (req, res) => {
 module.exports = {
   sendOtp,
   verifyOtp,
+  refreshAccessToken,
   updateProfile,
   logout,
   checkAuthenticated,

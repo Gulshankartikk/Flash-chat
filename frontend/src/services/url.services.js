@@ -19,24 +19,68 @@ export const setUnauthorizedHandler = (handler) => {
   onUnauthorized = handler;
 };
 
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 axiosInstance.interceptors.response.use(
   (response) => response,
-  (error) => {
-    // Network down / CORS / server unreachable — axios gives no
-    // `error.response` in this case, so surface a clear message instead
-    // of letting callers dereference `err.response.data.message` on
-    // `undefined` and crash.
+  async (error) => {
+    const originalRequest = error.config;
+
     if (!error.response) {
       error.message = "Network error — check your connection and try again.";
       return Promise.reject(error);
     }
 
-    if (error.response.status === 401 && onUnauthorized) {
+    const isAuthEndpoint =
+      originalRequest.url?.includes("/auth/refresh-token") ||
+      originalRequest.url?.includes("/auth/verify-otp") ||
+      originalRequest.url?.includes("/auth/send-otp");
+
+    if (error.response.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        })
+          .then(() => axiosInstance(originalRequest))
+          .catch((err) => Promise.reject(err));
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        await axiosInstance.post("/auth/refresh-token");
+        processQueue(null);
+        return axiosInstance(originalRequest);
+      } catch (refreshErr) {
+        processQueue(refreshErr, null);
+        if (onUnauthorized) {
+          onUnauthorized();
+        }
+        return Promise.reject(refreshErr);
+      } finally {
+        isRefreshing = false;
+      }
+    }
+
+    if (error.response.status === 401 && isAuthEndpoint && onUnauthorized) {
       onUnauthorized();
     }
 
     return Promise.reject(error);
-  },
+  }
 );
 
-export default axiosInstance;
+export default axiosInstance;

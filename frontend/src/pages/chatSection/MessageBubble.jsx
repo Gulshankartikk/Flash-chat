@@ -42,15 +42,23 @@ const MessageBubble = ({
     let active = true;
     const performDecryption = async () => {
       const rawText = msg.message || msg.content || "";
-      if (rawText.startsWith("e2ee:")) {
-        const { decryptText } = await import("../../utils/crypto");
-        const decrypted = await decryptText(rawText, msg.conversationId || msg.conversation?._id || msg.conversation);
-        if (active) {
-          setDecryptedContent(decrypted);
+      if (rawText) {
+        try {
+          const { decryptText } = await import("../../utils/crypto");
+          const senderId = msg.sender?._id || msg.sender;
+          const convId = msg.conversationId || msg.conversation?._id || msg.conversation;
+          const decrypted = await decryptText(rawText, convId, senderId, currentUserId);
+          if (active) {
+            setDecryptedContent(decrypted);
+          }
+        } catch (e) {
+          if (active) {
+            setDecryptedContent(rawText);
+          }
         }
       } else {
         if (active) {
-          setDecryptedContent(rawText);
+          setDecryptedContent("");
         }
       }
     };
@@ -58,7 +66,7 @@ const MessageBubble = ({
     return () => {
       active = false;
     };
-  }, [msg.message, msg.content, msg.conversationId, msg.conversation]);
+  }, [msg.message, msg.content, msg.conversationId, msg.conversation, msg.sender, currentUserId]);
 
   const isMine = !!msg.isMine;
   const isFailed = msg.status === "failed";

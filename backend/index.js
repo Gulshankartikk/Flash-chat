@@ -126,6 +126,28 @@ app.use('/api/users', userRoute);
 app.use('/api/contacts', contactRoute);
 app.use('/api/conversations', conversationRoute);
 
+// System Health Check Endpoint
+const mongoose = require('mongoose');
+app.get('/api/health', (req, res) => {
+    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    const memoryUsage = process.memoryUsage();
+    return res.status(200).json({
+        status: 'healthy',
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+        database: dbStatus,
+        memory: {
+            heapUsedMB: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+            heapTotalMB: Math.round(memoryUsage.heapTotal / 1024 / 1024),
+            rssMB: Math.round(memoryUsage.rss / 1024 / 1024),
+        },
+        services: {
+            e2ee: 'active (ECDH P-256 / AES-GCM)',
+            ai: process.env.GEMINI_API_KEY ? 'gemini-flash' : 'local-fallback',
+        }
+    });
+});
+
 const authMiddleware = require('./middleware/authMiddleware');
 const authController = require('./controllers/authController');
 app.patch('/api/users/:id/status', authMiddleware, authController.updateUserStatus);

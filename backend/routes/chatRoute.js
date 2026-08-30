@@ -104,4 +104,16 @@ router.put(
   chatController.updateGroupInfo
 );
 
-module.exports = router;
+router.post(
+  "/ai/summarize",
+  authMiddleware,
+  chatController.summarizeChatMessages
+);
+
+router.post(
+  "/ai/rewrite",
+  authMiddleware,
+  chatController.rewriteMessageDraft
+);
+
+module.exports = router;

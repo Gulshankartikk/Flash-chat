@@ -13,9 +13,8 @@ import StatusDot from "../status/StatusDot";
 // ─── Avatar helper ───────────────────────────────────────────────────────────
 
 const Avatar = ({ src, name, size = 11, online }) => {
-  const sizeClass = `w-${size} h-${size}`;
   return (
-    <div className={`relative flex-shrink-0`} style={{ width: size * 4, height: size * 4 }}>
+    <div className="relative flex-shrink-0" style={{ width: size * 4, height: size * 4 }}>
       {src ? (
         <img
           src={src}
@@ -52,6 +51,7 @@ const ContactsTab = ({ onStartChat }) => {
 
   useEffect(() => {
     fetchContacts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = contactsList.filter((c) =>
@@ -169,6 +169,7 @@ const RequestsTab = () => {
 
   useEffect(() => {
     fetchPendingRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAccept = async (r) => {
@@ -423,6 +424,7 @@ const ContactsPanel = () => {
   useEffect(() => {
     fetchContacts();
     fetchPendingRequests();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleStartChat = useCallback(async (contactRecord) => {

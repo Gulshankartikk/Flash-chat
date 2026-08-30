@@ -104,6 +104,12 @@ const messageSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// High performance compound indexes for fast message fetching and ordering
+messageSchema.index({ conversation: 1, createdAt: -1 });
+messageSchema.index({ sender: 1, createdAt: -1 });
+messageSchema.index({ receiver: 1, messageStatus: 1 });
+messageSchema.index({ conversation: 1, isPinned: 1 });
+
 module.exports =
   mongoose.models.Message ||
-  mongoose.model("Message", messageSchema);
+  mongoose.model("Message", messageSchema);

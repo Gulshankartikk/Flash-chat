@@ -107,6 +107,114 @@ function getLocalResponse(message) {
   return `🤖 I'm here! You said: *"${message}"*\n\nSince I'm currently running in **local offline mode**, I have limited understanding. To enable my advanced reasoning, please add a \`GEMINI_API_KEY\` to your backend \`.env\` file. How else can I assist you?`;
 }
 
+// In-memory rate limiting for AI endpoint (max 20 calls per min per user)
+const userRateLimits = new Map();
+
+function checkRateLimit(userId) {
+  const now = Date.now();
+  const windowMs = 60 * 1000;
+  const userTimestamps = userRateLimits.get(String(userId)) || [];
+  const validTimestamps = userTimestamps.filter((t) => now - t < windowMs);
+
+  if (validTimestamps.length >= 20) {
+    return false;
+  }
+
+  validTimestamps.push(now);
+  userRateLimits.set(String(userId), validTimestamps);
+  return true;
+}
+
+/**
+ * Summarizes recent conversation history using Gemini AI.
+ */
+async function summarizeChat(messages = [], userId) {
+  if (userId && !checkRateLimit(userId)) {
+    throw new Error("AI rate limit exceeded. Please wait a minute before requesting another summary.");
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  const chatText = messages
+    .slice(-30)
+    .map((m) => `${m.sender?.username || "User"}: ${m.content || ""}`)
+    .join("\n");
+
+  if (apiKey) {
+    try {
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: `Summarize the following chat conversation concisely with bullet points and action items if any:\n\n${chatText}`,
+                  },
+                ],
+              },
+            ],
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const summary = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (summary) return summary.trim();
+      }
+    } catch (err) {
+      console.error("Gemini summarize error:", err);
+    }
+  }
+
+  // Fallback summary
+  return `📌 **Conversation Summary** (${messages.length} messages analyzed):\n- Recent discussion involved ${messages.length} messages.\n- Key participants: ${[...new Set(messages.map((m) => m.sender?.username || "User"))].join(", ")}.`;
+}
+
+/**
+ * Rewrites or translates a drafted message into a target style/language.
+ */
+async function rewriteMessage(text, style = "professional", userId) {
+  if (userId && !checkRateLimit(userId)) {
+    throw new Error("AI rate limit exceeded. Please wait a minute.");
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey) {
+    try {
+      const prompt = `Rewrite the following draft text to be ${style}. Keep the core meaning but adapt the tone or language accurately. Return ONLY the rewritten text without quotation marks or explanations:\n\n"${text}"`;
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+          }),
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        const result = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (result) return result.trim();
+      }
+    } catch (err) {
+      console.error("Gemini rewrite error:", err);
+    }
+  }
+
+  return text; // Fallback to original text
+}
+
 module.exports = {
-  generateAIResponse
+  generateAIResponse,
+  summarizeChat,
+  rewriteMessage,
+  checkRateLimit,
 };
+

@@ -10,6 +10,7 @@ import Layout from './components/Layout';
 import UserDetail from './components/UserDetail';
 import Status from './pages/StatusSection/Status';
 import Setting from './pages/SettingSection/Setting';
+import JoinGroup from './pages/JoinGroup';
 import useUserStore from './store/useUserStore';
 import useChatStore from './store/chatStore';
 import useThemeStore from './store/useThemeStore';
@@ -125,6 +126,7 @@ function App() {
                 </Layout>
               }
             />
+            <Route path="/join/:inviteCode" element={<JoinGroup />} />
           </Route>
 
           {/* Fallback */}

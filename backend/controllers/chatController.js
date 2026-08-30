@@ -370,7 +370,7 @@ exports.exportBackup = async (req, res) => {
 exports.importBackup = async (req, res) => {
   try {
     const userId = req.user.userId;
-    const { backupData } = req.body;
+    const { backupData, mergeStrategy = "merge" } = req.body;
 
     if (!backupData || !Array.isArray(backupData.conversations) || !Array.isArray(backupData.messages)) {
       return response(res, 400, "Invalid backup data format");
@@ -444,6 +444,12 @@ exports.importBackup = async (req, res) => {
       }
 
       conversationIdMap[oldConv._id] = existingConv._id.toString();
+    }
+
+    // If overwrite strategy requested, purge existing messages in these conversations
+    if (mergeStrategy === "overwrite") {
+      const targetConvIds = Object.values(conversationIdMap);
+      await Message.deleteMany({ conversation: { $in: targetConvIds } });
     }
 
     // 2. Restore messages
@@ -1278,3 +1284,49 @@ exports.updateGroupInfo = async (req, res) => {
     return response(res, 500, "Internal server error");
   }
 };
+
+// ================= AI ASSISTANT EXTENSIONS =================
+
+const { summarizeChat, rewriteMessage } = require("../services/aiService");
+
+exports.summarizeChatMessages = async (req, res) => {
+  const { conversationId } = req.body;
+  const userId = req.user.userId;
+
+  try {
+    const messages = await Message.find({
+      conversation: conversationId,
+      isDeletedForEveryone: false,
+    })
+      .sort({ createdAt: -1 })
+      .limit(30)
+      .populate("sender", "username");
+
+    if (!messages || messages.length === 0) {
+      return response(res, 400, "No messages available to summarize in this conversation");
+    }
+
+    const summary = await summarizeChat(messages.reverse(), userId);
+    return response(res, 200, "Summary generated successfully", { summary });
+  } catch (error) {
+    console.error("summarizeChatMessages error:", error);
+    return response(res, 500, error.message || "Failed to generate AI summary");
+  }
+};
+
+exports.rewriteMessageDraft = async (req, res) => {
+  const { text, style } = req.body;
+  const userId = req.user.userId;
+
+  if (!text || !text.trim()) {
+    return response(res, 400, "Text is required to rewrite");
+  }
+
+  try {
+    const rewritten = await rewriteMessage(text.trim(), style || "professional", userId);
+    return response(res, 200, "Text rewritten successfully", { rewritten });
+  } catch (error) {
+    console.error("rewriteMessageDraft error:", error);
+    return response(res, 500, error.message || "Failed to rewrite message");
+  }
+};

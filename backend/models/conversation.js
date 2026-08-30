@@ -77,6 +77,19 @@ const conversationSchema = new mongoose.Schema(
         ref: "User",
       },
     ],
+
+    // Group invite link unique token
+    inviteCode: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+
+    // Group permission: allow only admins to send messages
+    onlyAdminsCanMessage: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
@@ -94,6 +107,8 @@ conversationSchema.index(
   }
 );
 
+conversationSchema.index({ participants: 1, updatedAt: -1 });
+
 module.exports =
   mongoose.models.Conversation ||
-  mongoose.model("Conversation", conversationSchema);
+  mongoose.model("Conversation", conversationSchema);

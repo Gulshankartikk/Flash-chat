@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Paperclip, Smile, Send, X, File, Video } from "lucide-react";
+import { Paperclip, Smile, Send, X, File, Video, Mic } from "lucide-react";
 import ReplyPreview from "./ReplyPreview";
+import VoiceRecorder from "./VoiceRecorder";
 
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 const MAX_MESSAGE_LENGTH = 4000; // adjust to match your backend's content limit
@@ -35,12 +36,24 @@ const ChatInput = ({
   const [fileType, setFileType] = useState("text"); // "text" | "image" | "video" | "audio" | "document"
   const [fileError, setFileError] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
 
   const fileInputRef = useRef(null);
   const textInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const emojiButtonRef = useRef(null);
+
+  const handleSendVoice = (audioFile, duration) => {
+    setIsRecordingVoice(false);
+    if (onSend) {
+      onSend({
+        message: "",
+        messageType: "audio",
+        mediaFile: audioFile,
+      });
+    }
+  };
 
   // Stop the "typing..." indicator from getting stuck if the component
   // unmounts (e.g. user navigates away) while a timeout is still pending.
@@ -241,90 +254,110 @@ const ChatInput = ({
         </div>
       )}
 
-      {/* Main Input Row */}
-      <div className="relative flex items-center gap-3 p-3">
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          className="hidden"
-        />
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="p-2 hover:bg-slate-200 dark:hover:bg-[#1c1c1c] rounded-full text-slate-400 dark:text-[#A0A0A0] hover:text-[#FF6B00] transition-colors"
-          title="Attach File"
-          aria-label="Attach file"
-        >
-          <Paperclip size={20} />
-        </button>
-
-        <button
-          ref={emojiButtonRef}
-          onClick={() => setShowEmojiPicker((prev) => !prev)}
-          className={`p-2 hover:bg-slate-200 dark:hover:bg-[#1c1c1c] rounded-full transition-colors ${
-            showEmojiPicker
-              ? "text-[#FF9E00] bg-slate-200 dark:bg-[#1c1c1c]"
-              : "text-slate-400 dark:text-[#A0A0A0] hover:text-[#FF9E00]"
-          }`}
-          title="Emojis"
-          aria-label="Open emoji picker"
-          aria-expanded={showEmojiPicker}
-        >
-          <Smile size={20} />
-        </button>
-
-        {showEmojiPicker && (
-          <div
-            ref={emojiPickerRef}
-            role="dialog"
-            aria-label="Emoji picker"
-            className="absolute bottom-full left-3 mb-2 grid grid-cols-8 gap-1 p-2 bg-white dark:bg-[#1c1c1c] border border-slate-200 dark:border-[#222222] rounded-xl shadow-lg z-20"
-          >
-            {EMOJI_OPTIONS.map((emoji) => (
-              <button
-                key={emoji}
-                onClick={() => handleEmojiSelect(emoji)}
-                className="text-xl p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#2a2a2a] transition-colors"
-                aria-label={`Insert ${emoji}`}
-              >
-                {emoji}
-              </button>
-            ))}
-          </div>
-        )}
-
-        <div className="flex-1 flex flex-col">
-          <input
-            ref={textInputRef}
-            type="text"
-            value={draft}
-            onChange={handleTextChange}
-            onKeyDown={handleKeyDown}
-            placeholder={selectedFile ? "Add a caption..." : "Type a message..."}
-            aria-label="Message"
-            maxLength={MAX_MESSAGE_LENGTH + 100} // small buffer; isOverLimit drives the real block
-            className={`px-4 py-2.5 rounded-full bg-white dark:bg-[#1c1c1c] text-slate-800 dark:text-[#FFFFFF] placeholder-slate-400 dark:placeholder-[#555555] border text-sm transition-colors focus:outline-none ${
-              isOverLimit
-                ? "border-red-400 focus:border-red-500"
-                : "border-slate-200 dark:border-[#222222] focus:border-[#FF6B00]"
-            }`}
+      {/* Voice Recorder or Main Input Row */}
+      {isRecordingVoice ? (
+        <div className="p-3">
+          <VoiceRecorder
+            onSendVoice={handleSendVoice}
+            onCancel={() => setIsRecordingVoice(false)}
           />
-          {isOverLimit && (
-            <span className="text-[10px] text-red-500 mt-1 ml-2">
-              {draft.length}/{MAX_MESSAGE_LENGTH} — message is too long
-            </span>
+        </div>
+      ) : (
+        <div className="relative flex items-center gap-3 p-3">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2 hover:bg-slate-200 dark:hover:bg-[#1c1c1c] rounded-full text-slate-400 dark:text-[#A0A0A0] hover:text-[#FF6B00] transition-colors"
+            title="Attach File"
+            aria-label="Attach file"
+          >
+            <Paperclip size={20} />
+          </button>
+
+          <button
+            ref={emojiButtonRef}
+            onClick={() => setShowEmojiPicker((prev) => !prev)}
+            className={`p-2 hover:bg-slate-200 dark:hover:bg-[#1c1c1c] rounded-full transition-colors ${
+              showEmojiPicker
+                ? "text-[#FF9E00] bg-slate-200 dark:bg-[#1c1c1c]"
+                : "text-slate-400 dark:text-[#A0A0A0] hover:text-[#FF9E00]"
+            }`}
+            title="Emojis"
+            aria-label="Open emoji picker"
+            aria-expanded={showEmojiPicker}
+          >
+            <Smile size={20} />
+          </button>
+
+          {showEmojiPicker && (
+            <div
+              ref={emojiPickerRef}
+              role="dialog"
+              aria-label="Emoji picker"
+              className="absolute bottom-full left-3 mb-2 grid grid-cols-8 gap-1 p-2 bg-white dark:bg-[#1c1c1c] border border-slate-200 dark:border-[#222222] rounded-xl shadow-lg z-20"
+            >
+              {EMOJI_OPTIONS.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => handleEmojiSelect(emoji)}
+                  className="text-xl p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-[#2a2a2a] transition-colors"
+                  aria-label={`Insert ${emoji}`}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="flex-1 flex flex-col">
+            <input
+              ref={textInputRef}
+              type="text"
+              value={draft}
+              onChange={handleTextChange}
+              onKeyDown={handleKeyDown}
+              placeholder={selectedFile ? "Add a caption..." : "Type a message..."}
+              aria-label="Message"
+              maxLength={MAX_MESSAGE_LENGTH + 100} // small buffer; isOverLimit drives the real block
+              className={`px-4 py-2.5 rounded-full bg-white dark:bg-[#1c1c1c] text-slate-800 dark:text-[#FFFFFF] placeholder-slate-400 dark:placeholder-[#555555] border text-sm transition-colors focus:outline-none ${
+                isOverLimit
+                  ? "border-red-400 focus:border-red-500"
+                  : "border-slate-200 dark:border-[#222222] focus:border-[#FF6B00]"
+              }`}
+            />
+            {isOverLimit && (
+              <span className="text-[10px] text-red-500 mt-1 ml-2">
+                {draft.length}/{MAX_MESSAGE_LENGTH} — message is too long
+              </span>
+            )}
+          </div>
+
+          {draft.trim() || selectedFile ? (
+            <button
+              onClick={handleSendClick}
+              disabled={isOverLimit}
+              aria-label="Send message"
+              className="p-2.5 bg-[#FF6B00] hover:bg-[#E05E00] text-white rounded-full transition-colors flex-shrink-0 shadow-md shadow-[#FF6B00]/20"
+            >
+              <Send size={16} />
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsRecordingVoice(true)}
+              aria-label="Record voice message"
+              title="Record voice message"
+              className="p-2.5 bg-[#FF6B00]/10 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white rounded-full transition-all flex-shrink-0"
+            >
+              <Mic size={18} />
+            </button>
           )}
         </div>
-
-        <button
-          onClick={handleSendClick}
-          disabled={(!draft.trim() && !selectedFile) || isOverLimit}
-          aria-label="Send message"
-          className="p-2.5 bg-[#FF6B00] hover:bg-[#E05E00] disabled:bg-slate-100 dark:disabled:bg-[#1c1c1c] text-white disabled:text-slate-400 dark:disabled:text-[#555555] rounded-full transition-colors flex-shrink-0"
-        >
-          <Send size={16} />
-        </button>
-      </div>
+      )}
     </div>
   );
 };

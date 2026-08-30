@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "react-toastify";
+import AudioPlayer from "./AudioPlayer";
 
 const QUICK_REACTIONS = ["❤️", "😂", "👍", "😮", "😢", "🔥"];
 
@@ -138,17 +139,26 @@ const MessageBubble = ({
     let active = true;
     const performDecryption = async () => {
       const rawText = msg.content || msg.message || "";
-      if (rawText.startsWith("e2ee:")) {
-        const { decryptText } = await import("../../utils/crypto");
-        const decrypted = await decryptText(rawText, msg.conversationId || msg.conversation?._id || msg.conversation);
-        if (active) {
-          setDecryptedContent(decrypted);
-          setEditText(decrypted);
+      if (rawText) {
+        try {
+          const { decryptText } = await import("../../utils/crypto");
+          const senderId = msg.sender?._id || msg.sender;
+          const convId = msg.conversationId || msg.conversation?._id || msg.conversation;
+          const decrypted = await decryptText(rawText, convId, senderId, currentUserId);
+          if (active) {
+            setDecryptedContent(decrypted);
+            setEditText(decrypted);
+          }
+        } catch (e) {
+          if (active) {
+            setDecryptedContent(rawText);
+            setEditText(rawText);
+          }
         }
       } else {
         if (active) {
-          setDecryptedContent(rawText);
-          setEditText(rawText);
+          setDecryptedContent("");
+          setEditText("");
         }
       }
     };
@@ -156,7 +166,7 @@ const MessageBubble = ({
     return () => {
       active = false;
     };
-  }, [msg.content, msg.message, msg.conversationId, msg.conversation]);
+  }, [msg.content, msg.message, msg.conversationId, msg.conversation, msg.sender, currentUserId]);
 
   const pickerRef = useRef(null);
   const menuRef = useRef(null);
@@ -392,9 +402,8 @@ const MessageBubble = ({
               )}
 
               {isAudio && msg.imageOrVideoUrl && (
-                <div className="rounded p-2 mb-2 max-w-xs bg-black/30 flex items-center gap-2">
-                  <span className="text-lg">🎵</span>
-                  <audio src={msg.imageOrVideoUrl} controls className="w-full h-8" />
+                <div className="mb-2">
+                  <AudioPlayer src={msg.imageOrVideoUrl} isMine={isMine} />
                 </div>
               )}
 

@@ -236,6 +236,7 @@ const ChatWindow = ({ selectedContact, setSelectedContact, isMobile }) => {
     <div className="h-full flex flex-col bg-white dark:bg-[#000000] text-slate-800 dark:text-[#FFFFFF] font-sans relative">
       <ChatHeader
         otherUser={otherUser}
+        conversation={activeConversation}
         isMobile={isMobile}
         onBack={() => setSelectedContact(null)}
         isTyping={isOtherTyping}
