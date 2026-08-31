@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import { ArrowLeft, Phone, Video, Search, MoreVertical, ShieldAlert, Link2, LogOut, Users, Sparkles } from "lucide-react";
+import { ArrowLeft, Phone, Video, Search, MoreVertical, ShieldAlert, Link2, LogOut, Users, Sparkles, Info } from "lucide-react";
 import StatusDot from "../status/StatusDot";
 import axiosInstance from "../../services/url.services";
 import AISummaryModal from "./AISummaryModal";
+import GroupInfoModal from "./GroupInfoModal";
+import useUserStore from "../../store/useUserStore";
 import { toast } from "react-toastify";
 
 const ChatHeader = ({
@@ -17,8 +19,10 @@ const ChatHeader = ({
   onBlockToggle,
   isBlocked,
 }) => {
+  const currentUser = useUserStore((s) => s.user);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
+  const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -83,7 +87,10 @@ const ChatHeader = ({
       )}
 
       {/* Profile Pic & Status Ring */}
-      <div className="relative">
+      <div
+        className={`relative ${isGroup ? "cursor-pointer" : ""}`}
+        onClick={() => isGroup && setIsGroupInfoOpen(true)}
+      >
         {avatar ? (
           <img
             src={avatar}
@@ -105,11 +112,14 @@ const ChatHeader = ({
       </div>
 
       {/* Name and status message */}
-      <div className="flex-1 text-left min-w-0">
+      <div
+        className={`flex-1 text-left min-w-0 ${isGroup ? "cursor-pointer" : ""}`}
+        onClick={() => isGroup && setIsGroupInfoOpen(true)}
+      >
         <h3 className="text-sm font-semibold text-slate-800 dark:text-[#FFFFFF] truncate">{name}</h3>
         <p className="text-[11px] text-slate-400 dark:text-[#A0A0A0] truncate font-medium">
           {isGroup ? (
-            `${participantCount} members`
+            `${participantCount} members • tap for info`
           ) : isTyping ? (
             <span className="text-[#FFD166] font-semibold">typing...</span>
           ) : isOnline ? (
@@ -181,6 +191,16 @@ const ChatHeader = ({
               {isGroup ? (
                 <>
                   <button
+                    onClick={() => {
+                      setIsGroupInfoOpen(true);
+                      setMenuOpen(false);
+                    }}
+                    className="flex items-center gap-2 px-3 py-2 text-xs text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-[#222222] transition-colors w-full"
+                  >
+                    <Info size={13} />
+                    Group Info & Members
+                  </button>
+                  <button
                     onClick={handleCopyInviteLink}
                     className="flex items-center gap-2 px-3 py-2 text-xs text-[#FF6B00] hover:bg-slate-50 dark:hover:bg-[#222222] transition-colors w-full"
                   >
@@ -219,6 +239,15 @@ const ChatHeader = ({
         onClose={() => setIsSummaryOpen(false)}
         conversationId={conversation?._id}
       />
+
+      {isGroup && (
+        <GroupInfoModal
+          isOpen={isGroupInfoOpen}
+          onClose={() => setIsGroupInfoOpen(false)}
+          conversation={conversation}
+          currentUser={currentUser}
+        />
+      )}
     </div>
   );
 };

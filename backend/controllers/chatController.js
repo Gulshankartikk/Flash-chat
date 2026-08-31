@@ -1037,7 +1037,7 @@ exports.pinMessage = async (req, res) => {
     console.error(error);
     return response(res, 500, "Internal server error");
   } finally {
-    session.endSession();
+    if (session) session.endSession();
   }
 };
 
