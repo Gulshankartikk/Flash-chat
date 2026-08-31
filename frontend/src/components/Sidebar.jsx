@@ -74,6 +74,8 @@ const Sidebar = () => {
             <img
               src={currentUser.profilePicture}
               alt=""
+              loading="lazy"
+              decoding="async"
               className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-[#222222]"
             />
           ) : (

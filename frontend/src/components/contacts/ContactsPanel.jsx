@@ -20,6 +20,8 @@ const Avatar = ({ src, name, size = 11, online }) => {
         <img
           src={src}
           alt={name}
+          loading="lazy"
+          decoding="async"
           style={{ width: size * 4, height: size * 4 }}
           className="rounded-full object-cover border border-slate-200 dark:border-[#222222]"
         />

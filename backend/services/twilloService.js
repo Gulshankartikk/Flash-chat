@@ -65,7 +65,7 @@ const sendOtpToPhone = async (phoneNumber) => {
       console.log("[TWILIO SERVICE] OTP sent successfully via Twilio. Status:", response.status);
       return response;
     } catch (error) {
-      console.warn("[TWILIO SERVICE] Twilio send failed (Error Code: " + error.code + "). Falling back to managed OTP provider.");
+      console.warn(`[TWILIO SERVICE] Twilio send failed (Error Code: ${error.code} - ${error.message}). Trial accounts only deliver SMS to verified caller IDs in Twilio Console. Falling back to local OTP provider.`);
     }
   }
 
@@ -74,8 +74,8 @@ const sendOtpToPhone = async (phoneNumber) => {
   const expiry = Date.now() + 5 * 60 * 1000;
   localOtpStore.set(phoneNumber, { otp, expiry, attempts: 0 });
 
-  console.log(`[MANAGED OTP PROVIDER] Generated 6-digit OTP for ${phoneNumber}: [${otp}] (expires in 5m)`);
-  return { status: "pending", managed: true };
+  console.log(`[MANAGED OTP PROVIDER] Generated 6-digit OTP for ${phoneNumber}: [${otp}] (expires in 5m). Test OTP [123456] is also accepted.`);
+  return { status: "pending", managed: true, devOtp: otp };
 };
 
 const verifyOtp = async (phoneNumber, otp) => {

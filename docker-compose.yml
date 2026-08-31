@@ -6,36 +6,68 @@ services:
     container_name: flash-chat-redis
     ports:
       - "6379:6379"
+    volumes:
+      - redis_data:/data
     restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   mongo:
     image: mongo:latest
     container_name: flash-chat-db
     ports:
       - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
     restart: always
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: flash-chat-backend
     ports:
       - "8000:8000"
     environment:
       - PORT=8000
-      - MONGO_URI=mongodb://mongo:27017/flash-chat
+      - NODE_ENV=production
+      - MONGO_URI=mongodb://mongo:27017/flashchat
       - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=your_jwt_secret_here
+      - JWT_SECRET=flash_chat_production_jwt_secret_key_32_chars
       - FRONTEND_URL=http://localhost:3000
+    env_file:
+      - ./backend/.env
     depends_on:
-      - redis
-      - mongo
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_API_URL=http://localhost:8000
     container_name: flash-chat-frontend
     ports:
       - "3000:80"
     depends_on:
       - backend
     restart: always
+
+volumes:
+  mongo_data:
+    driver: local
+  redis_data:
+    driver: local

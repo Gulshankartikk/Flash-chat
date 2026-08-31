@@ -41,11 +41,13 @@ const sendOtp = async (req, res) => {
         return response(res, 429, "Too many OTP requests. Please wait a few minutes before trying again.");
       }
 
-      await twilioService.sendOtpToPhone(fullPhoneNumber);
+      const twilioRes = await twilioService.sendOtpToPhone(fullPhoneNumber);
 
       return response(res, 200, "OTP sent successfully to your mobile number.", {
         phoneNumber: cleanPhone,
         phoneSuffix: cleanSuffix,
+        devOtp: process.env.NODE_ENV !== "production" ? twilioRes.devOtp : undefined,
+        isDevFallback: !!twilioRes.managed,
       });
     }
 

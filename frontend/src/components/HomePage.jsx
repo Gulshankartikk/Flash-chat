@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef, useContext } from "react";
-import ContactsPanel from "./contacts/ContactsPanel";
+import React, { useState, useEffect, useRef, useContext, useMemo, lazy, Suspense, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search, MoreVertical, MessageSquarePlus, X,
@@ -13,10 +12,13 @@ import useChatStore from "../store/chatStore";
 import useUserStore from "../store/useUserStore";
 import useLayoutStore from "../store/useLayoutStore";
 import useNotifications from "../hooks/useNotifications";
-import NotificationPanel from "./notifications/NotificationPanel";
 import StatusDot from "./status/StatusDot";
 import { CallContext } from "../context/CallContext";
 import axiosInstance from "../services/url.services";
+
+// Lazy load non-critical panels to keep initial bundle ultra small
+const ContactsPanel = lazy(() => import("./contacts/ContactsPanel"));
+const NotificationPanel = lazy(() => import("./notifications/NotificationPanel"));
 
 const formatPreviewTime = (value) => {
   if (!value) return "";
@@ -53,6 +55,92 @@ const StatusTick = ({ status }) => {
   return null;
 };
 
+// Memoized Conversation Row component
+const ConversationRow = memo(({ row, isSelected, isStarting, isContactsView, onChatClick, onStartChat }) => {
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={() =>
+        isContactsView ? onStartChat(row) : onChatClick(row)
+      }
+      className={`flex items-center gap-3.5 px-4 py-3.5 cursor-pointer transition-all border-b border-slate-100 dark:border-[#222222] ${
+        isSelected
+          ? "bg-slate-100/70 dark:bg-[#1c1c1c] border-l-4 border-l-[#FF6B00]"
+          : "hover:bg-slate-50/50 dark:hover:bg-[#111111]/60"
+      } ${isStarting ? "opacity-60 pointer-events-none" : ""}`}
+    >
+      {/* Avatar */}
+      <div className="relative flex-shrink-0">
+        {row.profilePic ? (
+          <img
+            src={row.profilePic}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="w-11 h-11 rounded-full object-cover border border-slate-200 dark:border-[#222222]"
+          />
+        ) : (
+          <div className="w-11 h-11 rounded-full bg-slate-100 dark:bg-[#1c1c1c] border border-slate-200 dark:border-[#222222] text-slate-700 dark:text-[#FFFFFF] flex items-center justify-center font-bold text-sm">
+            {row.name?.charAt(0).toUpperCase() || "?"}
+          </div>
+        )}
+        {(!row._conv || row._conv.conversationType !== "group") && (
+          <div className="absolute bottom-0 right-0">
+            <StatusDot isOnline={row.isOnline} size={10} />
+          </div>
+        )}
+      </div>
+
+      {/* Text detail */}
+      <div className="flex-1 text-left min-w-0">
+        <div className="flex justify-between items-baseline gap-1">
+          <h4 className="text-sm font-semibold text-slate-800 dark:text-[#FFFFFF] truncate">
+            {row.name}
+          </h4>
+          {!isContactsView && row.lastMessageTime && (
+            <span className="text-[10px] text-slate-400 dark:text-[#A0A0A0] flex-shrink-0">
+              {formatPreviewTime(row.lastMessageTime)}
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between gap-1 mt-0.5">
+          <div className="flex items-center gap-1 min-w-0 flex-1">
+            {!isContactsView && row.lastMessageMine && (
+              <StatusTick status={row.lastMessageStatus} />
+            )}
+            <p className="text-xs text-slate-400 dark:text-[#A0A0A0] truncate flex-1">
+              {isContactsView
+                ? (isStarting ? "Opening..." : "Tap to start chatting")
+                : (row.lastMessage || "No messages yet")}
+            </p>
+          </div>
+          {!row.isOnline && row.lastSeen && (
+            <span className="text-[9px] text-[#A0A0A0] flex-shrink-0 ml-1">
+              {formatLastSeen(row.lastSeen)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Unread badge */}
+      {!isContactsView && row.unreadCount > 0 && (
+        <span className="flex-shrink-0 min-w-[18px] h-[18px] rounded-full bg-[#FF9E00] text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-lg shadow-[#FF9E00]/20 animate-pulse">
+          {row.unreadCount > 99 ? "99+" : row.unreadCount}
+        </span>
+      )}
+
+      {/* Loading spinner while opening */}
+      {isStarting && (
+        <div className="w-4 h-4 border-2 border-[#FF6B00] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+      )}
+    </motion.div>
+  );
+});
+
 const HomePage = () => {
   const navigate = useNavigate();
   const { startCall } = useContext(CallContext);
@@ -71,7 +159,6 @@ const HomePage = () => {
   const setActiveView      = useLayoutStore((s) => s.setActiveView);
   const contacts           = useLayoutStore((s) => s.contacts);
   const setSelectedContact = useLayoutStore((s) => s.setSelectedContact);
-  // Real contacts list (accepted) from chatStore – used in group modal
   const contactsList       = useChatStore((s) => s.contactsList);
 
   // ── User store ──────────────────────────────────────────────────────────
@@ -84,20 +171,20 @@ const HomePage = () => {
     markAllAsRead, clearNotification,
   } = useNotifications();
 
-  const [query, setQuery]               = useState("");
+  const [query, setQuery]                         = useState("");
   const [startingChatId, setStartingChatId]       = useState(null);
-  const [menuOpen, setMenuOpen]         = useState(false);
+  const [menuOpen, setMenuOpen]                   = useState(false);
   const [notifPanelOpen, setNotifPanelOpen]       = useState(false);
   const menuRef = useRef(null);
 
   // Group creation state
   const [showNewGroupModal, setShowNewGroupModal] = useState(false);
-  const [groupName, setGroupName] = useState("");
-  const [selectedMembers, setSelectedMembers] = useState([]);
-  const [groupPhotoFile, setGroupPhotoFile] = useState(null);
+  const [groupName, setGroupName]                 = useState("");
+  const [selectedMembers, setSelectedMembers]     = useState([]);
+  const [groupPhotoFile, setGroupPhotoFile]       = useState(null);
   const [groupPhotoPreview, setGroupPhotoPreview] = useState("");
-  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
-  const [groupSearchQuery, setGroupSearchQuery] = useState("");
+  const [isCreatingGroup, setIsCreatingGroup]     = useState(false);
+  const [groupSearchQuery, setGroupSearchQuery]   = useState("");
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -112,54 +199,48 @@ const HomePage = () => {
   // Fetch conversations on mount
   useEffect(() => {
     fetchConversations();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Contacts are now managed by ContactsPanel / chatStore
+  }, [fetchConversations]);
 
   // ── Build chat rows from conversations ──────────────────────────────────
-  const chatRows = conversations.map((conv) => {
-    const isGroup = conv.conversationType === "group";
-    const other = isGroup ? null : conv.participants?.find((p) => p._id !== currentUser?._id);
-    return {
-      _id:               conv._id,
-      name:              isGroup ? conv.groupName : (other?.username || other?.name || "Unknown"),
-      profilePic:        isGroup ? (conv.groupPhoto || conv.groupAvatar || "") : (other?.profilePicture || ""),
-      isOnline:          isGroup ? false : (other?.isOnline || false),
-      lastSeen:          isGroup ? null : (other?.lastSeen || null),
-      lastMessage:       conv.lastMessage?.content || conv.lastMessage?.message || "",
-      lastMessageTime:   conv.updatedAt,
-      lastMessageMine:
-        conv.lastMessage?.sender === currentUser?._id ||
-        conv.lastMessage?.sender?._id === currentUser?._id,
-      lastMessageStatus: conv.lastMessage?.messageStatus || conv.lastMessage?.status || null,
-      unreadCount:       unreadCounts[conv._id] || 0,
-      _conv:             conv,
-      otherUser:         other,
-    };
-  });
+  const chatRows = useMemo(() => {
+    return conversations.map((conv) => {
+      const isGroup = conv.conversationType === "group";
+      const other = isGroup ? null : conv.participants?.find((p) => p._id !== currentUser?._id);
+      return {
+        _id:               conv._id,
+        name:              isGroup ? conv.groupName : (other?.username || other?.name || "Unknown"),
+        profilePic:        isGroup ? (conv.groupPhoto || conv.groupAvatar || "") : (other?.profilePicture || ""),
+        isOnline:          isGroup ? false : (other?.isOnline || false),
+        lastSeen:          isGroup ? null : (other?.lastSeen || null),
+        lastMessage:       conv.lastMessage?.content || conv.lastMessage?.message || "",
+        lastMessageTime:   conv.updatedAt,
+        lastMessageMine:
+          conv.lastMessage?.sender === currentUser?._id ||
+          conv.lastMessage?.sender?._id === currentUser?._id,
+        lastMessageStatus: conv.lastMessage?.messageStatus || conv.lastMessage?.status || null,
+        unreadCount:       unreadCounts[conv._id] || 0,
+        _conv:             conv,
+        otherUser:         other,
+      };
+    });
+  }, [conversations, currentUser?._id, unreadCounts]);
 
   // ── Handlers ────────────────────────────────────────────────────────────
-
-  // Click on an existing conversation row
   const handleChatClick = (row) => {
     openConversation(row._conv);
     setSelectedContact(row);
   };
 
-  // Click on a contact to start / reopen a chat
   const handleStartChat = async (contact) => {
     if (startingChatId) return;
     setStartingChatId(contact._id);
 
     try {
-      // Check if a real conversation already exists for this contact
       const existing = conversations.find((c) =>
         c.participants?.some((p) => p._id === contact._id)
       );
 
       if (existing) {
-        // Reopen the existing conversation
         openConversation(existing);
         const other = existing.participants?.find((p) => p._id !== currentUser?._id);
         setSelectedContact({
@@ -173,7 +254,6 @@ const HomePage = () => {
           otherUser:   other,
         });
       } else {
-        // ✅ BUG FIX: pass the full participant object, not just the id
         const participant = {
           _id:            contact._id,
           username:       contact.name,
@@ -211,17 +291,27 @@ const HomePage = () => {
   // ── Filtering ───────────────────────────────────────────────────────────
   const isContactsView = activeView === "contacts";
   const baseRows       = isContactsView ? contacts : chatRows;
-  const filteredRows   = baseRows.filter((c) =>
-    c.name?.toLowerCase().includes(query.toLowerCase())
-  );
+  const filteredRows   = useMemo(() => {
+    if (!query.trim()) return baseRows;
+    const lower = query.toLowerCase();
+    return baseRows.filter((c) => c.name?.toLowerCase().includes(lower));
+  }, [baseRows, query]);
 
   const activePeer = activeConversation?.participants?.find(
     (p) => p._id !== currentUser?._id
   );
 
-  // ── Short-circuit: delegate the entire contacts view to ContactsPanel ──
+  // ── Short-circuit: delegate contacts view to lazy ContactsPanel ──
   if (isContactsView) {
-    return <ContactsPanel />;
+    return (
+      <Suspense fallback={
+        <div className="h-full flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-slate-300 dark:border-[#222222] border-t-[#FF6B00] rounded-full animate-spin" />
+        </div>
+      }>
+        <ContactsPanel />
+      </Suspense>
+    );
   }
 
   return (
@@ -355,7 +445,6 @@ const HomePage = () => {
           <div
             onClick={async () => {
               try {
-                // 1. Check if an active conversation with Flash AI already exists
                 const existingAIConv = conversations.find((c) =>
                   c.participants?.some(
                     (p) => p.isAIBot || p.email === "ai@flashchat.com" || p.username === "Flash AI"
@@ -385,7 +474,6 @@ const HomePage = () => {
                   return;
                 }
 
-                // 2. Fetch AI user directly from backend
                 const res = await axiosInstance.get("/users/ai-bot");
                 const aiUser = res?.data?.data;
                 if (aiUser) {
@@ -398,45 +486,66 @@ const HomePage = () => {
                     _raw: aiUser,
                   });
                 } else {
-                  toast.error("Could not load AI Assistant. Please check connection.");
+                  handleStartChat({
+                    _id: "ai_bot_flash",
+                    name: "Flash AI",
+                    profilePic: "https://robohash.org/flash-ai.png?set=set4",
+                    isOnline: true,
+                    lastSeen: null,
+                    isAIBot: true,
+                  });
                 }
-              } catch (err) {
-                console.error("AI open error:", err);
-                toast.error("Failed to connect to Flash AI");
+              } catch (e) {
+                handleStartChat({
+                  _id: "ai_bot_flash",
+                  name: "Flash AI",
+                  profilePic: "https://robohash.org/flash-ai.png?set=set4",
+                  isOnline: true,
+                  lastSeen: null,
+                  isAIBot: true,
+                });
               }
             }}
-            className="flex items-center gap-3.5 px-4 py-3.5 bg-gradient-to-r from-[#FF6B00]/10 to-purple-500/10 hover:from-[#FF6B00]/15 hover:to-purple-500/15 cursor-pointer border-b border-slate-100 dark:border-[#222222] transition-all group"
+            className="flex items-center gap-3.5 px-4 py-3 cursor-pointer bg-gradient-to-r from-[#FF6B00]/10 via-[#FF9E00]/5 to-transparent hover:from-[#FF6B00]/15 hover:via-[#FF9E00]/10 transition-all border-b border-slate-100 dark:border-[#222222] group"
           >
-            <div className="relative flex-shrink-0 w-11 h-11 rounded-full bg-gradient-to-tr from-[#FF6B00] to-purple-500 text-white flex items-center justify-center font-bold text-lg shadow-md shadow-[#FF6B00]/10 group-hover:scale-105 transition-transform">
-              🤖
+            <div className="relative flex-shrink-0">
+              <div className="w-11 h-11 rounded-full bg-gradient-to-tr from-[#FF6B00] to-[#FFD166] flex items-center justify-center text-white shadow-md shadow-[#FF6B00]/20 group-hover:scale-105 transition-transform">
+                <span className="text-lg font-black tracking-wider">⚡</span>
+              </div>
+              <span className="absolute bottom-0 right-0 w-3 h-3 bg-[#00E676] border-2 border-white dark:border-[#000000] rounded-full" />
             </div>
-            <div className="flex-1 text-left">
-              <div className="flex items-center gap-1.5">
-                <h4 className="text-sm font-bold text-slate-800 dark:text-white">
-                  Flash AI Chatbot
+
+            <div className="flex-1 text-left min-w-0">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-1.5">
+                  Flash AI Assistant
+                  <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-[#FF6B00] text-white font-black tracking-wide uppercase">
+                    AI Bot
+                  </span>
                 </h4>
-                <span className="text-[8px] bg-gradient-to-r from-[#FF6B00] to-purple-500 text-white font-extrabold px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-                  AI Assistant
+                <span className="text-[10px] text-[#FF6B00] font-semibold group-hover:translate-x-0.5 transition-transform">
+                  Ask anything →
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 dark:text-[#A0A0A0] mt-0.5">
-                Ask questions, get help, or just have a conversation!
+              <p className="text-xs text-slate-500 dark:text-[#A0A0A0] truncate mt-0.5">
+                Instant smart chat, document analysis, summarization & answers
               </p>
             </div>
-            <span className="text-[#FF6B00] text-lg font-bold group-hover:translate-x-1 transition-transform">›</span>
           </div>
         )}
 
-        {isLoading ? (
-          <div className="flex justify-center py-10">
-            <div className="w-6 h-6 border-2 border-[#FF6B00] border-t-transparent rounded-full animate-spin" />
+        {isLoading && filteredRows.length === 0 ? (
+          <div className="p-8 text-center text-slate-400 dark:text-[#555555]">
+            <div className="w-6 h-6 border-2 border-[#FF6B00] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+            <p className="text-xs">Loading conversations...</p>
           </div>
         ) : filteredRows.length === 0 ? (
-          <div className="py-20 text-center text-slate-400 dark:text-[#A0A0A0]">
-            <p className="text-xs">
-              {isContactsView
-                ? "No contacts found. Make sure other users are registered."
-                : "No conversations yet. Tap + to start a new chat!"}
+          <div className="p-8 text-center text-slate-400 dark:text-[#555555]">
+            <p className="text-sm font-medium">No conversations found</p>
+            <p className="text-xs mt-1">
+              {query
+                ? "Try a different search term"
+                : "Tap the + button below to start a chat"}
             </p>
           </div>
         ) : (
@@ -448,85 +557,15 @@ const HomePage = () => {
               const isStarting = startingChatId === row._id;
 
               return (
-                <motion.div
+                <ConversationRow
                   key={row._id}
-                  layout
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  onClick={() =>
-                    isContactsView ? handleStartChat(row) : handleChatClick(row)
-                  }
-                  className={`flex items-center gap-3.5 px-4 py-3.5 cursor-pointer transition-all border-b border-slate-100 dark:border-[#222222] ${
-                    isSelected
-                      ? "bg-slate-100/70 dark:bg-[#1c1c1c] border-l-4 border-l-[#FF6B00]"
-                      : "hover:bg-slate-50/50 dark:hover:bg-[#111111]/60"
-                  } ${isStarting ? "opacity-60 pointer-events-none" : ""}`}
-                >
-                  {/* Avatar */}
-                  <div className="relative flex-shrink-0">
-                    {row.profilePic ? (
-                      <img
-                        src={row.profilePic}
-                        alt=""
-                        className="w-11 h-11 rounded-full object-cover border border-slate-200 dark:border-[#222222]"
-                      />
-                    ) : (
-                      <div className="w-11 h-11 rounded-full bg-slate-100 dark:bg-[#1c1c1c] border border-slate-200 dark:border-[#222222] text-slate-700 dark:text-[#FFFFFF] flex items-center justify-center font-bold text-sm">
-                        {row.name?.charAt(0).toUpperCase() || "?"}
-                      </div>
-                    )}
-                    {(!row._conv || row._conv.conversationType !== "group") && (
-                      <div className="absolute bottom-0 right-0">
-                        <StatusDot isOnline={row.isOnline} size={10} />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Text detail */}
-                  <div className="flex-1 text-left min-w-0">
-                    <div className="flex justify-between items-baseline gap-1">
-                      <h4 className="text-sm font-semibold text-slate-800 dark:text-[#FFFFFF] truncate">
-                        {row.name}
-                      </h4>
-                      {!isContactsView && row.lastMessageTime && (
-                        <span className="text-[10px] text-slate-400 dark:text-[#A0A0A0] flex-shrink-0">
-                          {formatPreviewTime(row.lastMessageTime)}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between gap-1 mt-0.5">
-                      <div className="flex items-center gap-1 min-w-0 flex-1">
-                        {!isContactsView && row.lastMessageMine && (
-                          <StatusTick status={row.lastMessageStatus} />
-                        )}
-                        <p className="text-xs text-slate-400 dark:text-[#A0A0A0] truncate flex-1">
-                          {isContactsView
-                            ? (isStarting ? "Opening..." : "Tap to start chatting")
-                            : (row.lastMessage || "No messages yet")}
-                        </p>
-                      </div>
-                      {!row.isOnline && row.lastSeen && (
-                        <span className="text-[9px] text-[#A0A0A0] flex-shrink-0 ml-1">
-                          {formatLastSeen(row.lastSeen)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Unread badge */}
-                  {!isContactsView && row.unreadCount > 0 && (
-                    <span className="flex-shrink-0 min-w-[18px] h-[18px] rounded-full bg-[#FF9E00] text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-lg shadow-[#FF9E00]/20 animate-pulse">
-                      {row.unreadCount > 99 ? "99+" : row.unreadCount}
-                    </span>
-                  )}
-
-                  {/* Loading spinner while opening */}
-                  {isStarting && (
-                    <div className="w-4 h-4 border-2 border-[#FF6B00] border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                  )}
-                </motion.div>
+                  row={row}
+                  isSelected={isSelected}
+                  isStarting={isStarting}
+                  isContactsView={isContactsView}
+                  onChatClick={handleChatClick}
+                  onStartChat={handleStartChat}
+                />
               );
             })}
           </AnimatePresence>
@@ -569,7 +608,7 @@ const HomePage = () => {
               <div className="flex flex-col items-center gap-2">
                 <div className="relative w-20 h-20 rounded-full border-2 border-dashed border-slate-300 dark:border-[#333] flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-[#1c1c1c]">
                   {groupPhotoPreview ? (
-                    <img src={groupPhotoPreview} alt="Group Preview" className="w-full h-full object-cover" />
+                    <img src={groupPhotoPreview} alt="Group Preview" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   ) : (
                     <UsersIcon size={28} className="text-slate-400 dark:text-[#555555]" />
                   )}
@@ -638,7 +677,7 @@ const HomePage = () => {
                             className="rounded border-slate-300 dark:border-[#333] text-[#FF6B00] focus:ring-[#FF6B00] h-3.5 w-3.5"
                           />
                           {c.user?.profilePicture ? (
-                            <img src={c.user.profilePicture} alt="" className="w-8 h-8 rounded-full object-cover" />
+                            <img src={c.user.profilePicture} alt="" loading="lazy" decoding="async" className="w-8 h-8 rounded-full object-cover" />
                           ) : (
                             <div className="w-8 h-8 rounded-full bg-[#FF6B00]/10 text-[#FF6B00] flex items-center justify-center font-bold text-xs">
                               {(c.user?.username || "?").charAt(0).toUpperCase()}
@@ -697,8 +736,7 @@ const HomePage = () => {
                       setGroupPhotoFile(null);
                       setGroupPhotoPreview("");
 
-                      // Force refresh lists and activate the group chat
-                      await fetchConversations();
+                      await fetchConversations(true);
                       openConversation(data.data);
                       setSelectedContact({
                         _id: data.data._id,
@@ -729,13 +767,17 @@ const HomePage = () => {
       )}
 
       {/* Notification panel */}
-      <NotificationPanel
-        isOpen={notifPanelOpen}
-        onClose={() => setNotifPanelOpen(false)}
-        notifications={notifications}
-        onMarkAllAsRead={markAllAsRead}
-        onClearNotification={clearNotification}
-      />
+      {notifPanelOpen && (
+        <Suspense fallback={null}>
+          <NotificationPanel
+            isOpen={notifPanelOpen}
+            onClose={() => setNotifPanelOpen(false)}
+            notifications={notifications}
+            onMarkAllAsRead={markAllAsRead}
+            onClearNotification={clearNotification}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };

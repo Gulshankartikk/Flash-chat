@@ -1,77 +1,72 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import axios from "axios";
 import useUserStore from "./store/useUserStore";
 
 const API_BASE = `${process.env.REACT_APP_API_URL}/api/auth`;
 
-// Calls the backend to verify the auth_token cookie.
-// Returns { isAuthenticated: true, user } on success,
-// or { isAuthenticated: false } on any failure (expired/missing/invalid cookie).
+// In-flight singleton promise to avoid duplicate concurrent checks
+let authCheckPromise = null;
+
 const checkUserAuth = async () => {
-  try {
-    const res = await axios.get(`${API_BASE}/check-auth`, {
-      withCredentials: true, // required so the auth_token cookie is sent
-    });
-    const authData = res.data?.data;
-    if (authData && authData.isAuthenticated) {
-      return { isAuthenticated: true, user: authData.user };
+  if (authCheckPromise) return authCheckPromise;
+
+  authCheckPromise = (async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/check-auth`, {
+        withCredentials: true,
+        timeout: 10000,
+      });
+      const authData = res.data?.data;
+      if (authData && authData.isAuthenticated) {
+        return { isAuthenticated: true, user: authData.user };
+      }
+      return { isAuthenticated: false };
+    } catch (error) {
+      return { isAuthenticated: false };
+    } finally {
+      authCheckPromise = null;
     }
-    return { isAuthenticated: false };
-  } catch (error) {
-    return { isAuthenticated: false };
-  }
+  })();
+
+  return authCheckPromise;
 };
 
-// Shared verification hook — both ProtectedRoute and PublicRoute use
-// this, so the session is checked exactly once per route mount and
-// both gates agree on the same fresh result instead of one of them
-// trusting a possibly-stale store value.
-const useAuthCheck = () => {
-  const [isChecking, setIsChecking] = useState(true);
+// Non-blocking background session verification hook
+const useBackgroundAuthSync = () => {
   const setUser = useUserStore((state) => state.setUser);
   const clearUser = useUserStore((state) => state.clearUser);
-  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const user = useUserStore((state) => state.user);
+  const checkedRef = useRef(false);
 
   useEffect(() => {
+    // Only check if user has a cached session
+    if (!user || checkedRef.current) return;
+    checkedRef.current = true;
+
     let isMounted = true;
-
-    const verifyAuth = async () => {
-      try {
-        const result = await checkUserAuth();
-        if (!isMounted) return;
-
-        if (result?.isAuthenticated) {
-          setUser(result.user);
-        } else {
-          clearUser();
-        }
-      } catch (error) {
-        console.error(error);
-        if (isMounted) clearUser();
-      } finally {
-        if (isMounted) setIsChecking(false);
+    checkUserAuth().then((result) => {
+      if (!isMounted) return;
+      if (result?.isAuthenticated) {
+        // Sync any updated fields in background
+        setUser(result.user);
+      } else {
+        clearUser();
       }
-    };
-
-    verifyAuth();
+    });
 
     return () => {
       isMounted = false;
     };
-  }, [setUser, clearUser]);
-
-  return { isChecking, isAuthenticated };
+  }, [user, setUser, clearUser]);
 };
 
 export const ProtectedRoute = () => {
   const location = useLocation();
-  const { isChecking, isAuthenticated } = useAuthCheck();
   const user = useUserStore((state) => state.user);
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated || !!user);
 
-  if (isChecking) {
-    return <Loader />;
-  }
+  useBackgroundAuthSync();
 
   if (!isAuthenticated) {
     return <Navigate to="/user-login" state={{ from: location }} replace />;
@@ -82,23 +77,19 @@ export const ProtectedRoute = () => {
     return <Navigate to="/create-profile" replace />;
   }
 
-  // user is authenticated — render the protected route
   return <Outlet />;
 };
 
 export const ProfileRoute = () => {
-  const { isChecking, isAuthenticated } = useAuthCheck();
   const user = useUserStore((state) => state.user);
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated || !!user);
 
-  if (isChecking) {
-    return <Loader />;
-  }
+  useBackgroundAuthSync();
 
   if (!isAuthenticated) {
     return <Navigate to="/user-login" replace />;
   }
 
-  // If already completed profile, go to Home
   if (user?.profileCompleted) {
     return <Navigate to="/" replace />;
   }
@@ -107,12 +98,10 @@ export const ProfileRoute = () => {
 };
 
 export const PublicRoute = () => {
-  const { isChecking, isAuthenticated } = useAuthCheck();
   const user = useUserStore((state) => state.user);
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated || !!user);
 
-  if (isChecking) {
-    return <Loader />;
-  }
+  useBackgroundAuthSync();
 
   if (isAuthenticated) {
     if (!user?.profileCompleted) {
@@ -123,18 +112,3 @@ export const PublicRoute = () => {
 
   return <Outlet />;
 };
-
-// Small inline loader so this file has no missing dependency.
-// Swap this out for your own loading component/spinner if you have one.
-const Loader = () => (
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      minHeight: "100vh",
-    }}
-  >
-    <span>Checking your session…</span>
-  </div>
-);

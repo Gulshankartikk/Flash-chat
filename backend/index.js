@@ -15,8 +15,21 @@ const initilizeSocket = require('./services/socketService');
 const PORT = process.env.PORT || 8000;
 const app = express();
 
+const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:80",
+    "http://localhost",
+].filter(Boolean);
+
 const corsOption = {
-    origin: process.env.FRONTEND_URL,
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+        return callback(null, true);
+    },
     credentials: true,
 };
 

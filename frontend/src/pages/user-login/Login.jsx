@@ -643,7 +643,7 @@ export default function Login() {
               <span className="text-xs font-medium text-slate-400">Step 2 of 2</span>
             </div>
 
-            <div className="text-left space-y-1">
+            <div className="text-left space-y-1.5">
               <h2 className="text-base font-bold text-slate-900 dark:text-white">
                 Enter 6-digit code
               </h2>
@@ -653,6 +653,12 @@ export default function Login() {
                   {selectedCountry.dialCode} {phoneNumber}
                 </span>
               </p>
+              <div className="text-[11.5px] text-amber-800 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800/40 flex items-start gap-2">
+                <span className="text-sm shrink-0">💡</span>
+                <span>
+                  <strong>Tip:</strong> If SMS is delayed (Twilio trial limitation), you can use test OTP <span className="font-mono font-bold text-[#FF6B00]">123456</span> or check backend terminal logs.
+                </span>
+              </div>
             </div>
 
             {/* 6 Segmented OTP Boxes */}

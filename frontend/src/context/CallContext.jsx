@@ -1,39 +1,54 @@
-import React, { createContext, useState, useEffect, useRef } from "react";
+import React, { createContext, useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useWebRTC } from "../hooks/useWebRTC";
 import useUserStore from "../store/useUserStore";
 import { toast } from "react-toastify";
-import VideoCallModal from "../components/video/VideoCallModal";
-import IncomingCallModal from "../components/video/IncomingCallModal";
 
-// Sound synthesizer using Web Audio API for ringtone
+// Lazy-load WebRTC modals so they don't bloat the initial startup bundle
+const VideoCallModal = lazy(() => import("../components/video/VideoCallModal"));
+const IncomingCallModal = lazy(() => import("../components/video/IncomingCallModal"));
+
+// Sound synthesizer using Web Audio API for ringtone — instantiated on-demand
 class RingtoneSynth {
   constructor() {
     this.audioCtx = null;
-    this.oscillator = null;
-    this.gainNode = null;
     this.intervalId = null;
   }
 
   start() {
     try {
-      this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (!this.audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          this.audioCtx = new AudioContextClass();
+        }
+      }
+      if (!this.audioCtx) return;
+
+      if (this.audioCtx.state === "suspended") {
+        this.audioCtx.resume();
+      }
+
       const playTone = () => {
-        if (!this.audioCtx) return;
-        const osc = this.audioCtx.createOscillator();
-        const gain = this.audioCtx.createGain();
+        if (!this.audioCtx || this.audioCtx.state === "closed") return;
+        try {
+          const osc = this.audioCtx.createOscillator();
+          const gain = this.audioCtx.createGain();
 
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(440, this.audioCtx.currentTime); // Standard ring A4
-        osc.frequency.setValueAtTime(480, this.audioCtx.currentTime + 0.1);
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(440, this.audioCtx.currentTime); // Standard ring A4
+          osc.frequency.setValueAtTime(480, this.audioCtx.currentTime + 0.1);
 
-        gain.gain.setValueAtTime(0.3, this.audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 1.2);
+          gain.gain.setValueAtTime(0.3, this.audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 1.2);
 
-        osc.connect(gain);
-        gain.connect(this.audioCtx.destination);
+          osc.connect(gain);
+          gain.connect(this.audioCtx.destination);
 
-        osc.start();
-        osc.stop(this.audioCtx.currentTime + 1.5);
+          osc.start();
+          osc.stop(this.audioCtx.currentTime + 1.5);
+        } catch (e) {
+          // ignore transient audio errors
+        }
       };
 
       playTone();
@@ -49,7 +64,7 @@ class RingtoneSynth {
       this.intervalId = null;
     }
     if (this.audioCtx) {
-      this.audioCtx.close();
+      this.audioCtx.close().catch(() => {});
       this.audioCtx = null;
     }
   }
@@ -61,14 +76,21 @@ export const CallProvider = ({ children }) => {
   const currentUser = useUserStore((state) => state.user);
   const [incomingCallInfo, setIncomingCallInfo] = useState(null);
   const [showCallModal, setShowCallModal] = useState(false);
-  const ringtoneRef = useRef(new RingtoneSynth());
+  const ringtoneRef = useRef(null);
   const ringTimeoutRef = useRef(null);
+
+  const getRingtone = () => {
+    if (!ringtoneRef.current) {
+      ringtoneRef.current = new RingtoneSynth();
+    }
+    return ringtoneRef.current;
+  };
 
   const onCallEnded = (reason) => {
     if (reason) toast.info(reason);
     setIncomingCallInfo(null);
     setShowCallModal(false);
-    ringtoneRef.current.stop();
+    ringtoneRef.current?.stop();
     if (ringTimeoutRef.current) {
       clearTimeout(ringTimeoutRef.current);
       ringTimeoutRef.current = null;
@@ -77,7 +99,7 @@ export const CallProvider = ({ children }) => {
 
   const onIncomingCall = (callData) => {
     setIncomingCallInfo(callData);
-    ringtoneRef.current.start();
+    getRingtone().start();
 
     // Auto-decline call after 30s of no answer
     if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
@@ -96,7 +118,7 @@ export const CallProvider = ({ children }) => {
 
   const acceptIncomingCall = () => {
     if (incomingCallInfo) {
-      ringtoneRef.current.stop();
+      ringtoneRef.current?.stop();
       if (ringTimeoutRef.current) {
         clearTimeout(ringTimeoutRef.current);
         ringTimeoutRef.current = null;
@@ -109,7 +131,7 @@ export const CallProvider = ({ children }) => {
 
   const rejectIncomingCall = () => {
     if (incomingCallInfo) {
-      ringtoneRef.current.stop();
+      ringtoneRef.current?.stop();
       if (ringTimeoutRef.current) {
         clearTimeout(ringTimeoutRef.current);
         ringTimeoutRef.current = null;
@@ -124,11 +146,9 @@ export const CallProvider = ({ children }) => {
   };
 
   useEffect(() => {
-    const ringtone = ringtoneRef.current;
-    const ringTimeout = ringTimeoutRef.current;
     return () => {
-      ringtone.stop();
-      if (ringTimeout) clearTimeout(ringTimeout);
+      ringtoneRef.current?.stop();
+      if (ringTimeoutRef.current) clearTimeout(ringTimeoutRef.current);
     };
   }, []);
 
@@ -147,30 +167,34 @@ export const CallProvider = ({ children }) => {
     >
       {children}
       {incomingCallInfo && (
-        <IncomingCallModal
-          callerName={incomingCallInfo.callerName}
-          callerAvatar={incomingCallInfo.callerAvatar}
-          callType={incomingCallInfo.callType}
-          onAccept={acceptIncomingCall}
-          onDecline={rejectIncomingCall}
-        />
+        <Suspense fallback={null}>
+          <IncomingCallModal
+            callerName={incomingCallInfo.callerName}
+            callerAvatar={incomingCallInfo.callerAvatar}
+            callType={incomingCallInfo.callType}
+            onAccept={acceptIncomingCall}
+            onDecline={rejectIncomingCall}
+          />
+        </Suspense>
       )}
       {showCallModal && (
-        <VideoCallModal
-          localStream={webrtc.localStream}
-          remoteStream={webrtc.remoteStream}
-          isMuted={webrtc.isMuted}
-          isCamOff={webrtc.isCamOff}
-          isScreenSharing={webrtc.isScreenSharing}
-          remoteUser={webrtc.remoteUser}
-          callType={webrtc.callType}
-          isInCall={webrtc.isInCall}
-          isCalling={webrtc.isCalling}
-          onToggleMic={webrtc.toggleMic}
-          onToggleCam={webrtc.toggleCam}
-          onToggleScreenShare={webrtc.toggleScreenShare}
-          onEndCall={endActiveCall}
-        />
+        <Suspense fallback={null}>
+          <VideoCallModal
+            localStream={webrtc.localStream}
+            remoteStream={webrtc.remoteStream}
+            isMuted={webrtc.isMuted}
+            isCamOff={webrtc.isCamOff}
+            isScreenSharing={webrtc.isScreenSharing}
+            remoteUser={webrtc.remoteUser}
+            callType={webrtc.callType}
+            isInCall={webrtc.isInCall}
+            isCalling={webrtc.isCalling}
+            onToggleMic={webrtc.toggleMic}
+            onToggleCam={webrtc.toggleCam}
+            onToggleScreenShare={webrtc.toggleScreenShare}
+            onEndCall={endActiveCall}
+          />
+        </Suspense>
       )}
     </CallContext.Provider>
   );

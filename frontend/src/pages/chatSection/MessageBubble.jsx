@@ -258,6 +258,8 @@ const MessageBubble = ({
                   <img
                     src={msg.mediaUrl}
                     alt="attachment"
+                    loading="lazy"
+                    decoding="async"
                     style={{
                       width: "100%",
                       maxWidth: 260,

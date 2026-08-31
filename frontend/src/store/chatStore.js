@@ -40,6 +40,11 @@ const api = axiosInstance;
 const TYPING_AUTO_CLEAR_MS = 5000;
 const typingTimeouts = {};
 
+// In-flight request deduplication promises to prevent duplicate startup requests
+let fetchConvsPromise = null;
+let fetchContactsPromise = null;
+let fetchRequestsPromise = null;
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /**
@@ -115,12 +120,17 @@ const useChatStore = create((set, get) => ({
     if (user) set({ currentUser: user });
     initializeSocket(user || get().currentUser);
 
-    // Initialize client-side E2EE keypair
+    // Initialize client-side E2EE keypair in deferred idle time
     const u = user || get().currentUser;
     if (u?._id) {
-      import("../utils/crypto")
-        .then((m) => m.initializeUserE2EE(u._id))
-        .catch((err) => console.warn("E2EE key init error:", err));
+      const runIdle = typeof window !== "undefined" && window.requestIdleCallback 
+        ? window.requestIdleCallback 
+        : (cb) => setTimeout(cb, 1200);
+      runIdle(() => {
+        import("../utils/crypto")
+          .then((m) => m.initializeUserE2EE(u._id))
+          .catch((err) => console.warn("E2EE key init error:", err));
+      });
     }
 
     // Online / Offline
@@ -400,31 +410,43 @@ const useChatStore = create((set, get) => ({
   setCurrentUser: (user) => set({ currentUser: user }),
 
   // ── 3. FETCH CONVERSATIONS ─────────────────────────────────────────────────
-  fetchConversations: async () => {
-    set({ isLoadingConversations: true, error: null });
-    try {
-      const { data } = await api.get("/chat/conversation");
-      const list = data?.data || data;
-      const sorted = [...list].sort(
-        (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
-      );
-
-      const unreadCounts = {};
-      sorted.forEach((c) => {
-        if (typeof c.unreadCount === "number") unreadCounts[c._id] = c.unreadCount;
-      });
-
-      set((s) => ({
-        conversations: sorted,
-        unreadCounts: { ...unreadCounts, ...s.unreadCounts },
-        isLoadingConversations: false,
-      }));
-    } catch (err) {
-      set({
-        error: err?.response?.data?.message || "Failed to load conversations",
-        isLoadingConversations: false,
-      });
+  fetchConversations: async (force = false) => {
+    if (fetchConvsPromise && !force) {
+      return fetchConvsPromise;
     }
+
+    set({ isLoadingConversations: get().conversations.length === 0, error: null });
+
+    fetchConvsPromise = (async () => {
+      try {
+        const { data } = await api.get("/chat/conversation");
+        const list = data?.data || data;
+        const sorted = [...list].sort(
+          (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+        );
+
+        const unreadCounts = {};
+        sorted.forEach((c) => {
+          if (typeof c.unreadCount === "number") unreadCounts[c._id] = c.unreadCount;
+        });
+
+        set((s) => ({
+          conversations: sorted,
+          unreadCounts: { ...unreadCounts, ...s.unreadCounts },
+          isLoadingConversations: false,
+        }));
+        return sorted;
+      } catch (err) {
+        set({
+          error: err?.response?.data?.message || "Failed to load conversations",
+          isLoadingConversations: false,
+        });
+      } finally {
+        fetchConvsPromise = null;
+      }
+    })();
+
+    return fetchConvsPromise;
   },
 
   // ── 4. OPEN CONVERSATION ───────────────────────────────────────────────────
@@ -881,24 +903,44 @@ const useChatStore = create((set, get) => ({
   clearError: () => set({ error: null }),
 
   // ── 18. CONTACTS & REQUESTS ────────────────────────────────────────────────
-  fetchContacts: async () => {
-    set({ isLoadingContacts: true });
-    try {
-      const res = await getContacts();
-      set({ contactsList: res.data || [], isLoadingContacts: false });
-    } catch (err) {
-      set({ error: err.message || "Failed to load contacts", isLoadingContacts: false });
-    }
+  fetchContacts: async (force = false) => {
+    if (fetchContactsPromise && !force) return fetchContactsPromise;
+    set({ isLoadingContacts: get().contactsList.length === 0 });
+
+    fetchContactsPromise = (async () => {
+      try {
+        const res = await getContacts();
+        const list = res.data || [];
+        set({ contactsList: list, isLoadingContacts: false });
+        return list;
+      } catch (err) {
+        set({ error: err.message || "Failed to load contacts", isLoadingContacts: false });
+      } finally {
+        fetchContactsPromise = null;
+      }
+    })();
+
+    return fetchContactsPromise;
   },
 
-  fetchPendingRequests: async () => {
-    set({ isLoadingRequests: true });
-    try {
-      const res = await getPendingRequests();
-      set({ pendingRequests: res.data || [], isLoadingRequests: false });
-    } catch (err) {
-      set({ error: err.message || "Failed to load requests", isLoadingRequests: false });
-    }
+  fetchPendingRequests: async (force = false) => {
+    if (fetchRequestsPromise && !force) return fetchRequestsPromise;
+    set({ isLoadingRequests: get().pendingRequests.length === 0 });
+
+    fetchRequestsPromise = (async () => {
+      try {
+        const res = await getPendingRequests();
+        const list = res.data || [];
+        set({ pendingRequests: list, isLoadingRequests: false });
+        return list;
+      } catch (err) {
+        set({ error: err.message || "Failed to load requests", isLoadingRequests: false });
+      } finally {
+        fetchRequestsPromise = null;
+      }
+    })();
+
+    return fetchRequestsPromise;
   },
 
   sendContactRequest: async (userId) => {

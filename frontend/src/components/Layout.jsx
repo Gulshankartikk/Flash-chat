@@ -1,9 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, lazy, Suspense } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Sidebar from "./Sidebar";
-import ChatWindow from "../pages/chatSection/ChatWindow";
 import useLayoutStore from "../store/useLayoutStore";
 import useThemeStore from "../store/useThemeStore";
+
+// Lazy load ChatWindow so initial startup load is smaller and faster
+const ChatWindow = lazy(() => import("../pages/chatSection/ChatWindow"));
+
+const ChatWindowFallback = () => (
+  <div className="flex-1 h-full w-full flex items-center justify-center bg-slate-50 dark:bg-[#000000]">
+    <div className="w-6 h-6 border-2 border-slate-300 dark:border-[#222222] border-t-[#FF6B00] rounded-full animate-spin" />
+  </div>
+);
 
 const Layout = ({
   children,
@@ -63,11 +71,13 @@ const Layout = ({
               transition={{ type: "tween" }}
               className="flex-1 h-full w-full"
             >
-              <ChatWindow
-                selectedContact={selectedContact}
-                setSelectedContact={setSelectedContact}
-                isMobile={isMobile}
-              />
+              <Suspense fallback={<ChatWindowFallback />}>
+                <ChatWindow
+                  selectedContact={selectedContact}
+                  setSelectedContact={setSelectedContact}
+                  isMobile={isMobile}
+                />
+              </Suspense>
             </motion.div>
           )}
         </AnimatePresence>
