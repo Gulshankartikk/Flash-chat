@@ -67,6 +67,12 @@ const sendOtp = async (req, res) => {
         });
       }
 
+      console.log("\n=======================================================");
+      console.log(`✉️  [FLASH CHAT OTP] Email Address: ${cleanEmail}`);
+      console.log(`🔑 OTP CODE: 👉 [ ${otp} ] 👈`);
+      console.log(`⏱️  Validity: 5 Minutes (Universal Dev Test Code: 123456)`);
+      console.log("=======================================================\n");
+
       await sendOtpToEmail(cleanEmail, otp);
       user.emailOtp = otp;
       user.emailOtpExpiry = expiry;

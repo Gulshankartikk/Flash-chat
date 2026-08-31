@@ -50,9 +50,20 @@ const sendOtpToPhone = async (phoneNumber) => {
     throw new Error("Phone number is required");
   }
 
-  console.log("[PHONE AUTH SERVICE] Requesting OTP for:", phoneNumber);
+  // 1. Always generate a local secure 6-digit OTP
+  const otp = crypto.randomInt(100000, 999999).toString();
+  const expiry = Date.now() + 5 * 60 * 1000;
+  localOtpStore.set(phoneNumber, { otp, expiry, attempts: 0 });
 
-  // If live Twilio Verify is configured, attempt sending via Twilio
+  // 2. Prominently display OTP in backend terminal
+  console.log("\n=======================================================");
+  console.log(`📱 [FLASH CHAT OTP] Phone Number: ${phoneNumber}`);
+  console.log(`🔑 OTP CODE: 👉 [ ${otp} ] 👈`);
+  console.log(`⏱️  Validity: 5 Minutes (Universal Dev Test Code: 123456)`);
+  console.log("=======================================================\n");
+
+  // 3. Attempt Twilio SMS delivery if configured
+  let twilioSuccess = false;
   if (client && serviceSid && !serviceSid.startsWith("VAxxxx") && !accountSid.startsWith("ACxxxx")) {
     try {
       const response = await client.verify.v2
@@ -62,20 +73,15 @@ const sendOtpToPhone = async (phoneNumber) => {
           channel: "sms",
         });
 
-      console.log("[TWILIO SERVICE] OTP sent successfully via Twilio. Status:", response.status);
-      return response;
+      console.log(`[TWILIO SERVICE] SMS verification initiated via Twilio for ${phoneNumber}. Status:`, response.status);
+      twilioSuccess = true;
     } catch (error) {
-      console.warn(`[TWILIO SERVICE] Twilio send failed (Error Code: ${error.code} - ${error.message}). Trial accounts only deliver SMS to verified caller IDs in Twilio Console. Falling back to local OTP provider.`);
+      console.warn(`[TWILIO SERVICE] Twilio SMS delivery failed (Code: ${error.code}). Reason: ${error.message}`);
+      console.log(`ℹ️  [FALLBACK ACTIVE] You can use terminal OTP [${otp}] or [123456] to log in.`);
     }
   }
 
-  // Managed / Zero-Setup Fallback OTP provider (5-minute expiration)
-  const otp = crypto.randomInt(100000, 999999).toString();
-  const expiry = Date.now() + 5 * 60 * 1000;
-  localOtpStore.set(phoneNumber, { otp, expiry, attempts: 0 });
-
-  console.log(`[MANAGED OTP PROVIDER] Generated 6-digit OTP for ${phoneNumber}: [${otp}] (expires in 5m). Test OTP [123456] is also accepted.`);
-  return { status: "pending", managed: true, devOtp: otp };
+  return { status: "pending", managed: true, devOtp: otp, twilioSuccess };
 };
 
 const verifyOtp = async (phoneNumber, otp) => {
