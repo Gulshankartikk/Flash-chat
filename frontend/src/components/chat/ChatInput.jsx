@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Paperclip, Smile, Send, X, File, Video, Mic } from "lucide-react";
+import { Paperclip, Smile, Send, X, File, Video, Mic, Sparkles, Wand2 } from "lucide-react";
 import ReplyPreview from "./ReplyPreview";
 import VoiceRecorder from "./VoiceRecorder";
+import axiosInstance from "../../services/url.services";
+import { toast } from "react-toastify";
 
 const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 const MAX_MESSAGE_LENGTH = 4000; // adjust to match your backend's content limit
@@ -37,12 +39,38 @@ const ChatInput = ({
   const [fileError, setFileError] = useState(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [showAIRewriteMenu, setShowAIRewriteMenu] = useState(false);
+  const [isRewriting, setIsRewriting] = useState(false);
 
   const fileInputRef = useRef(null);
   const textInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const emojiButtonRef = useRef(null);
+  const aiRewriteRef = useRef(null);
+
+  const handleAIRewrite = async (style) => {
+    if (!draft.trim()) {
+      toast.info("Type a message draft first to rewrite");
+      return;
+    }
+    try {
+      setIsRewriting(true);
+      setShowAIRewriteMenu(false);
+      const res = await axiosInstance.post("/chat/ai/rewrite", {
+        text: draft.trim(),
+        style,
+      });
+      if (res?.data?.data?.rewritten) {
+        setDraft(res.data.data.rewritten);
+        toast.success(`Rewritten in ${style} tone!`);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || "AI Rewrite failed");
+    } finally {
+      setIsRewriting(false);
+    }
+  };
 
   const handleSendVoice = (audioFile, duration) => {
     setIsRecordingVoice(false);
@@ -74,23 +102,30 @@ const ChatInput = ({
     };
   }, [filePreview]);
 
-  // Close the emoji picker on outside click.
+  // Close popovers on outside click.
   useEffect(() => {
-    if (!showEmojiPicker) return;
-
     const handleClickOutside = (e) => {
       if (
+        showEmojiPicker &&
         emojiPickerRef.current &&
         !emojiPickerRef.current.contains(e.target) &&
         !emojiButtonRef.current?.contains(e.target)
       ) {
         setShowEmojiPicker(false);
       }
+
+      if (
+        showAIRewriteMenu &&
+        aiRewriteRef.current &&
+        !aiRewriteRef.current.contains(e.target)
+      ) {
+        setShowAIRewriteMenu(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [showEmojiPicker]);
+  }, [showEmojiPicker, showAIRewriteMenu]);
 
   const handleTextChange = (e) => {
     setDraft(e.target.value);
@@ -313,6 +348,49 @@ const ChatInput = ({
               ))}
             </div>
           )}
+
+          {/* AI Smart Rewriter Button */}
+          <div className="relative" ref={aiRewriteRef}>
+            <button
+              onClick={() => setShowAIRewriteMenu((prev) => !prev)}
+              disabled={isRewriting || !draft.trim()}
+              className={`p-2 rounded-full transition-colors ${
+                draft.trim()
+                  ? "text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
+                  : "text-slate-300 dark:text-[#444444] cursor-not-allowed"
+              }`}
+              title="AI Smart Message Rewriter"
+              aria-label="AI Smart Message Rewriter"
+            >
+              {isRewriting ? (
+                <Wand2 size={20} className="animate-spin text-amber-500" />
+              ) : (
+                <Sparkles size={20} />
+              )}
+            </button>
+
+            {showAIRewriteMenu && draft.trim() && (
+              <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-[#1c1c1c] border border-slate-200 dark:border-[#222222] rounded-xl shadow-2xl py-1 z-20 text-left">
+                <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-[#888888] border-b border-slate-100 dark:border-[#282828] uppercase tracking-wider">
+                  Rewrite Tone
+                </div>
+                {[
+                  { label: "Professional", style: "professional" },
+                  { label: "Concise & Short", style: "concise" },
+                  { label: "Friendly & Warm", style: "friendly" },
+                  { label: "Casual & Relaxed", style: "casual" },
+                ].map((item) => (
+                  <button
+                    key={item.style}
+                    onClick={() => handleAIRewrite(item.style)}
+                    className="w-full text-left px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-amber-500/10 hover:text-amber-500 transition-colors"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           <div className="flex-1 flex flex-col">
             <input

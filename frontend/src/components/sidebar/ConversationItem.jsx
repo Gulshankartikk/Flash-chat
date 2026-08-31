@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Check, CheckCheck, Clock, AlertCircle } from "lucide-react";
+import { Check, CheckCheck, Clock, AlertCircle, Pin, VolumeX, Archive } from "lucide-react";
 import StatusDot from "../status/StatusDot";
 
 const StatusTick = ({ status }) => {
@@ -98,28 +98,35 @@ const ConversationItem = ({ item, isActive, onClick, currentUser }) => {
             {name}
           </h4>
           {item.lastMessageTime && (
-            <span className="text-[10px] text-slate-400 dark:text-[#A0A0A0] flex-shrink-0">
+            <span className={`text-[10px] flex-shrink-0 ${unreadCount > 0 ? "text-[#FF6B00] font-bold" : "text-slate-400 dark:text-[#A0A0A0]"}`}>
               {formatTime(item.lastMessageTime)}
             </span>
           )}
         </div>
         <div className="flex items-center gap-1 mt-0.5">
           {item.lastMessageMine && <StatusTick status={item.lastMessageStatus} />}
-          <p className="text-xs text-slate-400 dark:text-[#A0A0A0] truncate flex-1">
+          <p className={`text-xs truncate flex-1 ${unreadCount > 0 ? "text-slate-900 dark:text-white font-medium" : "text-slate-400 dark:text-[#A0A0A0]"}`}>
             {decryptedLastMsg}
           </p>
         </div>
       </div>
 
-      {/* Unread count badge */}
-      {unreadCount > 0 && (
-        <span
-          className="flex-shrink-0 min-w-[18px] h-[18px] rounded-full bg-[#FF9E00] text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-lg shadow-[#FF9E00]/20"
-          style={{ animation: "unread-pop 0.3s ease-out" }}
-        >
-          {unreadCount > 99 ? "99+" : unreadCount}
-        </span>
-      )}
+      {/* Indicators and Badges */}
+      <div className="flex flex-col items-end gap-1 flex-shrink-0">
+        {unreadCount > 0 && (
+          <span
+            className="min-w-[18px] h-[18px] rounded-full bg-[#FF6B00] text-white text-[9px] font-bold flex items-center justify-center px-1 shadow-md shadow-[#FF6B00]/20"
+            style={{ animation: "unread-pop 0.3s ease-out" }}
+          >
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+        <div className="flex items-center gap-1 text-slate-400 dark:text-[#666666]">
+          {item.isPinned && <Pin size={11} className="text-[#FF6B00] fill-[#FF6B00]" title="Pinned" />}
+          {item.isMuted && <VolumeX size={11} title="Muted" />}
+          {item.isArchived && <Archive size={11} title="Archived" />}
+        </div>
+      </div>
 
       <style>{`
         @keyframes unread-pop {
