@@ -1,3 +1,22 @@
+/*
+ * MESSAGE SCROLL & PAGINATION ARCHITECTURE
+ *
+ * MessageList (flex-1 min-h-0 relative overflow-hidden)
+ *   └── ScrollContainer (h-full overflow-y-auto px-4 py-6)
+ *         ├── Encryption Banner (E2EE indicator)
+ *         ├── Loading Spinner (Infinite scroll older messages)
+ *         ├── Day Dividers (Grouped by date)
+ *         └── MessageBubble[] (Interactive bubbles)
+ *
+ * Scroll Rules:
+ * 1. Initial mount: Instantly jumps to bottom (`scrollToBottom("instant")`).
+ * 2. New message arrives:
+ *    - If user is already near bottom (<= NEAR_BOTTOM_THRESHOLD), smooth auto-scrolls down.
+ *    - If user is reading older history, does NOT force scroll down; keeps position intact.
+ * 3. Scrolling up triggers `onLoadMore` when near top (<= TOP_SCROLL_THRESHOLD).
+ * 4. Pre-load scroll offset is captured so prepending older messages preserves exact viewport position.
+ */
+
 import React, { useRef, useEffect, useState, useMemo, useCallback } from "react";
 import MessageBubble from "./MessageBubble";
 import { ArrowDown, MessageCircle } from "lucide-react";
@@ -164,14 +183,14 @@ const MessageList = ({
 
   if (messages.length === 0 && !isLoadingMore) {
     return (
-      <div className="flex-1 relative overflow-hidden bg-white dark:bg-[#000000] flex flex-col">
+      <div className="flex-1 min-h-0 relative overflow-hidden bg-white dark:bg-[#000000] flex flex-col">
         <EmptyState />
       </div>
     );
   }
 
   return (
-    <div className="flex-1 relative overflow-hidden bg-white dark:bg-[#000000]">
+    <div className="flex-1 min-h-0 relative overflow-hidden bg-white dark:bg-[#000000]">
       {/* Scrollable Container */}
       <div
         ref={containerRef}

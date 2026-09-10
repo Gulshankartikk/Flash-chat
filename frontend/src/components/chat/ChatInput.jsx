@@ -1,7 +1,30 @@
+/*
+ * CHAT MESSAGE COMPOSITION & SEND FLOW
+ *
+ * ChatInput
+ *   ↓ onSend({ message, messageType, mediaFile })
+ * ChatWindow.handleSend()
+ *   ↓
+ * useChatStore.sendMessage()
+ *   ↓
+ * Socket.io "message:send" (socketService.js)
+ *   ↓
+ * Backend (server.js / socketService.js)
+ *   ↓
+ * Database (Message.create / Conversation.lastMessage)
+ *   ↓
+ * Socket.io "message:receive" broadcast
+ *   ↓
+ * Receiver ChatWindow / MessageList
+ *
+ * Keep event names synchronized with backend/constants/socketEvents.js
+ */
+
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Paperclip, Smile, Send, X, File, Video, Mic, Sparkles, Wand2 } from "lucide-react";
 import ReplyPreview from "./ReplyPreview";
 import VoiceRecorder from "./VoiceRecorder";
+import AISuggestions from "./AISuggestions";
 import axiosInstance from "../../services/url.services";
 import { toast } from "react-toastify";
 
@@ -29,6 +52,8 @@ const ChatInput = ({
   onCancelReply,
   otherUserId,
   otherUserName,
+  conversationId,
+  lastIncomingMessage,
   onTypingStart,
   onTypingStop,
 }) => {
@@ -42,12 +67,84 @@ const ChatInput = ({
   const [showAIRewriteMenu, setShowAIRewriteMenu] = useState(false);
   const [isRewriting, setIsRewriting] = useState(false);
 
+  // AI Suggestions state
+  const [suggestions, setSuggestions] = useState([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(true);
+  const dismissedMsgIdRef = useRef(null);
+
   const fileInputRef = useRef(null);
   const textInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const emojiButtonRef = useRef(null);
   const aiRewriteRef = useRef(null);
+
+  const incomingMsgId = lastIncomingMessage?._id;
+  const incomingMsgText = lastIncomingMessage?.content || lastIncomingMessage?.message || "";
+
+  const fetchSuggestions = useCallback(async (force = false) => {
+    if (!incomingMsgText.trim() || incomingMsgText.startsWith("e2ee:")) {
+      setSuggestions([]);
+      return;
+    }
+
+    if (!force && incomingMsgId && dismissedMsgIdRef.current === incomingMsgId) {
+      return;
+    }
+
+    try {
+      setIsLoadingSuggestions(true);
+      const res = await axiosInstance.post("/chat/ai/suggestions", {
+        messageText: incomingMsgText,
+        conversationId,
+      });
+      const items = res?.data?.data?.suggestions;
+      if (Array.isArray(items) && items.length > 0) {
+        setSuggestions(items);
+        setShowSuggestions(true);
+      } else {
+        setSuggestions([]);
+      }
+    } catch (err) {
+      console.warn("AI suggestions error:", err?.response?.data?.message || err.message);
+      setSuggestions([]);
+    } finally {
+      setIsLoadingSuggestions(false);
+    }
+  }, [incomingMsgId, incomingMsgText, conversationId]);
+
+  useEffect(() => {
+    if (incomingMsgId && incomingMsgText.trim() && !incomingMsgText.startsWith("e2ee:")) {
+      fetchSuggestions();
+    } else {
+      setSuggestions([]);
+    }
+  }, [incomingMsgId, incomingMsgText, fetchSuggestions]);
+
+  const handleSelectSuggestion = (text) => {
+    setDraft(text);
+    textInputRef.current?.focus();
+  };
+
+  const handleQuickSend = (text) => {
+    if (onSend) {
+      onSend({
+        message: text,
+        messageType: "text",
+      });
+    }
+    setShowSuggestions(false);
+    setDraft("");
+  };
+
+  const handleDismissSuggestions = () => {
+    setShowSuggestions(false);
+    if (lastIncomingMessage?._id) {
+      dismissedMsgIdRef.current = lastIncomingMessage._id;
+    }
+  };
+
 
   const handleAIRewrite = async (style) => {
     if (!draft.trim()) {
@@ -217,8 +314,20 @@ const ChatInput = ({
   };
 
   const handleEmojiSelect = (emoji) => {
-    setDraft((prev) => prev + emoji);
-    textInputRef.current?.focus();
+    const input = textInputRef.current;
+    if (!input) {
+      setDraft((prev) => prev + emoji);
+      return;
+    }
+    const start = input.selectionStart ?? draft.length;
+    const end = input.selectionEnd ?? draft.length;
+    const nextText = draft.slice(0, start) + emoji + draft.slice(end);
+    setDraft(nextText);
+    const nextCursor = start + emoji.length;
+    setTimeout(() => {
+      input.focus();
+      input.setSelectionRange(nextCursor, nextCursor);
+    }, 0);
   };
 
   const isOverLimit = draft.length > MAX_MESSAGE_LENGTH;
@@ -298,22 +407,8 @@ const ChatInput = ({
           />
         </div>
       ) : (
-        <div className="relative flex items-center gap-3 p-3">
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            className="hidden"
-          />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="p-2 hover:bg-slate-200 dark:hover:bg-[#1c1c1c] rounded-full text-slate-400 dark:text-[#A0A0A0] hover:text-[#FF6B00] transition-colors"
-            title="Attach File"
-            aria-label="Attach file"
-          >
-            <Paperclip size={20} />
-          </button>
-
+        <div className="relative flex items-center gap-2.5 p-3">
+          {/* 1. 😊 Emoji Button */}
           <button
             ref={emojiButtonRef}
             onClick={() => setShowEmojiPicker((prev) => !prev)}
@@ -349,49 +444,33 @@ const ChatInput = ({
             </div>
           )}
 
-          {/* AI Smart Rewriter Button */}
-          <div className="relative" ref={aiRewriteRef}>
-            <button
-              onClick={() => setShowAIRewriteMenu((prev) => !prev)}
-              disabled={isRewriting || !draft.trim()}
-              className={`p-2 rounded-full transition-colors ${
-                draft.trim()
-                  ? "text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
-                  : "text-slate-300 dark:text-[#444444] cursor-not-allowed"
-              }`}
-              title="AI Smart Message Rewriter"
-              aria-label="AI Smart Message Rewriter"
-            >
-              {isRewriting ? (
-                <Wand2 size={20} className="animate-spin text-amber-500" />
-              ) : (
-                <Sparkles size={20} />
-              )}
-            </button>
+          {/* 2. 📎 Attachment Button */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="p-2 hover:bg-slate-200 dark:hover:bg-[#1c1c1c] rounded-full text-slate-400 dark:text-[#A0A0A0] hover:text-[#FF6B00] transition-colors"
+            title="Attach File"
+            aria-label="Attach file"
+          >
+            <Paperclip size={20} />
+          </button>
 
-            {showAIRewriteMenu && draft.trim() && (
-              <div className="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-[#1c1c1c] border border-slate-200 dark:border-[#222222] rounded-xl shadow-2xl py-1 z-20 text-left">
-                <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-[#888888] border-b border-slate-100 dark:border-[#282828] uppercase tracking-wider">
-                  Rewrite Tone
-                </div>
-                {[
-                  { label: "Professional", style: "professional" },
-                  { label: "Concise & Short", style: "concise" },
-                  { label: "Friendly & Warm", style: "friendly" },
-                  { label: "Casual & Relaxed", style: "casual" },
-                ].map((item) => (
-                  <button
-                    key={item.style}
-                    onClick={() => handleAIRewrite(item.style)}
-                    className="w-full text-left px-3 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-amber-500/10 hover:text-amber-500 transition-colors"
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* 3. 🎤 Voice Record Button */}
+          <button
+            onClick={() => setIsRecordingVoice(true)}
+            aria-label="Record voice message"
+            title="Record voice message"
+            className="p-2 hover:bg-slate-200 dark:hover:bg-[#1c1c1c] rounded-full text-slate-400 dark:text-[#A0A0A0] hover:text-[#FF6B00] transition-colors"
+          >
+            <Mic size={20} />
+          </button>
 
+          {/* 4. Type a message... Input Field */}
           <div className="flex-1 flex flex-col">
             <input
               ref={textInputRef}
@@ -401,7 +480,7 @@ const ChatInput = ({
               onKeyDown={handleKeyDown}
               placeholder={selectedFile ? "Add a caption..." : "Type a message..."}
               aria-label="Message"
-              maxLength={MAX_MESSAGE_LENGTH + 100} // small buffer; isOverLimit drives the real block
+              maxLength={MAX_MESSAGE_LENGTH + 100}
               className={`px-4 py-2.5 rounded-full bg-white dark:bg-[#1c1c1c] text-slate-800 dark:text-[#FFFFFF] placeholder-slate-400 dark:placeholder-[#555555] border text-sm transition-colors focus:outline-none ${
                 isOverLimit
                   ? "border-red-400 focus:border-red-500"
@@ -415,26 +494,89 @@ const ChatInput = ({
             )}
           </div>
 
-          {draft.trim() || selectedFile ? (
+          {/* 5. ✨ AI Assistant / Rewriter */}
+          <div className="relative" ref={aiRewriteRef}>
             <button
-              onClick={handleSendClick}
-              disabled={isOverLimit}
-              aria-label="Send message"
-              className="p-2.5 bg-[#FF6B00] hover:bg-[#E05E00] text-white rounded-full transition-colors flex-shrink-0 shadow-md shadow-[#FF6B00]/20"
+              onClick={() => {
+                if (draft.trim()) {
+                  setShowAIRewriteMenu((prev) => !prev);
+                } else {
+                  setShowSuggestions((prev) => !prev);
+                  if (!showSuggestions && suggestions.length === 0) {
+                    fetchSuggestions(true);
+                  }
+                }
+              }}
+              disabled={isRewriting}
+              className={`p-2 rounded-full transition-colors ${
+                draft.trim()
+                  ? "text-amber-500 hover:bg-amber-500/10 hover:text-amber-400"
+                  : showSuggestions && suggestions.length > 0
+                  ? "text-amber-500 bg-amber-500/15"
+                  : "text-slate-400 dark:text-[#A0A0A0] hover:text-amber-500 hover:bg-slate-200 dark:hover:bg-[#1c1c1c]"
+              }`}
+              title={draft.trim() ? "AI Smart Message Rewriter" : "Toggle AI Suggestions"}
+              aria-label={draft.trim() ? "AI Smart Message Rewriter" : "Toggle AI Suggestions"}
             >
-              <Send size={16} />
+              {isRewriting ? (
+                <Wand2 size={20} className="animate-spin text-amber-500" />
+              ) : (
+                <Sparkles size={20} className={showSuggestions && suggestions.length > 0 && !draft.trim() ? "text-amber-500" : ""} />
+              )}
             </button>
-          ) : (
-            <button
-              onClick={() => setIsRecordingVoice(true)}
-              aria-label="Record voice message"
-              title="Record voice message"
-              className="p-2.5 bg-[#FF6B00]/10 hover:bg-[#FF6B00] text-[#FF6B00] hover:text-white rounded-full transition-all flex-shrink-0"
-            >
-              <Mic size={18} />
-            </button>
-          )}
+
+            {showAIRewriteMenu && draft.trim() && (
+              <div className="absolute bottom-full right-0 mb-2 w-48 bg-white dark:bg-[#1c1c1c] border border-slate-200 dark:border-[#222222] rounded-xl shadow-2xl py-1 z-20 text-left">
+                <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 dark:text-[#888888] border-b border-slate-100 dark:border-[#282828] uppercase tracking-wider">
+                  Rewrite Tone
+                </div>
+                {[
+                  { label: "✨ Improve & Polish", style: "improve" },
+                  { label: "✨ Fix Grammar", style: "grammar" },
+                  { label: "✨ Professional", style: "professional" },
+                  { label: "✨ Casual & Friendly", style: "casual" },
+                  { label: "✨ Shorten & Concise", style: "shorten" },
+                  { label: "✨ Expand & Detail", style: "expand" },
+                  { label: "✨ Translate to English", style: "translate" },
+                ].map((item) => (
+                  <button
+                    key={item.style}
+                    onClick={() => handleAIRewrite(item.style)}
+                    className="w-full text-left px-3 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-amber-500/10 hover:text-amber-500 transition-colors"
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* 6. ➤ Send Button */}
+          <button
+            onClick={handleSendClick}
+            disabled={isOverLimit || (!draft.trim() && !selectedFile)}
+            aria-label="Send message"
+            className={`p-2.5 rounded-full transition-colors flex-shrink-0 shadow-md ${
+              draft.trim() || selectedFile
+                ? "bg-[#FF6B00] hover:bg-[#E05E00] text-white shadow-[#FF6B00]/20 cursor-pointer"
+                : "bg-slate-200 dark:bg-[#222222] text-slate-400 dark:text-[#666666] cursor-not-allowed shadow-none"
+            }`}
+          >
+            <Send size={16} />
+          </button>
         </div>
+      )}
+
+      {/* ✨ AI Suggestions (placed directly below the input bar) */}
+      {showSuggestions && suggestions.length > 0 && !isRecordingVoice && (
+        <AISuggestions
+          suggestions={suggestions}
+          isLoading={isLoadingSuggestions}
+          onSelectSuggestion={handleSelectSuggestion}
+          onQuickSend={handleQuickSend}
+          onRefresh={() => fetchSuggestions(true)}
+          onDismiss={handleDismissSuggestions}
+        />
       )}
     </div>
   );

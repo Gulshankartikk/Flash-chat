@@ -40,9 +40,10 @@ export function openKeyDatabase() {
  * 
  * @param {CryptoKeyPair} keyPair 
  * @param {JsonWebKey} publicJwk 
+ * @param {string} [userId]
  * @returns {Promise<void>}
  */
-export async function saveIdentityKeyPair(keyPair, publicJwk) {
+export async function saveIdentityKeyPair(keyPair, publicJwk, userId) {
   const db = await openKeyDatabase();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
@@ -52,8 +53,12 @@ export async function saveIdentityKeyPair(keyPair, publicJwk) {
       keyPair,
       publicJwk,
       updatedAt: Date.now(),
+      userId: userId ? String(userId) : null,
     };
 
+    if (userId) {
+      store.put(record, `device_identity_keypair_${userId}`);
+    }
     store.put(record, KEY_RECORD_ID);
 
     tx.oncomplete = () => resolve();
@@ -64,17 +69,32 @@ export async function saveIdentityKeyPair(keyPair, publicJwk) {
 /**
  * Loads the local identity record from IndexedDB.
  * 
+ * @param {string} [userId]
  * @returns {Promise<{ keyPair: CryptoKeyPair, publicJwk: JsonWebKey, updatedAt: number }|null>}
  */
-export async function loadIdentityKeyPair() {
+export async function loadIdentityKeyPair(userId) {
   const db = await openKeyDatabase();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
     const store = tx.objectStore(STORE_NAME);
-    const request = store.get(KEY_RECORD_ID);
 
-    request.onsuccess = () => resolve(request.result || null);
-    request.onerror = () => reject(request.error);
+    if (userId) {
+      const userReq = store.get(`device_identity_keypair_${userId}`);
+      userReq.onsuccess = () => {
+        if (userReq.result) {
+          resolve(userReq.result);
+        } else {
+          const fallbackReq = store.get(KEY_RECORD_ID);
+          fallbackReq.onsuccess = () => resolve(fallbackReq.result || null);
+          fallbackReq.onerror = () => reject(fallbackReq.error);
+        }
+      };
+      userReq.onerror = () => reject(userReq.error);
+    } else {
+      const request = store.get(KEY_RECORD_ID);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    }
   });
 }
 

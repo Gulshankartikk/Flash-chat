@@ -37,11 +37,9 @@ function getOtherUserId(message, userId) {
 }
 
 function emitToUser(req, userId, event, payload) {
-  if (!req.io || !req.socketUserMap) return;
-  const socketId = req.socketUserMap.get(String(userId));
-  if (socketId) {
-    req.io.to(socketId).emit(event, payload);
-  }
+  if (!req.io) return;
+  const targetId = String(userId);
+  req.io.to(targetId).emit(event, payload);
 }
 
 // Background handler for AI chatbot replies
@@ -1296,7 +1294,7 @@ exports.updateGroupInfo = async (req, res) => {
 
 // ================= AI ASSISTANT EXTENSIONS =================
 
-const { summarizeChat, rewriteMessage } = require("../services/aiService");
+const { summarizeChat, rewriteMessage, generateSmartReplies } = require("../services/aiService");
 
 exports.summarizeChatMessages = async (req, res) => {
   const { conversationId } = req.body;
@@ -1338,4 +1336,42 @@ exports.rewriteMessageDraft = async (req, res) => {
     console.error("rewriteMessageDraft error:", error);
     return response(res, 500, error.message || "Failed to rewrite message");
   }
-};
+};
+
+exports.getSmartReplies = async (req, res) => {
+  const { messageText, conversationId } = req.body;
+  const userId = req.user.userId;
+
+  try {
+    let contextText = messageText;
+
+    // If messageText is not provided, fetch the latest incoming message from the conversation.
+    // Skip if conversationId is a temporary draft ID (not a real MongoDB ObjectId).
+    const isRealConversation =
+      conversationId &&
+      !String(conversationId).startsWith("draft_") &&
+      /^[a-f\d]{24}$/i.test(String(conversationId));
+
+    if (!contextText && isRealConversation) {
+      const lastMsg = await Message.findOne({
+        conversation: conversationId,
+        sender: { $ne: userId },
+        isDeletedForEveryone: false,
+      }).sort({ createdAt: -1 });
+
+      if (lastMsg) {
+        contextText = lastMsg.content;
+      }
+    }
+
+    if (!contextText || !contextText.trim() || contextText.startsWith("e2ee:")) {
+      return response(res, 200, "No context for suggestions", { suggestions: [] });
+    }
+
+    const suggestions = await generateSmartReplies(contextText || "", [], userId);
+    return response(res, 200, "Smart suggestions generated successfully", { suggestions });
+  } catch (error) {
+    console.error("getSmartReplies error:", error);
+    return response(res, 500, error.message || "Failed to generate AI suggestions");
+  }
+};

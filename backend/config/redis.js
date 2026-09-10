@@ -37,6 +37,8 @@ try {
   
   redisClient = new Redis(redisUrl, {
     maxRetriesPerRequest: 1,
+    connectTimeout: 500,
+    enableOfflineQueue: false,
     retryStrategy(times) {
       // If connection fails, stop retrying and fallback
       console.warn("[redis] Connection failed. Falling back to in-memory cache.");

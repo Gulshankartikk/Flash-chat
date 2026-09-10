@@ -106,6 +106,8 @@ const messageSchema = new mongoose.Schema(
 
 // High performance compound indexes for fast message fetching and ordering
 messageSchema.index({ conversation: 1, createdAt: -1 });
+messageSchema.index({ conversation: 1, deletedFor: 1, createdAt: -1 });
+messageSchema.index({ conversation: 1, sender: 1, createdAt: -1 });
 messageSchema.index({ sender: 1, createdAt: -1 });
 messageSchema.index({ receiver: 1, messageStatus: 1 });
 messageSchema.index({ conversation: 1, isPinned: 1 });

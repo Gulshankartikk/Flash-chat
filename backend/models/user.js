@@ -102,5 +102,8 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+userSchema.index({ blockedUsers: 1 });
+userSchema.index({ isOnline: 1, lastSeen: -1 });
+
 // Prevent OverwriteModelError on hot-reload (nodemon, dev server)
 module.exports = mongoose.models.User || mongoose.model("User", userSchema);

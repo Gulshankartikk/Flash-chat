@@ -1,6 +1,7 @@
 const dotenv = require('dotenv');
 dotenv.config(); // ← SABSE PEHLE, koi bhi require se pehle
 
+const path = require('path');
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
@@ -38,6 +39,7 @@ app.use(cors(corsOption));
 app.use(express.json());
 app.use(cookieParser());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use('/upload', express.static(path.join(__dirname, 'upload')));
 
 // Rate Limiting
 let rateLimit;

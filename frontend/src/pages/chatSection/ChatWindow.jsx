@@ -1,3 +1,24 @@
+/*
+ * CHAT WINDOW & CALL COORDINATION FLOW
+ *
+ * ChatWindow
+ *   ├── ChatHeader
+ *   │     ├── User Avatar & Presence indicator (isOtherTyping / online / lastSeen)
+ *   │     └── Call Actions (Voice/Video) -> CallContext -> useWebRTC -> Socket.io
+ *   ├── MessageList
+ *   │     └── MessageBubble -> Reactions / Reply / Forward / Pin / Delete
+ *   ├── TypingIndicator (Socket.io "typing:user" / "stopTyping:user")
+ *   └── ChatInput
+ *         ├── Message composition & Emoji Picker (cursor position insertion)
+ *         ├── AI writing assistance & Smart replies
+ *         └── Send -> useChatStore.sendMessage() -> socketService "message:send"
+ *
+ * Related contracts:
+ * - socketService.js (Signaling & messaging)
+ * - chatStore.js (Zustand conversation & message state)
+ * - useWebRTC.js (PeerConnection media pipeline)
+ */
+
 import React, { useState, useContext, useEffect, useRef, useMemo, useCallback } from "react";
 import { Search, Pin, X } from "lucide-react";
 import { toast } from "react-toastify";
@@ -29,6 +50,9 @@ const ChatWindow = ({ selectedContact, setSelectedContact, isMobile }) => {
   const editMessage         = useChatStore((s) => s.editMessage);
   const pinMessage          = useChatStore((s) => s.pinMessage);
   const forwardMessage      = useChatStore((s) => s.forwardMessage);
+  const hasMoreMessages     = useChatStore((s) => s.hasMoreMessages);
+  const isLoadingOlder      = useChatStore((s) => s.isLoadingOlder);
+  const loadOlderMessages   = useChatStore((s) => s.loadOlderMessages);
 
   const contacts            = useLayoutStore((s) => s.contacts);
 
@@ -209,6 +233,18 @@ const ChatWindow = ({ selectedContact, setSelectedContact, isMobile }) => {
     return messages.filter((m) => (m.content || m.message || "").toLowerCase().includes(q));
   }, [searchQuery, messages]);
 
+  const lastIncomingMessage = useMemo(() => {
+    if (!messages || messages.length === 0) return null;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      const senderId = typeof m.sender === "object" ? m.sender?._id : m.sender;
+      if (String(senderId) === String(otherUserId) && !m.isDeleted && !m.isDeletedForEveryone) {
+        return m;
+      }
+    }
+    return null;
+  }, [messages, otherUserId]);
+
   const isSearchActive = searchOpen && searchQuery.trim().length > 0;
 
   if (!selectedContact) {
@@ -233,7 +269,7 @@ const ChatWindow = ({ selectedContact, setSelectedContact, isMobile }) => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-[#000000] text-slate-800 dark:text-[#FFFFFF] font-sans relative">
+    <div className="h-full flex flex-col bg-white dark:bg-[#000000] text-slate-800 dark:text-[#FFFFFF] font-sans relative min-h-0 overflow-hidden">
       <ChatHeader
         otherUser={otherUser}
         conversation={activeConversation}
@@ -305,8 +341,9 @@ const ChatWindow = ({ selectedContact, setSelectedContact, isMobile }) => {
         <MessageList
           messages={displayedMessages}
           currentUserId={currentUser?._id}
-          isLoadingMore={isLoadingMessages}
-          hasMore={false}
+          isLoadingMore={isLoadingMessages || isLoadingOlder}
+          hasMore={hasMoreMessages}
+          onLoadMore={loadOlderMessages}
           onReply={(msg) => setReplyTo(msg)}
           onReact={handleReact}
           onDelete={handleDelete}
@@ -328,6 +365,8 @@ const ChatWindow = ({ selectedContact, setSelectedContact, isMobile }) => {
         onCancelReply={clearReplyTo}
         otherUserId={otherUserId}
         otherUserName={otherUser?.username || otherUser?.name || "Contact"}
+        conversationId={activeConversation?._id}
+        lastIncomingMessage={lastIncomingMessage}
         onTypingStart={() => startTyping(otherUserId)}
         onTypingStop={() => stopTyping(otherUserId)}
       />

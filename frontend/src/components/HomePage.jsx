@@ -1,3 +1,22 @@
+/*
+ * CONTACT & CONVERSATION LIST ARCHITECTURE
+ *
+ * HomePage (Sidebar child panel)
+ *   ├── Header (Sticky: Profile info, Search bar, Status / Call shortcuts, Notifications)
+ *   ├── Conversation / Contacts Scroll Container (flex-1 min-h-0 overflow-y-auto)
+ *   │     ├── AI Chat Quick Shortcut
+ *   │     └── ConversationRow[] (Avatar, Presence, Last message, Unread badge)
+ *   └── Action FAB (Toggle between Chats and Contacts views)
+ *
+ * Contact Navigation & Chat Selection:
+ * Clicking a ConversationRow -> setSelectedContact(user) + openConversation(conv)
+ * -> triggers ChatWindow load in right pane without reloading contacts.
+ *
+ * Scroll Isolation:
+ * The contacts list has its own independent vertical scroll container, unaffected
+ * by message scrolling in the active conversation pane.
+ */
+
 import React, { useState, useEffect, useRef, useContext, useMemo, lazy, Suspense, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -55,8 +74,63 @@ const StatusTick = ({ status }) => {
   return null;
 };
 
+// Module-level cache for decrypted conversation list previews
+const previewCache = new Map();
+
 // Memoized Conversation Row component
 const ConversationRow = memo(({ row, isSelected, isStarting, isContactsView, onChatClick, onStartChat }) => {
+  const rawMessage = row.lastMessage || "";
+  const isEncrypted = typeof rawMessage === "string" && rawMessage.startsWith("e2ee:");
+  const initialPreview = !rawMessage
+    ? ""
+    : isEncrypted
+    ? (previewCache.get(rawMessage) || "🔒 Encrypted Message")
+    : rawMessage;
+
+  const [previewText, setPreviewText] = useState(initialPreview);
+
+  useEffect(() => {
+    const raw = row.lastMessage;
+    if (!raw || isContactsView) return;
+
+    if (!raw.startsWith("e2ee:")) {
+      setPreviewText(raw);
+      return;
+    }
+
+    if (previewCache.has(raw)) {
+      setPreviewText(previewCache.get(raw));
+      return;
+    }
+
+    let active = true;
+    import("../utils/crypto").then(async ({ decryptText }) => {
+      try {
+        const convId = String(row._id || row._conv?._id || "");
+        const senderId = String(row.lastMessageSenderId || (row.lastMessageMine ? row.currentUserId : (row.otherUser?._id || row.otherUser || "")));
+        const peerId = String(row.otherUser?._id || row.otherUser || "");
+        const myId = String(row.currentUserId || "");
+        const decrypted = await decryptText(raw, convId, senderId, myId, peerId);
+        if (decrypted) {
+          previewCache.set(raw, decrypted);
+          if (previewCache.size > 500) {
+            const first = previewCache.keys().next().value;
+            previewCache.delete(first);
+          }
+        }
+        if (active && decrypted) {
+          setPreviewText(decrypted);
+        }
+      } catch {
+        if (active) setPreviewText("🔒 Encrypted Message");
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [row.lastMessage, row._id, row._conv?._id, row.lastMessageSenderId, row.lastMessageMine, row.currentUserId, row.otherUser, isContactsView]);
+
   return (
     <motion.div
       layout
@@ -115,7 +189,7 @@ const ConversationRow = memo(({ row, isSelected, isStarting, isContactsView, onC
             <p className="text-xs text-slate-400 dark:text-[#A0A0A0] truncate flex-1">
               {isContactsView
                 ? (isStarting ? "Opening..." : "Tap to start chatting")
-                : (row.lastMessage || "No messages yet")}
+                : (previewText || "No messages yet")}
             </p>
           </div>
           {!row.isOnline && row.lastSeen && (
@@ -218,6 +292,8 @@ const HomePage = () => {
           conv.lastMessage?.sender === currentUser?._id ||
           conv.lastMessage?.sender?._id === currentUser?._id,
         lastMessageStatus: conv.lastMessage?.messageStatus || conv.lastMessage?.status || null,
+        lastMessageSenderId: conv.lastMessage?.sender?._id || conv.lastMessage?.sender || null,
+        currentUserId:     currentUser?._id || null,
         unreadCount:       unreadCounts[conv._id] || 0,
         _conv:             conv,
         otherUser:         other,
@@ -315,7 +391,7 @@ const HomePage = () => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-[#000000] text-slate-800 dark:text-[#FFFFFF] font-sans relative">
+    <div className="h-full flex flex-col bg-white dark:bg-[#000000] text-slate-800 dark:text-[#FFFFFF] font-sans relative min-h-0 overflow-hidden">
 
       {/* ── Header ── */}
       <div className="flex-shrink-0 bg-slate-50 dark:bg-[#111111] border-b border-slate-200 dark:border-[#222222] p-4 sticky top-0 z-10">
@@ -439,7 +515,7 @@ const HomePage = () => {
       </div>
 
       {/* ── List Body ── */}
-      <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-[#222222]">
+      <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-[#222222] min-h-0">
         {/* Quick AI Assistant Shortcut */}
         {!isContactsView && !query && (
           <div

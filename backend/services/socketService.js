@@ -1,11 +1,43 @@
+/*
+ * SOCKET.IO SERVER ARCHITECTURE & EVENT ROUTING
+ *
+ * Socket.io Server (socketService.js)
+ *   ├── Connection Management & Presence:
+ *   │     ├── "user_connected" -> Sets isOnline: true, joins room, broadcasts "user_status"
+ *   │     ├── "disconnect"     -> Cleans active calls, clears typing, broadcasts "user_status" (offline)
+ *   │     └── "get_user_status"-> Instant status inquiry callback
+ *   ├── Messaging & Read Receipts:
+ *   │     ├── "send_message"   -> Delivers to recipient socket, emits notification, triggers delivery receipt
+ *   │     └── "message_read"   -> Marks messages read, sends status update to sender
+ *   ├── Typing State Coordination:
+ *   │     └── "typing_start" / "typing_stop" -> Relays typing indicators with auto-cancel timers
+ *   └── WebRTC Signaling Pipeline:
+ *         ├── "call_user"    -> Validates busy/offline, tracks active call, forwards SDP offer
+ *         ├── "accept_call"  -> Relays SDP answer to caller, transitions status to connected
+ *         ├── "reject_call"  -> Notifies caller, tears down call state
+ *         ├── "cancel_call"  -> Caller cancelled before answer
+ *         ├── "ice_candidate"-> Relays network candidates peer-to-peer
+ *         └── "end_call"     -> Cleans up both sides
+ *
+ * Centralized Event Contract: backend/constants/socketEvents.js
+ */
+
 const { Server } = require("socket.io");
 const User = require("../models/user");
 const Message = require("../models/message");
 const Conversation = require("../models/Conversation");
+const SOCKET_EVENTS = require("../constants/socketEvents");
 
-// Map to store online users: userId -> socketId
+// Map to store online users: userId -> socketId (legacy compatibility)
 const onlineUsers = new Map();
+// Enhanced map to track all socket IDs for a given user: userId -> Set<socketId>
+const userSockets = new Map();
+const socketToUser = new Map();
 const typingUsers = new Map();
+// Active calls tracking: callId -> { callId, callerId, receiverId, roomId, callType, callerName, callerAvatar, status }
+const activeCalls = new Map();
+// Fast lookup: userId -> callId
+const userToCall = new Map();
 
 const allowedOrigins = [
   process.env.FRONTEND_URL,
@@ -37,7 +69,14 @@ const initilizeSocket = (server) => {
     // ─── User comes online ───────────────────────────────────────────────────
     socket.on("user_connected", async (connectingUserId) => {
       try {
-        userId = connectingUserId;
+        if (!connectingUserId) return;
+        userId = String(connectingUserId);
+        socketToUser.set(socket.id, userId);
+
+        if (!userSockets.has(userId)) {
+          userSockets.set(userId, new Set());
+        }
+        userSockets.get(userId).add(socket.id);
         onlineUsers.set(userId, socket.id);
         socket.join(userId);
 
@@ -297,46 +336,127 @@ const initilizeSocket = (server) => {
     });
 
     // ─── Video & Voice Call Signaling ─────────────────────────────────────────
+    // ─── Video & Voice Call Signaling ─────────────────────────────────────────
     socket.on("call_user", ({ to, offer, from, roomId, callType, callerName, callerAvatar }) => {
-      const targetSocket = onlineUsers.get(to);
-      if (targetSocket) {
-        io.to(targetSocket).emit("incoming_call", { from, offer, roomId, callType, callerName, callerAvatar });
-        io.to(targetSocket).emit("new_notification", {
-          type: "call",
-          from: from,
-          title: `Incoming ${callType} Call`,
-          preview: `${callerName} is calling you`,
-          avatar: callerAvatar || "",
+      const targetUserId = String(to);
+      const callerId = String(from || userId);
+
+      // Check if target user is online
+      const targetSockets = userSockets.get(targetUserId);
+      if (!targetSockets || targetSockets.size === 0) {
+        socket.emit("call_user_offline", {
+          to: targetUserId,
+          message: "User is currently offline.",
         });
+        return;
       }
+
+      // Check if target user is already in another call
+      if (userToCall.has(targetUserId)) {
+        socket.emit("call_user_busy", {
+          to: targetUserId,
+          message: "User is currently busy on another call.",
+        });
+        return;
+      }
+
+      // Check if caller is already recorded in a call
+      if (userToCall.has(callerId)) {
+        const prevCallId = userToCall.get(callerId);
+        activeCalls.delete(prevCallId);
+        userToCall.delete(callerId);
+      }
+
+      const callId = roomId || `call_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      activeCalls.set(callId, {
+        callId,
+        callerId,
+        receiverId: targetUserId,
+        roomId: callId,
+        callType: callType || "video",
+        callerName,
+        callerAvatar,
+        status: "ringing",
+      });
+      userToCall.set(callerId, callId);
+      userToCall.set(targetUserId, callId);
+
+      io.to(targetUserId).emit("incoming_call", {
+        from: callerId,
+        offer,
+        roomId: callId,
+        callType: callType || "video",
+        callerName,
+        callerAvatar,
+      });
+
+      io.to(targetUserId).emit("new_notification", {
+        type: "call",
+        from: callerId,
+        title: `Incoming ${callType === "voice" ? "Voice" : "Video"} Call`,
+        preview: `${callerName || "Someone"} is calling you`,
+        avatar: callerAvatar || "",
+      });
+    });
+
+    socket.on("cancel_call", ({ to }) => {
+      const targetUserId = String(to);
+      const callerId = String(userId);
+      const callId = userToCall.get(callerId);
+      if (callId) {
+        activeCalls.delete(callId);
+        userToCall.delete(callerId);
+        userToCall.delete(targetUserId);
+      }
+      io.to(targetUserId).emit("call_cancelled", { from: callerId });
     });
 
     socket.on("accept_call", ({ to, answer }) => {
-      const targetSocket = onlineUsers.get(to);
-      if (targetSocket) {
-        io.to(targetSocket).emit("call_accepted", { answer });
+      const targetUserId = String(to);
+      const callerId = String(userId);
+      const callId = userToCall.get(callerId);
+      if (callId && activeCalls.has(callId)) {
+        activeCalls.get(callId).status = "connected";
       }
+      io.to(targetUserId).emit("call_accepted", { answer, from: callerId });
     });
 
     socket.on("reject_call", ({ to }) => {
-      const targetSocket = onlineUsers.get(to);
-      if (targetSocket) {
-        io.to(targetSocket).emit("call_rejected");
+      const targetUserId = String(to);
+      const callerId = String(userId);
+      const callId = userToCall.get(callerId);
+      if (callId) {
+        activeCalls.delete(callId);
+        userToCall.delete(callerId);
+        userToCall.delete(targetUserId);
       }
+      io.to(targetUserId).emit("call_rejected", { from: callerId });
     });
 
     socket.on("ice_candidate", ({ to, candidate }) => {
-      const targetSocket = onlineUsers.get(to);
-      if (targetSocket) {
-        io.to(targetSocket).emit("ice_candidate", { candidate });
-      }
+      const targetUserId = String(to);
+      io.to(targetUserId).emit("ice_candidate", { candidate, from: userId });
+    });
+
+    socket.on("media_state_changed", ({ to, type, enabled }) => {
+      const targetUserId = String(to);
+      io.to(targetUserId).emit("media_state_changed", {
+        from: userId,
+        type, // "audio" | "video"
+        enabled: !!enabled,
+      });
     });
 
     socket.on("end_call", ({ to }) => {
-      const targetSocket = onlineUsers.get(to);
-      if (targetSocket) {
-        io.to(targetSocket).emit("call_ended");
+      const targetUserId = String(to);
+      const callerId = String(userId);
+      const callId = userToCall.get(callerId);
+      if (callId) {
+        activeCalls.delete(callId);
+        userToCall.delete(callerId);
+        userToCall.delete(targetUserId);
       }
+      io.to(targetUserId).emit("call_ended", { from: callerId, reason: "Call ended by peer" });
     });
 
     // ─── User Status System ───────────────────────────────────────────────────
@@ -361,40 +481,69 @@ const initilizeSocket = (server) => {
       if (!userId) return;
 
       try {
-        onlineUsers.delete(userId);
-
-        
-        if (typingUsers.has(userId)) {
-          const userTyping = typingUsers.get(userId);
-          Object.keys(userTyping).forEach((key) => {
-            if (key.endsWith("_timeout")) {
-              clearTimeout(userTyping[key]);
-            } else if (userTyping[key]?.active) {
-              const conversationId = key;
-              const { receiverId } = userTyping[key];
-              io.to(receiverId).emit("user_typing", {
-                userId,
-                conversationId,
-                isTyping: false,
-              });
-            }
-          });
-          typingUsers.delete(userId);
+        // 1. If user was in an active call, immediately notify peer and cleanup
+        const callId = userToCall.get(userId);
+        if (callId) {
+          const call = activeCalls.get(callId);
+          if (call) {
+            const peerId = String(call.callerId) === String(userId) ? String(call.receiverId) : String(call.callerId);
+            io.to(peerId).emit("call_ended", {
+              reason: "Participant disconnected from network.",
+              from: userId,
+            });
+            userToCall.delete(peerId);
+          }
+          activeCalls.delete(callId);
+          userToCall.delete(userId);
         }
 
-        await User.findByIdAndUpdate(userId, {
-          isOnline: false,
-          lastSeen: new Date(),
-        });
+        // 2. Remove socket from multi-socket set
+        if (userSockets.has(userId)) {
+          const userSet = userSockets.get(userId);
+          userSet.delete(socket.id);
 
-        io.emit("user_status", {
-          userId,
-          isOnline: false,
-          lastSeen: new Date(),
-        });
+          if (userSet.size === 0) {
+            userSockets.delete(userId);
+            onlineUsers.delete(userId);
+
+            if (typingUsers.has(userId)) {
+              const userTyping = typingUsers.get(userId);
+              Object.keys(userTyping).forEach((key) => {
+                if (key.endsWith("_timeout")) {
+                  clearTimeout(userTyping[key]);
+                } else if (userTyping[key]?.active) {
+                  const conversationId = key;
+                  const { receiverId } = userTyping[key];
+                  io.to(String(receiverId)).emit("user_typing", {
+                    userId,
+                    conversationId,
+                    isTyping: false,
+                  });
+                }
+              });
+              typingUsers.delete(userId);
+            }
+
+            await User.findByIdAndUpdate(userId, {
+              isOnline: false,
+              lastSeen: new Date(),
+            });
+
+            io.emit("user_status", {
+              userId,
+              isOnline: false,
+              lastSeen: new Date(),
+            });
+          } else {
+            // Pick next active socket for onlineUsers map
+            const nextSocket = userSet.values().next().value;
+            onlineUsers.set(userId, nextSocket);
+          }
+        }
 
         socket.leave(userId);
-        console.log(`User ${userId} disconnected`);
+        socketToUser.delete(socket.id);
+        console.log(`User ${userId} disconnected (socket: ${socket.id})`);
       } catch (error) {
         console.error("Error handling disconnection:", error);
       }

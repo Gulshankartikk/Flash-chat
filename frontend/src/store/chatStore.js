@@ -1,3 +1,25 @@
+/*
+ * CHAT & CONVERSATION STATE ARCHITECTURE (Zustand)
+ *
+ * chatStore.js
+ *   ├── Active Conversation & Message State:
+ *   │     ├── messages: Message[] (current open conversation's message history)
+ *   │     ├── activeConversation: Conversation (currently selected chat)
+ *   │     ├── conversations: Conversation[] (list of all active chats with previews)
+ *   │     └── unreadCounts: Record<conversationId, number>
+ *   ├── Real-Time Socket Event Handling:
+ *   │     ├── onReceiveMessage: Appends new message, updates lastMessage preview, increments unread
+ *   │     ├── onMessageRead: Updates delivered/seen status indicators
+ *   │     ├── onUserTyping / onUserStopTyping: Manages typing indicators per conversation
+ *   │     └── onUserOnline / onUserOffline: Synchronizes peer presence
+ *   └── Message Operations:
+ *         ├── sendMessage(): Optimistic append -> Socket.io emit -> HTTP fallback
+ *         ├── editMessage() / deleteMessage() / reactToMessage()
+ *         └── fetchMessages(): Loads paginated message history
+ *
+ * Keep state synchronized with backend models: Message, Conversation, User
+ */
+
 import { create } from "zustand";
 import { toast } from "react-toastify";
 import axiosInstance from "../services/url.services";
@@ -7,7 +29,6 @@ import {
   getSocket,
   joinConversation,
   leaveConversation,
-  sendMessage as emitSendMessage,
   onReceiveMessage,
   emitTyping,
   emitStopTyping,
@@ -108,6 +129,8 @@ const useChatStore = create((set, get) => ({
 
   isLoadingConversations: false,
   isLoadingMessages: false,
+  isLoadingOlder: false,
+  hasMoreMessages: false,
   isSendingMessage: false,
   isLoadingContacts: false,
   isLoadingRequests: false,
@@ -464,6 +487,8 @@ const useChatStore = create((set, get) => ({
       replyTo: null,
       selectedMessages: [],
       isLoadingMessages: !conversation.isDraft,
+      isLoadingOlder: false,
+      hasMoreMessages: false,
       error: null,
     });
 
@@ -477,10 +502,16 @@ const useChatStore = create((set, get) => ({
 
     try {
       const { data } = await api.get(
-        `/chat/conversation/${conversation._id}/message`
+        `/chat/conversation/${conversation._id}/message`,
+        { params: { limit: 30 } }
       );
-      const list = (data?.data || data).map(normalizeMessage);
-      set({ messages: list, isLoadingMessages: false });
+      const rawList = data?.data || data;
+      const list = rawList.map(normalizeMessage);
+      set({
+        messages: list,
+        isLoadingMessages: false,
+        hasMoreMessages: rawList.length >= 30,
+      });
 
       list
         .filter((m) => m.messageStatus !== "seen" && !m.isMine)
@@ -491,7 +522,48 @@ const useChatStore = create((set, get) => ({
       set({
         error: err?.response?.data?.message || "Failed to load messages",
         isLoadingMessages: false,
+        hasMoreMessages: false,
       });
+    }
+  },
+
+  // ── 4b. LOAD OLDER MESSAGES (Infinite Scroll Pagination) ─────────────────────
+  loadOlderMessages: async () => {
+    const { activeConversation, messages, isLoadingOlder, hasMoreMessages } = get();
+    if (!activeConversation || activeConversation.isDraft || isLoadingOlder || !hasMoreMessages) {
+      return;
+    }
+
+    const oldest = messages.find((m) => !m.isOptimistic && m.createdAt);
+    if (!oldest) return;
+
+    set({ isLoadingOlder: true });
+
+    try {
+      const { data } = await api.get(
+        `/chat/conversation/${activeConversation._id}/message`,
+        {
+          params: {
+            before: oldest.createdAt,
+            limit: 30,
+          },
+        }
+      );
+      const rawList = data?.data || data;
+      const normalized = rawList.map(normalizeMessage);
+
+      set((state) => {
+        const existingIds = new Set(state.messages.map((m) => m._id));
+        const newBatch = normalized.filter((m) => !existingIds.has(m._id));
+        return {
+          messages: [...newBatch, ...state.messages],
+          hasMoreMessages: rawList.length >= 30,
+          isLoadingOlder: false,
+        };
+      });
+    } catch (err) {
+      console.error("Failed to load older messages:", err);
+      set({ isLoadingOlder: false });
     }
   },
 
@@ -501,7 +573,14 @@ const useChatStore = create((set, get) => ({
     if (activeConversation?._id && !activeConversation.isDraft) {
       leaveConversation(activeConversation._id);
     }
-    set({ activeConversation: null, messages: [], replyTo: null, selectedMessages: [] });
+    set({
+      activeConversation: null,
+      messages: [],
+      replyTo: null,
+      selectedMessages: [],
+      isLoadingOlder: false,
+      hasMoreMessages: false,
+    });
   },
 
   // ── 6. SEND MESSAGE ────────────────────────────────────────────────────────
@@ -589,16 +668,6 @@ const useChatStore = create((set, get) => ({
         );
         savedMessage = normalizeMessage(mediaData?.data || mediaData);
       } else {
-        if (!wasDraft) {
-          emitSendMessage({
-            conversationId: activeConversation._id,
-            receiverId: isGroup ? undefined : receiverId,
-            message: messageToSend,
-            messageType,
-            replyToId: replyTo?._id || null,
-          });
-        }
-
         const { data: msgData } = await api.post(`/chat/send-message`, {
           senderId: get().currentUser?._id,
           receiverId: isGroup ? undefined : receiverId,

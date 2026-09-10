@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useRef, lazy, Suspense } from "react";
 import { useWebRTC } from "../hooks/useWebRTC";
 import useUserStore from "../store/useUserStore";
+import useSocket from "../hooks/useSocket";
 import { toast } from "react-toastify";
 
 // Lazy-load WebRTC modals so they don't bloat the initial startup bundle
@@ -74,6 +75,7 @@ export const CallContext = createContext(null);
 
 export const CallProvider = ({ children }) => {
   const currentUser = useUserStore((state) => state.user);
+  const { socket } = useSocket();
   const [incomingCallInfo, setIncomingCallInfo] = useState(null);
   const [showCallModal, setShowCallModal] = useState(false);
   const ringtoneRef = useRef(null);
@@ -109,7 +111,7 @@ export const CallProvider = ({ children }) => {
     }, 30000);
   };
 
-  const webrtc = useWebRTC(currentUser, onCallEnded, onIncomingCall);
+  const webrtc = useWebRTC(currentUser, onCallEnded, onIncomingCall, socket);
 
   const startCall = (targetUser, type = "video") => {
     webrtc.startCall(targetUser, type);
@@ -184,6 +186,9 @@ export const CallProvider = ({ children }) => {
             remoteStream={webrtc.remoteStream}
             isMuted={webrtc.isMuted}
             isCamOff={webrtc.isCamOff}
+            isRemoteMuted={webrtc.isRemoteMuted}
+            isRemoteCamOff={webrtc.isRemoteCamOff}
+            connectionState={webrtc.connectionState}
             isScreenSharing={webrtc.isScreenSharing}
             remoteUser={webrtc.remoteUser}
             callType={webrtc.callType}
@@ -193,6 +198,7 @@ export const CallProvider = ({ children }) => {
             onToggleCam={webrtc.toggleCam}
             onToggleScreenShare={webrtc.toggleScreenShare}
             onEndCall={endActiveCall}
+            onCancelCall={webrtc.cancelCall}
           />
         </Suspense>
       )}

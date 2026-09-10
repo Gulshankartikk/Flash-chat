@@ -51,13 +51,13 @@ const sessionKeyCache = new Map();
  * @returns {Promise<{ keyPair: CryptoKeyPair, publicJwk: JsonWebKey, publicJwkString: string }>}
  */
 export async function initializeUserE2EE(currentUserId) {
-  let record = await loadIdentityKeyPair();
+  let record = await loadIdentityKeyPair(currentUserId);
 
   if (!record || !record.keyPair) {
     const keyPair = await generateIdentityKeyPair();
     const publicJwk = await exportPublicKeyToJWK(keyPair.publicKey);
 
-    await saveIdentityKeyPair(keyPair, publicJwk);
+    await saveIdentityKeyPair(keyPair, publicJwk, currentUserId);
     record = {
       keyPair,
       publicJwk,
@@ -139,17 +139,20 @@ export async function encryptMessage(plainText, recipientUserId, currentUserId, 
 
 /**
  * Decrypts an encrypted message envelope using the viewer's private key.
+ * Handles both True E2EE v2 envelopes and legacy v1 conversationId envelopes.
+ * Supports both recipient and sender decryption.
  * 
  * @param {string} encryptedText - Encrypted envelope string
  * @param {string} senderUserId - Sender's user ID
  * @param {string} currentUserId - Viewer's user ID
  * @param {string} [conversationId] - Optional fallback ID
+ * @param {string} [peerUserId] - Peer's user ID (for sender decrypting own message)
  * @returns {Promise<string>} Decrypted plaintext
  */
-export async function decryptMessage(encryptedText, senderUserId, currentUserId, conversationId) {
+export async function decryptMessage(encryptedText, senderUserId, currentUserId, conversationId, peerUserId) {
   if (!encryptedText || typeof encryptedText !== "string") return encryptedText;
 
-  // 1. Process True E2EE v2 envelope
+  // 1. Process True E2EE v2 envelope: "e2ee:v2:<ivHex>:<senderJwkBase64>:<cipherHex>"
   if (encryptedText.startsWith("e2ee:v2:")) {
     try {
       const parsed = parseE2EEEnvelope(encryptedText);
@@ -160,24 +163,74 @@ export async function decryptMessage(encryptedText, senderUserId, currentUserId,
         return "🔒 [Encrypted Message - Key Missing]";
       }
 
-      // Import sender's public key from the envelope
-      const senderPublicKey = await importPublicKeyFromJWK(parsed.senderJwk);
+      const isSender = String(currentUserId) === String(senderUserId);
+      let sessionKey = null;
 
-      const sessionKey = await getOrDeriveSessionKey(
-        currentUserId,
-        senderUserId,
-        ownRecord.keyPair.privateKey,
-        senderPublicKey
-      );
+      if (isSender) {
+        // Viewer is the sender: derive session key using recipient's public key
+        const targetRecipientId = peerUserId || (senderUserId !== currentUserId ? senderUserId : null);
+        if (targetRecipientId) {
+          const peerPublicKey = await fetchPeerPublicKey(targetRecipientId);
+          if (peerPublicKey) {
+            sessionKey = await getOrDeriveSessionKey(
+              currentUserId,
+              targetRecipientId,
+              ownRecord.keyPair.privateKey,
+              peerPublicKey
+            );
+          }
+        }
+      } else {
+        // Viewer is the recipient: derive session key using sender's public key from the envelope
+        const senderPublicKey = await importPublicKeyFromJWK(parsed.senderJwk);
+        sessionKey = await getOrDeriveSessionKey(
+          currentUserId,
+          senderUserId,
+          ownRecord.keyPair.privateKey,
+          senderPublicKey
+        );
+      }
 
-      return await decryptAESGCM(parsed.cipherBytes, parsed.iv, sessionKey);
+      if (sessionKey) {
+        return await decryptAESGCM(parsed.cipherBytes, parsed.iv, sessionKey);
+      }
     } catch (err) {
-      console.warn("[E2EE] Decryption failed (invalid key or payload):", err);
-      return "🔒 [Encrypted Message]";
+      console.warn("[E2EE] v2 Decryption failed:", err);
     }
   }
 
-  // 2. Not encrypted
+  // 2. Process Legacy v1 E2EE envelope: "e2ee:<ivHex>:<cipherHex>"
+  if (encryptedText.startsWith("e2ee:") && !encryptedText.startsWith("e2ee:v2:")) {
+    try {
+      const parts = encryptedText.split(":");
+      if (parts.length === 3 && conversationId) {
+        const [, ivHex, cipherHex] = parts;
+        const iv = new Uint8Array(ivHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+        const cipherBytes = new Uint8Array(cipherHex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+
+        const enc = new TextEncoder();
+        const rawKey = enc.encode(String(conversationId));
+        const hash = await window.crypto.subtle.digest("SHA-256", rawKey);
+        const legacyKey = await window.crypto.subtle.importKey(
+          "raw",
+          hash,
+          { name: "AES-GCM" },
+          false,
+          ["decrypt"]
+        );
+        return await decryptAESGCM(cipherBytes, iv, legacyKey);
+      }
+    } catch (legacyErr) {
+      console.warn("[E2EE] Legacy decryption failed:", legacyErr);
+    }
+  }
+
+  // 3. Fallback for un-decryptable ciphertext
+  if (encryptedText.startsWith("e2ee:")) {
+    return "🔒 [Encrypted Message]";
+  }
+
+  // 4. Plaintext message
   return encryptedText;
 }
 

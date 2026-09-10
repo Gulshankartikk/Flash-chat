@@ -32,11 +32,12 @@ export async function encryptText(plainText, conversationId, recipientUserId, cu
  * @param {string} conversationId - The conversation ID.
  * @param {string} [senderUserId] - Sender's user ID.
  * @param {string} [currentUserId] - Viewer's user ID.
+ * @param {string} [peerUserId] - Peer's user ID.
  * @returns {Promise<string>} The decrypted plaintext.
  */
-export async function decryptText(encryptedText, conversationId, senderUserId, currentUserId) {
+export async function decryptText(encryptedText, conversationId, senderUserId, currentUserId, peerUserId) {
   if (!encryptedText || typeof encryptedText !== "string") return encryptedText;
-  return decryptMessage(encryptedText, senderUserId, currentUserId, conversationId);
+  return decryptMessage(encryptedText, senderUserId, currentUserId, conversationId, peerUserId);
 }
 
 export {

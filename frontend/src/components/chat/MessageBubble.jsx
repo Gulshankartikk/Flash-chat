@@ -17,8 +17,12 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import AudioPlayer from "./AudioPlayer";
+import useChatStore from "../../store/chatStore";
 
 const QUICK_REACTIONS = ["❤️", "😂", "👍", "😮", "😢", "🔥"];
+
+// In-memory cache for decrypted messages to eliminate redundant crypto work during render & scroll
+const decryptedCache = new Map();
 
 // Unicode property escapes (requires the `u` regex flag) — correctly matches
 // emoji without relying on hand-rolled surrogate-pair ranges that are easy
@@ -133,32 +137,59 @@ const MessageBubble = ({
   const [lightboxUrl, setLightboxUrl] = useState(null);
   const [lightboxType, setLightboxType] = useState(null);
 
-  const [decryptedContent, setDecryptedContent] = useState(msg.content || msg.message || "");
+  const rawText = msg.content || msg.message || "";
+  const isEncrypted = typeof rawText === "string" && rawText.startsWith("e2ee:");
+  const initialContent = isEncrypted ? (decryptedCache.get(rawText) || rawText) : rawText;
+
+  const [decryptedContent, setDecryptedContent] = useState(initialContent);
 
   useEffect(() => {
+    const raw = msg.content || msg.message || "";
+    if (!raw || typeof raw !== "string" || !raw.startsWith("e2ee:")) {
+      setDecryptedContent(raw || "");
+      setEditText(raw || "");
+      return;
+    }
+
+    if (decryptedCache.has(raw)) {
+      const cached = decryptedCache.get(raw);
+      setDecryptedContent(cached);
+      setEditText(cached);
+      return;
+    }
+
     let active = true;
     const performDecryption = async () => {
-      const rawText = msg.content || msg.message || "";
-      if (rawText) {
-        try {
-          const { decryptText } = await import("../../utils/crypto");
-          const senderId = msg.sender?._id || msg.sender;
-          const convId = msg.conversationId || msg.conversation?._id || msg.conversation;
-          const decrypted = await decryptText(rawText, convId, senderId, currentUserId);
-          if (active) {
-            setDecryptedContent(decrypted);
-            setEditText(decrypted);
-          }
-        } catch (e) {
-          if (active) {
-            setDecryptedContent(rawText);
-            setEditText(rawText);
+      try {
+        const { decryptText } = await import("../../utils/crypto");
+        const senderId = String(msg.sender?._id || msg.sender || "");
+        const receiverId = String(msg.receiver?._id || msg.receiver || "");
+        const convId = String(msg.conversationId || msg.conversation?._id || msg.conversation || "");
+        const myId = String(currentUserId || "");
+
+        let peerId = (myId === senderId) ? receiverId : senderId;
+        if (!peerId || peerId === myId) {
+          const activeConv = useChatStore.getState().activeConversation;
+          const otherP = activeConv?.participants?.find((p) => String(p._id || p) !== myId);
+          if (otherP) peerId = String(otherP._id || otherP);
+        }
+
+        const decrypted = await decryptText(raw, convId, senderId, currentUserId, peerId);
+        if (decrypted) {
+          decryptedCache.set(raw, decrypted);
+          if (decryptedCache.size > 2000) {
+            const firstKey = decryptedCache.keys().next().value;
+            decryptedCache.delete(firstKey);
           }
         }
-      } else {
         if (active) {
-          setDecryptedContent("");
-          setEditText("");
+          setDecryptedContent(decrypted || raw);
+          setEditText(decrypted || raw);
+        }
+      } catch (e) {
+        if (active) {
+          setDecryptedContent(raw);
+          setEditText(raw);
         }
       }
     };
@@ -166,7 +197,7 @@ const MessageBubble = ({
     return () => {
       active = false;
     };
-  }, [msg.content, msg.message, msg.conversationId, msg.conversation, msg.sender, currentUserId]);
+  }, [msg.content, msg.message, msg.conversationId, msg.conversation, msg.sender, msg.receiver, currentUserId]);
 
   const pickerRef = useRef(null);
   const menuRef = useRef(null);
@@ -600,4 +631,16 @@ const MessageBubble = ({
   );
 };
 
-export default MessageBubble;
+export default React.memo(MessageBubble, (prev, next) => {
+  return (
+    prev.msg?._id === next.msg?._id &&
+    (prev.msg?.content || prev.msg?.message) === (next.msg?.content || next.msg?.message) &&
+    (prev.msg?.messageStatus || prev.msg?.status) === (next.msg?.messageStatus || next.msg?.status) &&
+    prev.msg?.isEdited === next.msg?.isEdited &&
+    prev.msg?.isPinned === next.msg?.isPinned &&
+    prev.msg?.isDeletedForEveryone === next.msg?.isDeletedForEveryone &&
+    prev.msg?.reactions?.length === next.msg?.reactions?.length &&
+    prev.currentUserId === next.currentUserId &&
+    prev.otherUserName === next.otherUserName
+  );
+});

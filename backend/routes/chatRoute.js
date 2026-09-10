@@ -131,4 +131,10 @@ router.post(
   chatController.rewriteMessageDraft
 );
 
+router.post(
+  "/ai/suggestions",
+  authMiddleware,
+  chatController.getSmartReplies
+);
+
 module.exports = router;

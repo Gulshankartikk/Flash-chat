@@ -91,11 +91,7 @@ export default function Login() {
   useEffect(() => {
     const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
 
-    const script = document.createElement("script");
-    script.src = "https://accounts.google.com/gsi/client";
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
+    const setupGoogleGsi = () => {
       if (window.google?.accounts?.id && clientId) {
         try {
           window.google.accounts.id.initialize({
@@ -118,12 +114,24 @@ export default function Login() {
         }
       }
     };
-    document.body.appendChild(script);
+
+    if (window.google?.accounts?.id) {
+      setupGoogleGsi();
+      return;
+    }
+
+    let script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+    if (!script) {
+      script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+    script.addEventListener("load", setupGoogleGsi);
 
     return () => {
-      if (document.body.contains(script)) {
-        document.body.removeChild(script);
-      }
+      script?.removeEventListener("load", setupGoogleGsi);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
