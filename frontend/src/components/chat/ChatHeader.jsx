@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import { ArrowLeft, Phone, Video, Search, MoreVertical, ShieldAlert, Link2, LogOut, Users, Sparkles, Info } from "lucide-react";
+import { ArrowLeft, Phone, Video, Search, MoreVertical, ShieldAlert, Link2, LogOut, Users, Sparkles, Info, StickyNote } from "lucide-react";
 import StatusDot from "../status/StatusDot";
 import axiosInstance from "../../services/url.services";
 import AISummaryModal from "./AISummaryModal";
 import GroupInfoModal from "./GroupInfoModal";
+import InternalNotesDrawer from "../business/InternalNotesDrawer";
 import useUserStore from "../../store/useUserStore";
 import { toast } from "react-toastify";
 
@@ -23,6 +24,7 @@ const ChatHeader = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
@@ -140,6 +142,20 @@ const ChatHeader = ({
           <Sparkles size={16} />
         </button>
 
+        {/* Business Internal Notes */}
+        {(conversation?.organization || conversation?.channelType === "support_ticket") && (
+          <button
+            onClick={() => setIsNotesOpen(true)}
+            className="p-2 hover:bg-slate-100 dark:hover:bg-[#1c1c1c] rounded-full text-amber-500 hover:text-amber-400 transition-colors relative"
+            title="Internal Team Notes"
+          >
+            <StickyNote size={16} />
+            {conversation?.internalNotes?.length > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-amber-500 ring-2 ring-white dark:ring-[#111111]" />
+            )}
+          </button>
+        )}
+
         {!isGroup && (
           <>
             <button
@@ -248,6 +264,12 @@ const ChatHeader = ({
           currentUser={currentUser}
         />
       )}
+
+      <InternalNotesDrawer
+        isOpen={isNotesOpen}
+        onClose={() => setIsNotesOpen(false)}
+        ticket={conversation}
+      />
     </div>
   );
 };

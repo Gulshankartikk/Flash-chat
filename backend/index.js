@@ -141,8 +141,27 @@ app.use('/api/users', userRoute);
 app.use('/api/contacts', contactRoute);
 app.use('/api/conversations', conversationRoute);
 
-// System Health Check Endpoint
+// Versioned API v1 Routes
+const v1OrgRoute = require('./routes/v1/organizationRoute');
+const v1BusinessRoute = require('./routes/v1/businessRoute');
+const v1AIRoute = require('./routes/v1/aiRoute');
+const v1AdminRoute = require('./routes/v1/adminRoute');
+const v1KBRoute = require('./routes/v1/knowledgeBaseRoute');
+
+app.use('/api/v1/organizations', v1OrgRoute);
+app.use('/api/v1/business', v1BusinessRoute);
+app.use('/api/v1/ai', v1AIRoute);
+app.use('/api/v1/admin', v1AdminRoute);
+app.use('/api/v1/knowledge-base', v1KBRoute);
+
+// System Health & Readiness Endpoints
 const mongoose = require('mongoose');
+
+app.get('/health', (req, res) => res.status(200).json({ status: 'ok', service: 'flash-chat-backend' }));
+app.get('/ready', (req, res) => {
+    const isReady = mongoose.connection.readyState === 1;
+    return res.status(isReady ? 200 : 503).json({ ready: isReady, database: isReady ? 'connected' : 'disconnected' });
+});
 app.get('/api/health', (req, res) => {
     const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
     const memoryUsage = process.memoryUsage();

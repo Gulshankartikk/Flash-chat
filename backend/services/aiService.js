@@ -35,7 +35,16 @@ function setCache(cacheKey, value) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function callGeminiAPI(apiKey, payload) {
-  if (!apiKey || typeof apiKey !== "string" || apiKey.trim().length < 10) return null;
+  if (
+    !apiKey ||
+    typeof apiKey !== "string" ||
+    apiKey.trim().length < 15 ||
+    apiKey.includes("your_google_gemini_api_key") ||
+    apiKey.includes("replace_") ||
+    warnedInvalidKey
+  ) {
+    return null;
+  }
 
   // Build a simple cache key from the last user message text
   const promptText = payload?.contents
@@ -152,9 +161,15 @@ async function generateAIResponse(userMessage, chatHistory = []) {
       if (textResponse) {
         return textResponse;
       }
-      console.warn("Gemini API call failed or returned empty response. Falling back to local responder.");
+      if (!warnedInvalidKey) {
+        console.warn("Gemini API call failed or returned empty response. Falling back to local responder.");
+        warnedInvalidKey = true;
+      }
     } catch (err) {
-      console.error("Error calling Gemini API:", err);
+      if (!warnedInvalidKey) {
+        console.error("Error calling Gemini API:", err.message);
+        warnedInvalidKey = true;
+      }
     }
   }
 

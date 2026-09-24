@@ -1,13 +1,15 @@
 import React, { useEffect } from "react";
-import { MessageCircle, Users, Settings, Moon, Sun, ArrowLeft, LogOut, CircleDot } from "lucide-react";
+import { MessageCircle, Users, Settings, Moon, Sun, ArrowLeft, LogOut, CircleDot, Briefcase } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import useThemeStore from "../store/useThemeStore";
 import useLayoutStore from "../store/useLayoutStore";
 import useUserStore from "../store/useUserStore";
 import useChatStore from "../store/chatStore";
+import useBusinessStore from "../store/useBusinessStore";
 
 const NAV_ITEMS = [
   { id: "chats", label: "Chats", icon: MessageCircle, path: "/" },
+  { id: "business", label: "Business", icon: Briefcase, path: "/" },
   { id: "contacts", label: "Contacts", icon: Users, path: "/" },
   { id: "status", label: "Status", icon: CircleDot, path: "/status" },
   { id: "settings", label: "Settings", icon: Settings, path: "/setting" },
@@ -29,6 +31,7 @@ const Sidebar = () => {
   const currentUser = useUserStore((state) => state.user);
   const logout = useUserStore((state) => state.logout);
   const pendingRequests = useChatStore((s) => s.pendingRequests);
+  const setBusinessMode = useBusinessStore((s) => s.setBusinessMode);
 
   const isMobileWidth = window.innerWidth < 768;
 
@@ -44,7 +47,7 @@ const Sidebar = () => {
     } else if (path === "/setting") {
       setActiveView("settings");
     } else if (path === "/") {
-      if (activeView !== "chats" && activeView !== "contacts") {
+      if (activeView !== "chats" && activeView !== "contacts" && activeView !== "business") {
         setActiveView("chats");
       }
     }
@@ -52,6 +55,11 @@ const Sidebar = () => {
 
   const handleNavClick = (item) => {
     setActiveView(item.id);
+    if (item.id === "business") {
+      setBusinessMode(true);
+    } else if (item.id === "chats" || item.id === "contacts") {
+      setBusinessMode(false);
+    }
     navigate(item.path);
   };
 

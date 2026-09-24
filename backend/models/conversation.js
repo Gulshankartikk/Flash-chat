@@ -106,6 +106,63 @@ const conversationSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    // ---- Business & Customer Support Extensions ----
+    organization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+    },
+    channelType: {
+      type: String,
+      enum: ["personal", "group", "support_ticket", "lead"],
+      default: "personal",
+    },
+    assignedAgent: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    ticketStatus: {
+      type: String,
+      enum: ["open", "pending", "resolved", "closed"],
+      default: "open",
+    },
+    priority: {
+      type: String,
+      enum: ["low", "medium", "high", "urgent"],
+      default: "medium",
+    },
+    tags: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    department: {
+      type: String,
+      trim: true,
+    },
+    internalNotes: [
+      {
+        author: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "User",
+        },
+        text: {
+          type: String,
+          required: true,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
+    resolvedAt: {
+      type: Date,
+    },
+    closedAt: {
+      type: Date,
+    },
   },
   { timestamps: true }
 );
@@ -124,6 +181,8 @@ conversationSchema.index(
 );
 
 conversationSchema.index({ participants: 1, updatedAt: -1 });
+conversationSchema.index({ organization: 1, ticketStatus: 1, updatedAt: -1 });
+conversationSchema.index({ organization: 1, assignedAgent: 1 });
 
 module.exports =
   mongoose.models.Conversation ||

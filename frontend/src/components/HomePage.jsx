@@ -38,6 +38,7 @@ import axiosInstance from "../services/url.services";
 // Lazy load non-critical panels to keep initial bundle ultra small
 const ContactsPanel = lazy(() => import("./contacts/ContactsPanel"));
 const NotificationPanel = lazy(() => import("./notifications/NotificationPanel"));
+const BusinessInbox = lazy(() => import("./business/BusinessInbox"));
 
 const formatPreviewTime = (value) => {
   if (!value) return "";
@@ -376,6 +377,19 @@ const HomePage = () => {
   const activePeer = activeConversation?.participants?.find(
     (p) => p._id !== currentUser?._id
   );
+
+  // ── Short-circuit: delegate business mode to lazy BusinessInbox ──
+  if (activeView === "business") {
+    return (
+      <Suspense fallback={
+        <div className="h-full flex items-center justify-center">
+          <div className="w-6 h-6 border-2 border-slate-300 dark:border-[#222222] border-t-[#FF6B00] rounded-full animate-spin" />
+        </div>
+      }>
+        <BusinessInbox />
+      </Suspense>
+    );
+  }
 
   // ── Short-circuit: delegate contacts view to lazy ContactsPanel ──
   if (isContactsView) {

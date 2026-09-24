@@ -98,9 +98,39 @@ const userSchema = new mongoose.Schema(
         default: true,
       },
     },
+
+    // ---- Business & Multi-Tenant Organization Extensions ----
+    currentOrganization: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+    },
+    organizationRole: {
+      type: String,
+      enum: ["OWNER", "ADMIN", "MANAGER", "TEAM_LEAD", "EMPLOYEE", "SUPPORT_AGENT", "CUSTOMER"],
+      default: "CUSTOMER",
+    },
+    department: {
+      type: String,
+      trim: true,
+    },
+    isPlatformAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    aiSettings: {
+      preferredModel: { type: String, default: "gemini-flash" },
+      smartRepliesEnabled: { type: Boolean, default: true },
+      assistantEnabled: { type: Boolean, default: true },
+      dailyRequestCount: { type: Number, default: 0 },
+      lastRequestReset: { type: Date, default: Date.now },
+    },
   },
   { timestamps: true }
 );
+
+userSchema.index({ currentOrganization: 1 });
+userSchema.index({ email: 1 });
+userSchema.index({ username: 1 });
 
 userSchema.index({ blockedUsers: 1 });
 userSchema.index({ isOnline: 1, lastSeen: -1 });
