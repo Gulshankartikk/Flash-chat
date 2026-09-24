@@ -301,6 +301,15 @@ exports.sendMessage = async (req, res) => {
         if (receiverSocketId) {
           emitToUser(req, receiverId, "receive_message", populatedMessage);
 
+          emitToUser(req, receiverId, "new_notification", {
+            type: "message",
+            from: senderId,
+            conversationId: conversationDoc._id,
+            title: populatedMessage.sender?.username || "New Message",
+            preview: content || "Sent an attachment",
+            avatar: populatedMessage.sender?.profilePicture || "",
+          });
+
           if (wasDeliveredImmediately) {
             emitToUser(req, senderId, "message_status_update", {
               messageId: newMessage._id,

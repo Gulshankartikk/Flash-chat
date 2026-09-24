@@ -143,12 +143,12 @@ const initilizeSocket = (server) => {
             return; // Silently drop
           }
 
-          const receiverSocketId = onlineUsers.get(String(receiverId));
-          if (receiverSocketId) {
-            io.to(receiverSocketId).emit("receive_message", message);
+          const isReceiverOnline = onlineUsers.has(String(receiverId)) || (userSockets.get(String(receiverId))?.size > 0);
+          if (isReceiverOnline) {
+            io.to(String(receiverId)).emit("receive_message", message);
 
-            // Emit notification to receiver
-            io.to(receiverSocketId).emit("new_notification", {
+            // Emit notification to receiver (all active tabs/devices)
+            io.to(String(receiverId)).emit("new_notification", {
               type: "message",
               from: userId,
               title: senderUser?.username || "New Message",
@@ -161,7 +161,7 @@ const initilizeSocket = (server) => {
                 messageStatus: "delivered",
               });
             }
-            socket.emit("message_status_update", {
+            io.to(String(userId)).emit("message_status_update", {
               messageId: message._id,
               messageStatus: "delivered",
             });
@@ -172,22 +172,15 @@ const initilizeSocket = (server) => {
           conversationDoc.participants.forEach((p) => {
             const pIdStr = String(p);
             if (pIdStr !== String(userId)) {
-              const receiverSocketId = onlineUsers.get(pIdStr);
-              if (receiverSocketId) {
-                io.to(receiverSocketId).emit("receive_message", message);
-              }
-              // Send notifications to everyone else
-              const notifySocketId = onlineUsers.get(pIdStr);
-              if (notifySocketId) {
-                io.to(notifySocketId).emit("new_notification", {
-                  type: "message",
-                  from: userId,
-                  conversationId: conversationDoc._id,
-                  title: conversationDoc.groupName || "Group Message",
-                  preview: `${senderUser?.username || "Someone"}: ${message.content || "Sent an attachment"}`,
-                  avatar: conversationDoc.groupPhoto || "",
-                });
-              }
+              io.to(pIdStr).emit("receive_message", message);
+              io.to(pIdStr).emit("new_notification", {
+                type: "message",
+                from: userId,
+                conversationId: conversationDoc._id,
+                title: conversationDoc.groupName || "Group Message",
+                preview: `${senderUser?.username || "Someone"}: ${message.content || "Sent an attachment"}`,
+                avatar: conversationDoc.groupPhoto || "",
+              });
             }
           });
         }
@@ -211,16 +204,13 @@ const initilizeSocket = (server) => {
           { $set: { messageStatus: "read" } }
         );
 
-        if (hasReadReceipts) {
-          const senderSocketId = onlineUsers.get(senderId);
-          if (senderSocketId) {
-            messageIds.forEach((messageId) => {
-              io.to(senderSocketId).emit("message_status_update", {
-                messageId,
-                messageStatus: "read",
-              });
+        if (hasReadReceipts && senderId) {
+          messageIds.forEach((messageId) => {
+            io.to(String(senderId)).emit("message_status_update", {
+              messageId,
+              messageStatus: "read",
             });
-          }
+          });
         }
       } catch (error) {
         console.error("Error updating message read status:", error);
@@ -319,17 +309,12 @@ const initilizeSocket = (server) => {
           reactions: populatedMessage.reactions,
         };
 
-        const senderSocket = onlineUsers.get(
-          populatedMessage.sender._id.toString()
-        );
-        const receiverSocket = onlineUsers.get(
-          populatedMessage.receiver._id.toString()
-        );
-
-        if (senderSocket)
-          io.to(senderSocket).emit("reaction_update", reactionUpdated);
-        if (receiverSocket)
-          io.to(receiverSocket).emit("reaction_update", reactionUpdated);
+        if (populatedMessage.sender?._id) {
+          io.to(String(populatedMessage.sender._id)).emit("reaction_update", reactionUpdated);
+        }
+        if (populatedMessage.receiver?._id) {
+          io.to(String(populatedMessage.receiver._id)).emit("reaction_update", reactionUpdated);
+        }
       } catch (error) {
         console.error("Error handling reaction:", error);
       }

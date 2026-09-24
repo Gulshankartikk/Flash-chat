@@ -46,8 +46,12 @@ const useUserStore = create(
         // circular import between the stores at module-load time.
         try {
           const useChatStore = require("./chatStore").default;
-          useChatStore.getState().disconnectSocket();
-          useChatStore.getState().closeConversation();
+          if (useChatStore.getState().resetState) {
+            useChatStore.getState().resetState();
+          } else {
+            useChatStore.getState().disconnectSocket();
+            useChatStore.getState().closeConversation();
+          }
         } catch (e) {
           // chat store may not exist in every app that reuses this store
         }

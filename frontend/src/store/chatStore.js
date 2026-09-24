@@ -210,16 +210,21 @@ const useChatStore = create((set, get) => ({
         }
       }
 
-      // Reorder conversations: latest on top
+      // Reorder conversations: latest on top (or fetch if new conversation)
       if (incomingConvId) {
-        const updatedConvs = conversations
-          .map((c) =>
-            c._id === incomingConvId
-              ? { ...c, lastMessage: data, updatedAt: data.createdAt }
-              : c
-          )
-          .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
-        set({ conversations: updatedConvs });
+        const convExists = conversations.some((c) => c._id === incomingConvId);
+        if (!convExists) {
+          get().fetchConversations();
+        } else {
+          const updatedConvs = conversations
+            .map((c) =>
+              c._id === incomingConvId
+                ? { ...c, lastMessage: data, updatedAt: data.createdAt }
+                : c
+            )
+            .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+          set({ conversations: updatedConvs });
+        }
       }
     });
 
@@ -423,11 +428,39 @@ const useChatStore = create((set, get) => ({
     }));
   },
 
-  // ── 2. SOCKET disconnect ───────────────────────────────────────────────────
+  // ── 2. SOCKET disconnect & State Reset ─────────────────────────────────────
   disconnectSocket: () => {
     disconnectSocket();
     Object.values(typingTimeouts).forEach(clearTimeout);
-    set({ onlineUsers: new Set(), typingUsers: {}, lastSeenMap: {} });
+    set({
+      onlineUsers: new Set(),
+      typingUsers: {},
+      lastSeenMap: {},
+      messages: [],
+      activeConversation: null,
+      unreadCounts: {},
+    });
+  },
+
+  resetState: () => {
+    disconnectSocket();
+    Object.values(typingTimeouts).forEach(clearTimeout);
+    set({
+      currentUser: null,
+      conversations: [],
+      activeConversation: null,
+      messages: [],
+      onlineUsers: new Set(),
+      lastSeenMap: {},
+      typingUsers: {},
+      unreadCounts: {},
+      replyTo: null,
+      selectedMessages: [],
+      mediaPreview: null,
+      contactsList: [],
+      pendingRequests: [],
+      error: null,
+    });
   },
 
   setCurrentUser: (user) => set({ currentUser: user }),
