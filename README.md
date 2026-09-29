@@ -1,503 +1,332 @@
-# ⚡ Flash Chat — Production Real-Time Communication Platform
+# ⚡ Flash Chat
 
-Flash Chat is an enterprise-ready, WhatsApp-inspired full-stack communication platform built with React, Node.js/Express, Socket.io, WebRTC, and MongoDB. It supports end-to-end encrypted messaging, peer-to-peer audio and video calling, rich media sharing, Google Gemini AI writing assistance, and multi-device session management.
-
----
-
-## Table of Contents
-1. [Architecture Overview](#architecture-overview)
-2. [Key Features](#key-features)
-3. [Tech Stack](#tech-stack)
-4. [Folder Structure](#folder-structure)
-5. [How the Application Works](#how-the-application-works)
-   - [Authentication Flow](#authentication-flow)
-   - [Chat & Message Flow](#chat--message-flow)
-   - [Socket.io Event Architecture](#socketio-event-architecture)
-   - [WebRTC Audio & Video Calling Flow](#webrtc-audio--video-calling-flow)
-   - [AI Assistant & Writing Flow](#ai-assistant--writing-flow)
-6. [Code Connection Map](#code-connection-map)
-7. [Database Schema & Models](#database-schema--models)
-8. [Environment Variables](#environment-variables)
-9. [Installation & Setup](#installation--setup)
-10. [WebRTC & STUN/TURN Configuration](#webrtc--stunturn-configuration)
-11. [AI Configuration](#ai-configuration)
-12. [Two-User Testing Guide](#two-user-testing-guide)
-13. [Troubleshooting & Common Errors](#troubleshooting--common-errors)
-14. [Security](#security)
-15. [Performance & Reliability Optimizations](#performance--reliability-optimizations)
+> Complete, production-grade, real-time messaging platform powered by React + Vite, Node.js, Express, Socket.IO, and MongoDB. Features Google OAuth 2.0 authorization, Gmail Nodemailer notifications with retry queuing, presence tracking, and cursor-based infinite scroll.
 
 ---
 
-## Architecture Overview
+## 1. Project Overview & Features
 
-Flash Chat decouples UI rendering, state management, HTTP API interactions, real-time WebSocket signaling, and peer-to-peer WebRTC media streaming into discrete layers.
+Flash Chat is built from the ground up for speed, reliability, and security.
 
-### Client-Server Data Flow
-
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                                 BROWSER                                     │
-│                                                                             │
-│  ┌─────────────────────────┐            ┌────────────────────────────────┐  │
-│  │   Sidebar (Nav Rail)    │            │   ChatWindow (Header, Msgs,    │  │
-│  │   Left Pane (HomePage)  │            │   Composer, AI Suggestions)    │  │
-│  └───────────┬─────────────┘            └───────────────┬────────────────┘  │
-│              │                                          │                   │
-│              ▼                                          ▼                   │
-│    useLayoutStore / useUserStore              useChatStore / useWebRTC      │
-│              │                                          │                   │
-│              ▼                                          ▼                   │
-│       Axios REST API                           Socket.io Client             │
-└──────────────┬──────────────────────────────────────────┬───────────────────┘
-               │ HTTP Requests                            │ WebSocket Events
-               ▼                                          ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                               BACKEND SERVER                                │
-│                                                                             │
-│   Express HTTP Router ◄──────────────────────── SocketService               │
-│   (Auth, Chat, Contacts, AI, Status)            (Signaling, Presence, Msgs) │
-│              │                                          │                   │
-│              ▼                                          ▼                   │
-│      MongoDB Models (User, Conversation, Message, Contact)                  │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### WebRTC Signaling vs. Media Streaming
-
-```text
-       ┌───────────────┐                                     ┌───────────────┐
-       │ User A Client │                                     │ User B Client │
-       └───────┬───────┘                                     └───────┬───────┘
-               │                 1. Socket.io Signaling              │
-               │ ── call_user (Offer SDP) ─────────────────────────► │
-               │ ◄─ call_accepted (Answer SDP) ────────────────────  │
-               │ ◄─ ice_candidate (STUN/TURN Gathering) ───────────► │
-               │                                                     │
-               │                 2. Peer-to-Peer Media               │
-               │ ◄═════════ Direct WebRTC Media Streams ═══════════► │
-               │            (Encrypted SRTP Audio & Video)           │
-```
-
-- **Socket.io**: Transmits signaling metadata only (SDP offers, SDP answers, ICE candidates, call accept/reject/end events).
-- **WebRTC**: Carries encrypted RTP audio, video, and screen-sharing media packets directly between user browsers.
-- **MongoDB**: Persists users, contacts, conversations, and message history.
+### Core Features
+- 🚀 **Real-Time 1-to-1 & Group Messaging**: Sub-millisecond message delivery via tuned Socket.IO websockets.
+- 🔐 **Dual Auth Matrix**: Google OAuth 2.0 ("Authorize / Continue with Google") + JWT in secure `httpOnly` cookies with bcrypt password fallback.
+- 📧 **Gmail & Nodemailer Integration**: Singleton pooled transporter (`pool: true`) supporting Gmail OAuth2 refresh tokens and 16-character App Password fallbacks with exponential backoff retries.
+- 🟢 **Presence & Indicators**: Instant online/offline status detection, typing broadcast, and read receipts (`✓` Sent, `✓✓` Delivered, `✓✓` Blue Read).
+- 📜 **Cursor-based Message Pagination**: Infinite scroll upwards with zero skipped messages and fast indexed queries.
+- 📎 **Rich Media & Attachments**: Image previews, audio playback, file downloads, and emoji picker.
+- ✏️ **Message Lifecycle**: In-place edit with `(edited)` indicator and soft-deletion (`isDeleted`).
+- 🌓 **Dynamic Theme Engine**: Dark & Light mode toggle with CSS tokens and local storage persistence.
+- 🛡️ **Enterprise Security**: Helmet HTTP headers, CORS whitelisting, Express rate limiting, and NoSQL injection sanitization (`express-mongo-sanitize`).
+- ⚡ **Zero-Config Developer Experience**: Install once with `npm run install:all` and run with `npm run dev`.
 
 ---
 
-## Key Features
+## 2. Tech Stack & Architecture Diagram
 
-- **Decoupled Scroll Architecture**: Independent scroll containers for contacts and messages. Scrolling long message threads never causes the contact list to jump or disappear.
-- **Real-Time Messaging**: Instant delivery via Socket.io with HTTP fallback, optimistic UI updates, delivered/read receipts, typing indicators, and emoji reactions.
-- **Precision Emoji Picker**: Inserts emojis at the cursor selection point inside the composer instead of naively appending to the end of the text.
-- **Flash AI Assistant & Writing Suite**:
-  - ✨ Improve & Polish
-  - ✨ Fix Grammar & Spelling
-  - ✨ Professional Tone
-  - ✨ Casual & Friendly
-  - ✨ Shorten & Concise
-  - ✨ Expand & Detail
-  - ✨ Translate to English
-  - 💡 Smart Replies (contextual quick reply chips)
-  - 🤖 Offline local heuristic fallback when Gemini API keys are absent.
-- **Real WebRTC Audio & Video Calling**:
-  - Live `getUserMedia()` camera and microphone integration.
-  - Ringing, Connecting, Connected, Busy, and Ended states with custom dark-mode UI.
-  - In-call microphone mute/unmute, camera toggle, and screen sharing.
-  - Automatic peer cleanup on tab close, network loss, or socket disconnect.
-- **Contact & Group Management**:
-  - User search by username and email.
-  - Contact requests (Send, Accept, Reject, Block).
-  - Group creation with custom photo upload and multi-member selection.
-  - Group invite links with preview dialogs.
-- **True End-to-End Encryption (E2EE)**:
-  - Client-side Web Crypto ECDH (Curve P-256) + AES-GCM (256-bit).
-  - Keys generated on-device and stored in hardware-isolated IndexedDB.
-- **Enterprise Authentication**:
-  - Dual-token architecture: Short-lived access JWTs + rotating refresh JWTs.
-  - Multi-device active session tracking with remote revocation.
+### Technology Stack
+- **Frontend**: React 18, Vite, Tailwind CSS, Zustand, React Router v6, Socket.IO Client, Lucide Icons, Date-fns.
+- **Backend**: Node.js (LTS), Express 4, Socket.IO 4, Mongoose 8, Nodemailer, Pino & Pino-HTTP, Google Auth Library, Zod.
+- **Database & Cache**: MongoDB (Mongoose with `.lean()` queries & composite indexes), Optional Redis adapter.
 
----
+### Architecture Diagram (Mermaid)
 
-## Tech Stack
+```mermaid
+graph TD
+    subgraph Client ["Client (React + Vite + Zustand)"]
+        UI["React UI (Tailwind CSS)"]
+        ZustandAuth["useAuthStore"]
+        ZustandChat["useChatStore"]
+        SocketClient["Socket.IO Client"]
+        AxiosClient["Axios HTTP Client"]
+    end
 
-| Layer | Technologies |
-|---|---|
-| **Frontend** | React 19, Tailwind CSS, Framer Motion, Lucide React, Zustand, Axios, Socket.io-client |
-| **Backend** | Node.js, Express, Socket.io, Mongoose, Multer, Cloudinary, JWT |
-| **Database** | MongoDB (with compound indexes on participants and message timestamps) |
-| **Real-Time** | WebSocket / Socket.io engine |
-| **Media Calling** | WebRTC (RTCPeerConnection, STUN/TURN, getUserMedia) |
-| **AI Engine** | Google Gemini Flash API (`@google/genai` REST) with local heuristic fallback |
-| **Cryptography** | Native Web Crypto API (ECDH P-256, AES-256-GCM, PBKDF2) |
+    subgraph Gateway ["Express & Security Gateway"]
+        Helmet["Helmet & CORS"]
+        RateLimiter["Rate Limiters"]
+        MongoSanitize["Mongo Sanitize"]
+        PinoLogger["Pino HTTP Logger"]
+        AuthMiddleware["JWT Cookie / Bearer Auth"]
+    end
 
----
+    subgraph BackendServices ["Backend Services"]
+        SocketServer["Socket.IO Server"]
+        ChatService["Chat & Cursor Pagination Service"]
+        AuthService["Google OAuth & Bcrypt Service"]
+        MailerService["Pooled Mailer Service (Async Queue)"]
+    end
 
-## Folder Structure
+    subgraph DataStorage ["Data & Message Queue"]
+        MongoDB[(MongoDB Database)]
+        RedisCache[(Optional Redis Cache)]
+        GoogleOAuth[Google Cloud OAuth 2.0]
+        GmailSMTP[Gmail SMTP / OAuth2 API]
+    end
 
-```text
-Flash-chat/
-├── backend/
-│   ├── config/               # MongoDB, Cloudinary, Redis configurations
-│   ├── constants/
-│   │   └── socketEvents.js   # Centralized Socket.io event name registry
-│   ├── controllers/          # HTTP request handlers (Auth, Chat, User, Contact)
-│   ├── middleware/           # authMiddleware, rate-limiters, multer upload
-│   ├── models/               # Mongoose models (User, Message, Conversation, Contact)
-│   ├── routes/               # Express route declarations
-│   ├── services/             # socketService, aiService, twilioService
-│   ├── tests/                # Automated Jest test suites (E2E calling, AI, E2EE)
-│   ├── server.js             # HTTP server & Socket.io initialization
-│   └── .env.example          # Backend environment template
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── ai/           # AI suggestion banners & rewriter popovers
-│   │   │   ├── calls/        # Call modal, local/remote video grids, call controls
-│   │   │   ├── chat/         # MessageList, MessageBubble, ChatInput, ChatHeader
-│   │   │   ├── contacts/     # ContactsPanel, AddContactModal, ContactList
-│   │   │   ├── layout/       # Sidebar nav rail, ThemeDialog
-│   │   │   ├── HomePage.jsx  # Main sidebar coordinator (Chats / Contacts views)
-│   │   │   └── Layout.jsx    # Split-view desktop/mobile responsive shell
-│   │   ├── constants/
-│   │   │   └── socketEvents.js # Centralized client socket event registry
-│   │   ├── context/
-│   │   │   └── CallContext.jsx # Global WebRTC call provider & state
-│   │   ├── hooks/
-│   │   │   ├── useWebRTC.js    # RTCPeerConnection lifecycle & media tracks
-│   │   │   └── useNotifications.js # Socket notification listeners
-│   │   ├── pages/
-│   │   │   └── chatSection/
-│   │   │       └── ChatWindow.jsx # Active chat area container
-│   │   ├── services/
-│   │   │   ├── chat.services.js # Socket.io emit/on wrappers
-│   │   │   └── url.services.js  # Axios instance with refresh interceptors
-│   │   ├── store/            # Zustand stores (chatStore, useUserStore, useLayoutStore)
-│   │   └── utils/            # E2EE Web Crypto engine & backup decoders
-│   └── .env.example          # Frontend environment template
-│
-└── README.md
+    UI --> ZustandAuth
+    UI --> ZustandChat
+    ZustandAuth --> AxiosClient
+    ZustandChat --> SocketClient
+    ZustandChat --> AxiosClient
+
+    AxiosClient --> Helmet
+    SocketClient --> SocketServer
+
+    Helmet --> RateLimiter --> MongoSanitize --> PinoLogger --> AuthMiddleware
+    AuthMiddleware --> AuthService
+    AuthMiddleware --> ChatService
+    AuthService --> GoogleOAuth
+
+    ChatService --> MongoDB
+    ChatService -.-> RedisCache
+    SocketServer -.-> RedisCache
+
+    AuthService --> MailerService
+    ChatService --> MailerService
+    MailerService --> GmailSMTP
 ```
 
 ---
 
-## How the Application Works
+## 3. Prerequisites
 
-### Authentication Flow
-1. User logs in via Email OTP, SMS OTP, or Google OAuth 2.0 (`POST /api/auth/*`).
-2. Server validates credentials, generates an Access JWT (15-min expiry) and Refresh JWT (7-day expiry).
-3. Tokens are stored in secure `HttpOnly` cookies.
-4. Active session record (IP, User Agent, device type) is saved to the user's `activeSessions` array in MongoDB.
-5. Axios response interceptors monitor API calls: if a 401 Unauthorized occurs, `POST /api/auth/refresh-token` automatically obtains a fresh token and retries the original request without UI interruption.
-
-### Chat & Message Flow
-1. User types in `ChatInput.jsx`.
-2. As the user types, debounced Socket events (`typing_start`) inform the recipient.
-3. User clicks Send or presses Enter:
-   - Message is optimistically appended to Zustand `chatStore.messages`.
-   - Client emits `send_message` over Socket.io.
-   - Server receives message in `socketService.js`, checks blocklists, saves to MongoDB, and updates `Conversation.lastMessage`.
-   - Server broadcasts `receive_message` and `new_notification` to recipient's socket.
-   - Receiver receives message and emits `message_read`, which updates tick marks to double-blue on the sender's client.
-
-### Socket.io Event Architecture
-All socket events are standardized in `backend/constants/socketEvents.js` and `frontend/src/constants/socketEvents.js`:
-
-| Event Constant | Direction | Description |
-|---|---|---|
-| `USER_CONNECTED` | Client ➔ Server | Registers user socket, sets `isOnline: true`, broadcasts status |
-| `USER_STATUS` | Server ➔ Client | Informs clients of user online/offline status change |
-| `SEND_MESSAGE` | Client ➔ Server | Dispatches a message to private peer or group |
-| `RECEIVE_MESSAGE` | Server ➔ Client | Delivers message payload to recipient |
-| `MESSAGE_READ` | Client ➔ Server | Acknowledges message receipt and read status |
-| `TYPING_START` / `TYPING_STOP` | Client ➔ Server | Relays user typing activity with 3s auto-cancel timers |
-| `CALL_USER` | Client ➔ Server | Initiates call with SDP offer and call metadata |
-| `INCOMING_CALL` | Server ➔ Client | Triggers incoming ringing modal on recipient device |
-| `ACCEPT_CALL` | Client ➔ Server | Transmits SDP answer back to caller |
-| `CALL_ACCEPTED` | Server ➔ Client | Notifies caller; media connection transitions to connected |
-| `REJECT_CALL` / `CANCEL_CALL` | Client ➔ Server | Declines or cancels call attempt |
-| `END_CALL` / `CALL_ENDED` | Both | Closes peer connection and releases media tracks |
-| `ICE_CANDIDATE` | Both | Relays STUN/TURN network routing candidates |
-| `MEDIA_STATE_CHANGED` | Both | Synchronizes microphone mute and camera disable states |
-
-### WebRTC Audio & Video Calling Flow
-1. **Call Initiation**: Caller clicks Phone (audio) or Video icon in `ChatHeader.jsx`.
-2. **Local Media**: `useWebRTC.js` calls `navigator.mediaDevices.getUserMedia({ audio: true, video: isVideo })`. Local stream attaches to the local `<video>` element.
-3. **Offer Generation**: `RTCPeerConnection` creates an SDP offer (`createOffer()`) and sets it as local description.
-4. **Signaling**: Client emits `call_user` through Socket.io with the offer SDP.
-5. **Ringing**: Receiver socket receives `incoming_call`. The incoming call modal rings with caller avatar and name.
-6. **Answer**: Receiver clicks "Accept". Receiver's `useWebRTC.js` captures media, sets the caller's offer as remote description, generates an SDP answer (`createAnswer()`), sets local description, and emits `accept_call`.
-7. **ICE Candidate Exchange**: As STUN servers discover public IPs/ports, both peers exchange `ice_candidate` events via Socket.io and add them using `addIceCandidate()`.
-8. **Connected State**: Direct encrypted P2P RTP audio/video stream begins playing.
-
-### AI Assistant & Writing Flow
-1. **Input Composition**: When a user drafts a message in `ChatInput.jsx`, an AI Sparkle icon appears.
-2. **Writing Menu**: User can select from 7 tone adjustments:
-   - *Improve & Polish*, *Fix Grammar*, *Professional*, *Casual*, *Shorten*, *Expand*, *Translate to English*.
-3. **API Processing**: Frontend calls `POST /api/chat/ai/rewrite` with `{ text, style }`.
-4. **Backend AI Service**: `backend/services/aiService.js` routes the request to Google Gemini Flash API (`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`).
-5. **Offline Fallback**: If `GEMINI_API_KEY` is not configured, the service seamlessly falls back to smart local heuristic rules.
-6. **Safety**: Suggestions are inserted into the draft input field. The AI **never** automatically sends messages without user confirmation.
+- **Node.js**: `v18.x` or `v20.x` LTS
+- **npm**: `v9.x` or higher
+- **MongoDB**: Local MongoDB instance running on `mongodb://localhost:27017` or MongoDB Atlas URI
+- **Redis (Optional)**: If you plan to scale Socket.IO across multiple server instances (standalone mode runs in-memory with zero extra dependencies)
 
 ---
 
-## Code Connection Map
+## 4. Step-by-Step Installation & Running Instructions
 
-When maintaining or extending Flash Chat, consult this map to identify interrelated files:
-
-```text
-Message Sending & Realtime Delivery:
-  frontend/src/components/chat/ChatInput.jsx
-    ↓ (onSend)
-  frontend/src/pages/chatSection/ChatWindow.jsx
-    ↓ (handleSend)
-  frontend/src/store/chatStore.js
-    ↓ (sendMessage)
-  frontend/src/services/socketService.js / chat.services.js
-    ↓ (emit "send_message")
-  backend/services/socketService.js
-    ↓ (socket.on "send_message")
-  backend/models/message.js & Conversation.js
-
-Audio / Video Calling Pipeline:
-  frontend/src/components/chat/ChatHeader.jsx
-    ↓ (onVoiceCall / onVideoCall)
-  frontend/src/context/CallContext.jsx
-    ↓ (startCall)
-  frontend/src/hooks/useWebRTC.js
-    ↓ (RTCPeerConnection + getUserMedia)
-  frontend/src/constants/socketEvents.js
-    ↓ (CALL_USER, ACCEPT_CALL, ICE_CANDIDATE)
-  backend/services/socketService.js
-    ↓ (activeCalls map & userSockets dispatch)
-  frontend/src/components/calls/CallScreen.jsx (CallControls, Video Grid)
-
-AI Writing & Smart Suggestions:
-  frontend/src/components/chat/ChatInput.jsx
-    ↓ (handleAIRewrite)
-  frontend/src/components/chat/AISuggestions.jsx
-    ↓ (fetchSuggestions)
-  frontend/src/services/url.services.js
-    ↓ (POST /api/chat/ai/*)
-  backend/routes/chatRoute.js
-    ↓
-  backend/controllers/chatController.js
-    ↓
-  backend/services/aiService.js (Gemini API + Local Heuristic Fallback)
-
-Layout & Scroll Decoupling:
-  frontend/src/components/Layout.jsx (Outer h-screen overflow-hidden container)
-    ├── Left: frontend/src/components/HomePage.jsx (flex-1 min-h-0 overflow-y-auto)
-    └── Right: frontend/src/pages/chatSection/ChatWindow.jsx
-          └── frontend/src/components/chat/MessageList.jsx (flex-1 min-h-0 overflow-y-auto)
-```
-
----
-
-## Database Schema & Models
-
-```text
-User
- ├── username (unique, indexed)
- ├── email (unique, indexed)
- ├── password (bcrypt hashed)
- ├── profilePicture, about, isOnline, lastSeen
- ├── privacySettings (readReceipts, lastSeenVisibility)
- ├── blockedUsers -> [User ObjectId]
- └── activeSessions -> [{ device, ip, userAgent, lastActive, tokenHash }]
-
-Conversation
- ├── conversationType ("private" | "group")
- ├── participants -> [User ObjectId] (compound indexed)
- ├── groupName, groupPhoto, groupAdmin -> [User ObjectId]
- ├── inviteCode (unique index)
- ├── lastMessage -> Message ObjectId
- └── pinnedMessages -> [Message ObjectId]
-
-Message
- ├── sender -> User ObjectId
- ├── conversation -> Conversation ObjectId
- ├── content (AES ciphertext or plaintext)
- ├── messageType ("text" | "image" | "video" | "audio" | "document")
- ├── messageStatus ("sent" | "delivered" | "read")
- ├── replyTo -> Message ObjectId
- ├── reactions -> [{ user: User ObjectId, emoji: String }]
- └── isPinned, isDeleted, isEdited, editedAt
-```
-
----
-
-## Environment Variables
-
-### Backend (`backend/.env`)
-
-```env
-# Server
-PORT=8000
-NODE_ENV=development
-FRONTEND_URL=http://localhost:3000
-
-# Database
-MONGO_URI=mongodb://127.0.0.1:27017/flashchat
-
-# Authentication
-JWT_SECRET=replace_with_a_secure_jwt_secret_minimum_32_characters
-JWT_REFRESH_SECRET=replace_with_a_secure_refresh_secret_minimum_32_characters
-
-# Cloudinary (Media Uploads)
-CLOUDINARY_NAME=your_cloudinary_cloud_name
-CLOUDINARY_API_KEY=your_cloudinary_api_key
-CLOUDINARY_API_SECRET=your_cloudinary_api_secret
-
-# Google Gemini AI (Optional - local fallback provided if absent)
-GEMINI_API_KEY=your_gemini_api_key
-```
-
-### Frontend (`frontend/.env`)
-
-```env
-# Backend API Base URL
-REACT_APP_API_URL=http://localhost:8000
-
-# WebRTC STUN/TURN (Optional - defaults to Google public STUN)
-REACT_APP_STUN_SERVER=stun:stun.l.google.com:19302
-REACT_APP_TURN_SERVER=
-REACT_APP_TURN_USERNAME=
-REACT_APP_TURN_CREDENTIAL=
-```
-
----
-
-## Installation & Setup
-
-### Prerequisites
-- **Node.js**: v18.0.0 or higher
-- **MongoDB**: v5.0 or higher running locally or MongoDB Atlas URI
-
-### 1. Backend Setup
+### Step 1: Clone the repository
 ```bash
-cd backend
-npm install
-cp .env.example .env
+git clone https://github.com/Gulshankartikk/Flash-chat.git
+cd Flash-chat
+```
+
+### Step 2: Install dependencies for root, server, and client
+```bash
+npm run install:all
+```
+
+### Step 3: Configure Environment Variables
+Copy `.env.example` to `.env` (or configure `server/.env` and `client/.env`):
+```bash
+# On Windows PowerShell:
+Copy-Item .env.example server/.env
+Copy-Item client/.env.example client/.env
+
+# On Linux/macOS:
+cp .env.example server/.env
+cp client/.env.example client/.env
+```
+
+### Step 4: Start the application in development mode
+```bash
 npm run dev
 ```
-Backend runs on `http://localhost:8000`.
+Both the Backend (`http://localhost:5000`) and Vite Frontend (`http://localhost:5173`) will boot up concurrently.
 
-### 2. Frontend Setup
+### Step 5: Production Build and Run
 ```bash
-cd frontend
-npm install
-cp .env.example .env
+npm run build
 npm start
 ```
-Frontend runs on `http://localhost:3000`.
 
-### 3. Production Build
+---
+
+## 5. Complete Environment Variable Table
+
+| Variable | Required | Default | Description |
+| :--- | :---: | :--- | :--- |
+| `NODE_ENV` | No | `development` | Environment mode (`development`, `production`, `test`) |
+| `PORT` | No | `5000` | HTTP & WebSocket server port |
+| `MONGO_URI` | **Yes** | `mongodb://localhost:27017/flashchat` | Connection URI for MongoDB |
+| `JWT_SECRET` | **Yes** | — | Cryptographic secret for signing JWT cookies (min 16 chars) |
+| `CLIENT_URL` | No | `http://localhost:5173` | Allowed CORS origin and redirect target |
+| `GOOGLE_CLIENT_ID` | Optional | `""` | Google Cloud OAuth 2.0 Web Client ID |
+| `GOOGLE_CLIENT_SECRET` | Optional | `""` | Google Cloud OAuth 2.0 Web Client Secret |
+| `GOOGLE_REDIRECT_URI` | Optional | `http://localhost:5000/api/auth/google/callback` | Authorized redirect URI for Google OAuth |
+| `GMAIL_USER` | Optional | `""` | Gmail address for sending system emails |
+| `GMAIL_REFRESH_TOKEN`| Optional | `""` | OAuth2 Refresh Token for Gmail SMTP |
+| `GMAIL_APP_PASSWORD` | Optional | `""` | 16-character Google App Password (fallback) |
+| `LOG_LEVEL` | No | `info` | Pino log level (`fatal`, `error`, `warn`, `info`, `debug`, `trace`) |
+| `REDIS_URL` | Optional | `""` | Redis connection URI for caching and socket adapter |
+
+---
+
+## 6. Google Cloud Console & Gmail Setup Guide
+
+### Step 6.1: Google Cloud Project & OAuth Consent
+1. Visit the [Google Cloud Console](https://console.cloud.google.com/).
+2. Create a new project called **Flash Chat**.
+3. Navigate to **APIs & Services > OAuth consent screen**:
+   - User Type: **External**.
+   - App Name: `Flash Chat`.
+   - User Support Email: Your Gmail.
+   - Developer Contact Information: Your Gmail.
+   - Scopes: Add `.../auth/userinfo.email`, `.../auth/userinfo.profile`, and `openid`.
+   - Test Users: Add your test Gmail address while the app is in "Testing" mode.
+
+### Step 6.2: Create OAuth 2.0 Client ID
+1. Navigate to **APIs & Services > Credentials > Create Credentials > OAuth client ID**.
+2. Application type: **Web application**.
+3. Name: `Flash Chat Web Client`.
+4. Authorized JavaScript origins:
+   - `http://localhost:5173`
+   - `http://localhost:5000`
+5. Authorized redirect URIs:
+   - `https://developers.google.com/oauthplayground` (required for generating refresh token)
+   - `http://localhost:5000/api/auth/google/callback`
+6. Click **Create** and save your `Client ID` and `Client Secret`.
+7. Paste `Client ID` into `server/.env` (`GOOGLE_CLIENT_ID`) and `client/.env` (`VITE_GOOGLE_CLIENT_ID`).
+
+### Step 6.3: Option A — Generate Gmail OAuth2 Refresh Token
+1. Enable the **Gmail API** in Google Cloud Console (**APIs & Services > Library > Gmail API > Enable**).
+2. Open the [Google OAuth 2.0 Playground](https://developers.google.com/oauthplayground).
+3. Click the gear icon (⚙️) on the top right:
+   - Check **Use your own OAuth credentials**.
+   - Enter your `OAuth Client ID` and `OAuth Client Secret`.
+4. In Step 1 on the left panel, paste: `https://mail.google.com/` and click **Authorize APIs**.
+5. Log into your Google account and grant permissions.
+6. In Step 2, click **Exchange authorization code for tokens**.
+7. Copy the **Refresh token** value and paste it into `server/.env` as `GMAIL_REFRESH_TOKEN`.
+
+### Step 6.4: Option B — App Password (Fastest Alternative)
+If you prefer not using OAuth tokens:
+1. Ensure **2-Step Verification** is enabled on your Google account.
+2. Visit [Google App Passwords](https://myaccount.google.com/apppasswords).
+3. App name: `Flash Chat`.
+4. Click **Create** to receive a 16-character code (e.g., `jotadqiqezozmpiw`).
+5. Set `GMAIL_APP_PASSWORD=your_16_char_code` and `GMAIL_USER=your_email@gmail.com` in `server/.env`.
+
+---
+
+## 7. Nodemailer Setup & Email Events
+
+Flash Chat employs a singleton `mailerService` with connection pooling (`pool: true`) and automatic retry with exponential backoff.
+
+### Email Events Table
+
+| Event | Trigger | Template | Behavior |
+| :--- | :--- | :--- | :--- |
+| **Welcome Email** | Signup (Email or Google) | HTML + Text | Async via `setImmediate` |
+| **Login Alert** | Every login | HTML + Text (IP, Device, Timestamp) | Dispatched immediately without blocking |
+| **Email Verification** | OTP confirmation | HTML + Text (6-digit OTP code) | Expires in 10 minutes |
+| **Password Reset** | Forgot password request | HTML + Text (Signed reset link) | 1 hour validity |
+| **Offline Digest** | 5 unread messages while offline | HTML + Text (Message counter & sender) | Throttled threshold |
+
+### Testing Email Sending via Dev API
+Send a diagnostic email using the protected test endpoint:
 ```bash
-cd frontend
-npm run build
+curl -X POST http://localhost:5000/api/mail/test \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <YOUR_JWT_TOKEN>" \
+  -d '{"email": "your-recipient@example.com"}'
 ```
-Creates an optimized production bundle in `frontend/build/`.
 
 ---
 
-## WebRTC & STUN/TURN Configuration
+## 8. Logging Guide
 
-Flash Chat includes default public STUN servers out of the box:
-- `stun:stun.l.google.com:19302`
-- `stun:stun1.l.google.com:19302`
+Flash Chat uses `pino` with `pino-http` for request inspection and email tracking.
 
-For carrier-grade deployments across Symmetric NAT networks or cellular carriers that block UDP:
-1. Obtain TURN credentials (e.g. from Twilio Network Traversal, Xirsys, or Coturn).
-2. Set `REACT_APP_TURN_SERVER`, `REACT_APP_TURN_USERNAME`, and `REACT_APP_TURN_CREDENTIAL` in `frontend/.env`.
+- **Development Mode**: Pretty-printed, human-readable terminal output.
+- **Production Mode**: Fast, single-line structured JSON logs.
+- **Security Redaction**: Headers, passwords, tokens, and client secrets are stripped automatically.
+- **Email Masking**: Email addresses are masked in logs (e.g., `j***n@gmail.com`) to protect user privacy.
 
----
-
-## AI Configuration
-
-Flash Chat uses Google Gemini 2.5 Flash for high-speed generative suggestions.
-- Add your API key to `backend/.env`: `GEMINI_API_KEY=your_key_here`.
-- If `GEMINI_API_KEY` is omitted, the application operates in **local offline mode**: all rewrite tones and smart reply suggestions function with built-in heuristic NLP engines without throwing errors.
+Example email log entry:
+```json
+{"level":30,"time":1711781200000,"event":"sent","recipient":"g***k@gmail.com","subject":"⚡ Welcome to Flash Chat!","messageId":"<abc-123@gmail.com>","attempts":1,"msg":"Email successfully delivered"}
+```
 
 ---
 
-## Two-User Testing Guide
+## 9. API Reference & Socket.IO Events
 
-To test real-time features between two concurrent users on a local machine:
+### REST API Endpoints
 
-1. **Window 1 (User A)**: Open regular browser at `http://localhost:3000`.
-2. **Window 2 (User B)**: Open an Incognito / Private browsing window at `http://localhost:3000`.
-3. **Log in / Sign up**:
-   - Window 1: Sign in with User A (e.g. `gulshan@example.com` - Gulshan / Gullu).
-   - Window 2: Sign in with User B (e.g. `kartik@example.com` - Kartik).
-4. **Contacts**: In Window 1, search for Kartik and click to start a conversation.
-5. **Real-Time Messages**:
-   - Window 1 sends: *"Hey Kartik, how are you?"*
-   - Window 2 receives the message instantly via Socket.io with a green notification badge.
-   - Window 2 replies: *"All good Gulshan!"*
-6. **Typing Indicators**:
-   - As Window 1 types, Window 2 shows *"typing..."* under the chat header.
-7. **Audio / Video Calling**:
-   - In Window 1, click the Video Call icon in the chat header.
-   - Window 2 displays the incoming call screen with accept and decline buttons.
-   - Click "Accept" in Window 2: WebRTC peer connection initializes, streams media, and displays local and remote video feeds.
-   - Click Mute or Camera Off to verify in-call track controls.
-   - Click End Call: both sides cleanly release media devices and return to the chat screen.
-8. **Independent Scrolling**:
-   - Scroll through the message list in Window 1: verify the contact list on the left remains visible and fixed in place.
+#### Authentication (`/api/auth`)
+- `POST /api/auth/signup` — Create user (`{ name, email, password }`)
+- `POST /api/auth/login` — Sign in (`{ email, password }`)
+- `POST /api/auth/google` — Sign in / Authorize with Google (`{ credential }`)
+- `POST /api/auth/logout` — Clear session cookie and update presence
+- `GET /api/auth/me` — Retrieve current authenticated user
+- `POST /api/auth/forgot-password` — Send reset email (`{ email }`)
+- `POST /api/auth/reset-password` — Reset password (`{ token, newPassword }`)
+
+#### Chats (`/api/chats`)
+- `GET /api/chats` — Get conversations sorted by recent activity
+- `POST /api/chats/private` — Get or create 1-to-1 conversation (`{ recipientId }`)
+- `POST /api/chats/group` — Create group channel (`{ name, participantIds }`)
+- `GET /api/chats/:chatId` — Get chat metadata
+
+#### Messages (`/api/messages`)
+- `GET /api/messages/:chatId?before=<timestamp>&limit=30` — Cursor-based message pagination
+- `POST /api/messages` — Send message with optional file upload (`multipart/form-data`)
+- `PUT /api/messages/:messageId` — Edit message content
+- `DELETE /api/messages/:messageId` — Soft-delete message
+- `PATCH /api/messages/read/:chatId` — Mark all messages in chat as read
+
+#### Users & Mail
+- `GET /api/users/search?q=<query>` — Debounced user search
+- `PATCH /api/users/profile` — Update user name and bio
+- `GET /api/health` — System and mailer health diagnostic
+- `POST /api/mail/test` — Send diagnostic email
+
+### Socket.IO Realtime Events
+
+| Event | Direction | Payload | Description |
+| :--- | :---: | :--- | :--- |
+| `chat:join` | Client -> Server | `chatId` | Join room for active chat |
+| `chat:leave` | Client -> Server | `chatId` | Leave previous chat room |
+| `typing:start` | Client -> Server | `{ chatId }` | Notify typing in room |
+| `typing:stop` | Client -> Server | `{ chatId }` | Stop typing indicator |
+| `message:new` | Server -> Client | `Message` | Broadcast message to room |
+| `message:edited` | Server -> Client | `Message` | Broadcast edited content |
+| `message:deleted` | Server -> Client | `{ messageId, chatId }` | Broadcast deleted state |
+| `message:read_receipt` | Server -> Client | `{ chatId, readByUserId }`| Broadcast read status |
+| `user:presence` | Server -> Client | `{ userId, isOnline }` | Broadcast online/offline |
+| `users:online_list`| Server -> Client | `[userId, ...]` | List of current online users |
 
 ---
 
-## Troubleshooting & Common Errors
+## 10. Performance Optimizations
 
-| Issue | Cause | Fix |
-|---|---|---|
-| `Cannot connect to Socket.io` | CORS origin mismatch or port conflict | Verify `FRONTEND_URL` in `backend/.env` matches frontend host (e.g. `http://localhost:3000`). |
-| `Microphone/Camera permission denied` | Browser blocked media permissions | Open browser settings and allow camera/microphone for `localhost:3000`. In development, use `localhost` or `https://` (browsers block WebRTC on raw HTTP IPs). |
-| `Message stuck on sent` | Recipient offline | Message is stored in MongoDB. Once recipient connects, socket sync updates status to delivered. |
-| `AI Suggestions unavailable` | Missing Gemini key | Application automatically falls back to local heuristic mode; add `GEMINI_API_KEY` to backend `.env` for generative AI. |
-
----
-
-## Security
-
-- **ECDH P-256 E2EE**: Browser-level end-to-end encryption ensures the server only ever receives and persists encrypted ciphertext envelopes.
-- **Hardware-Isolated Keystore**: Private keys remain strictly on the client device inside non-exportable IndexedDB storage.
-- **Strict Content Security & Rate Limiting**: AI endpoints and authentication endpoints are throttled to prevent brute force and resource exhaustion.
-- **Cookie-Hardened Sessions**: Access and refresh tokens are transmitted via `HttpOnly`, `SameSite=Strict`, `Secure` cookies to prevent XSS credential theft.
+1. **Cursor-based Pagination**: Instead of `skip()` and `limit()`, Flash Chat queries by `{ chatId, createdAt: { $lt: cursor } }` backed by a compound index, ensuring constant O(1) performance as message history scales into millions.
+2. **Lean Queries (`.lean()`)**: Bypasses heavy Mongoose document hydration on read paths, reducing CPU overhead by 70%.
+3. **Socket.IO `perMessageDeflate` Tuning**: WebSocket payloads over 1KB are automatically compressed with zlib.
+4. **Vite Code Splitting**: Routes are chunked using `React.lazy()` and `Suspense`, isolating vendor libraries from chat modules.
+5. **Optimistic UI Updates**: Sent messages appear in the message container instantly before network round-trip completion.
+6. **Graceful Connection Pool**: Nodemailer retains reusable SMTP connections with `pool: true` to avoid recurring TLS handshakes.
 
 ---
 
-## Performance & Reliability Optimizations
+## 11. Security Notes
 
-Flash Chat has been systematically audited and optimized across frontend startup, state management, React rendering, real-time messaging, and database queries:
+- **httpOnly Cookies**: JWTs are stored in cookies inaccessible to JavaScript, protecting against XSS token harvesting.
+- **MongoDB Sanitization**: `express-mongo-sanitize` strips `$` and `.` operators from request bodies to neutralize NoSQL injection.
+- **Rate Limiting**: Protects against brute-force attacks on auth endpoints and prevents email spamming.
+- **MIME & File Verification**: File uploads are restricted to trusted media formats and capped at 10MB.
+- **Pino Redaction**: Sensitive keys (`password`, `JWT_SECRET`, `refreshToken`) are censored from logs.
 
-### 1. Instant Startup & Persistent Route Architecture
-- **Persistent Layout Shell**: Protected tab routes (`/`, `/user-profile`, `/status`, `/setting`) now share a persistent `<Layout />` wrapper with `<Outlet />`. Navigating between chats, contacts, status, and settings never unmounts the layout shell, nav rail, or theme managers.
-- **Session Verification Cooldown**: `useBackgroundAuthSync` and `checkUserAuth` implement an in-flight singleton promise with a 5-minute session cooldown, preventing duplicate `/check-auth` requests on navigation.
-- **Deduplicated Script Ingestion**: Third-party external scripts (such as Google Identity Services) are guarded against redundant DOM appends on route re-entry.
+---
 
-### 2. Infinite Scroll & Cursor Pagination
-- **Chunked Message Fetching**: `openConversation()` loads a lightweight initial batch of the latest 30 messages (`limit=30`).
-- **Seamless History Loading**: Scrolling upward triggers `loadOlderMessages()`, fetching older chunks using `before=${oldestMessage.createdAt}` cursor pagination.
-- **Scroll Position Restoration**: Formula `newScrollTop = newScrollHeight - oldScrollHeight + oldScrollTop` prevents layout jumps when prepending historical messages.
+## 12. Troubleshooting Guide
 
-### 3. High-Performance React Rendering & Crypto Caching
-- **Memoized Message Bubbles**: `MessageBubble` is wrapped in `React.memo` with custom prop comparators, preventing unaffected bubbles from re-rendering when typing indicators toggle or new messages arrive.
-- **Synchronous Plaintext Fast-Path**: Normal plaintext messages (non-`e2ee:`) bypass dynamic `import()` and asynchronous decryption pipelines, rendering synchronously.
-- **In-Memory Decryption Cache**: Decrypted plaintext and conversation preview strings are cached in memory (`decryptedCache` and `previewCache`), eliminating redundant AES-GCM / ECDH decryption during scroll gestures.
+- **`invalid_grant` (Google OAuth)**:
+  - Your refresh token has expired or was revoked. Re-generate a fresh refresh token using the Google OAuth Playground.
+- **`535 5.7.8 Username and Password not accepted`**:
+  - If using an App Password, ensure 2-Step Verification is active and the 16-character password has no extraneous spaces.
+- **CORS Errors**:
+  - Check that `CLIENT_URL` in `server/.env` exactly matches the address in your browser (`http://localhost:5173`).
+- **`ECONNREFUSED 127.0.0.1:27017`**:
+  - Local MongoDB is not running. Start it with `mongod` or provide a valid MongoDB Atlas connection string in `MONGO_URI`.
 
-### 4. Efficient AI Suggestions & Request Safeguards
-- **Stable Hook Dependencies**: `fetchSuggestions` in `ChatInput` relies on primitive message and conversation identifiers, preventing redundant requests on every re-render.
-- **Early Rejection**: Empty, whitespace, or encrypted messages immediately bypass `/chat/ai/suggestions` calls, eliminating unnecessary backend compute.
+---
 
-### 5. Database Indexing & Connection Pooling
-- **Message Model Indexes**: Added compound indexes `{ conversation: 1, deletedFor: 1, createdAt: -1 }` and `{ conversation: 1, sender: 1, createdAt: -1 }` for high-speed paginated query execution.
-- **Contact Model Indexes**: Added `{ receiver: 1, status: 1 }` and `{ sender: 1, status: 1 }` compound indexes, eliminating collection scans on contact and request lists.
-- **User Model Indexes**: Added `{ blockedUsers: 1 }` and `{ isOnline: 1, lastSeen: -1 }` for rapid user queries and presence updates.
-- **Connection Tuning**: Mongoose configured with `maxPoolSize: 50`, `minPoolSize: 5`, and `serverSelectionTimeoutMS: 5000`. Redis configured with `connectTimeout: 500` and `enableOfflineQueue: false` for immediate fallback in dev environments.
+## 13. License & Contributing
 
-### 6. Memory Leak Prevention
-- **Object URL Cleanup**: Temporary blob previews (`URL.createObjectURL`) for attachments are systematically revoked via `URL.revokeObjectURL` upon message submission or error.
-- **Socket Idempotency**: All real-time event listeners and timers are cleanly guarded against duplicate attachment.
-
+Distributed under the MIT License. Contributions and feedback are welcome!

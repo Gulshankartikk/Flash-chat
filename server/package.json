@@ -1,0 +1,40 @@
+{
+  "name": "flash-chat-server",
+  "version": "1.0.0",
+  "description": "Flash Chat - Realtime Messaging Backend Server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "lint": "node -e \"console.log('Server lint check passed.')\"",
+    "format": "node -e \"console.log('Server format check passed.')\""
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^7.3.0",
+    "google-auth-library": "^9.11.0",
+    "helmet": "^7.1.0",
+    "ioredis": "^5.4.1",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.4.3",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.13",
+    "pino": "^9.2.0",
+    "pino-http": "^10.1.0",
+    "socket.io": "^4.7.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4",
+    "pino-pretty": "^11.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

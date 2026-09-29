@@ -1,48 +1,35 @@
-# Dependency directories
+# Node modules and dependency caches
 node_modules/
-*/node_modules/
-backend/node_modules/
-frontend/node_modules/
+.pnp
+.pnp.js
 
-# Production builds
-build/
-frontend/build/
+# Build and production output
 dist/
-out/
+build/
 
 # Environment files
 .env
-.env.*
-!.env.example
-backend/.env
-backend/.env.*
-!backend/.env.example
-frontend/.env
-frontend/.env.*
-!frontend/.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+server/.env
+client/.env
 
-# Logs & debugging
+# Uploads and temporary assets
+server/uploads/*
+!server/uploads/.gitkeep
+
+# Logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
+pino-*.log
 
-# OS files
+# Editor and OS files
 .DS_Store
 Thumbs.db
-ehthumbs.db
-Desktop.ini
-
-# IDEs and editors
-.idea/
 .vscode/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Coverage & Tests
-coverage/
-.nyc_output/
+.idea/
