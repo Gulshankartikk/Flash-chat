@@ -15,7 +15,7 @@ class GeminiProvider extends AIProviderInterface {
   }
 
   async callGemini(payload) {
-    if (!this.apiKey || this.apiKey.trim().length < 10) return null;
+    if (!this.apiKey || typeof this.apiKey !== "string" || !this.apiKey.startsWith("AIzaSy")) return null;
 
     for (const model of SUPPORTED_MODELS) {
       try {

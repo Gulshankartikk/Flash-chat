@@ -35,14 +35,7 @@ function setCache(cacheKey, value) {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function callGeminiAPI(apiKey, payload) {
-  if (
-    !apiKey ||
-    typeof apiKey !== "string" ||
-    apiKey.trim().length < 15 ||
-    apiKey.includes("your_google_gemini_api_key") ||
-    apiKey.includes("replace_") ||
-    warnedInvalidKey
-  ) {
+  if (!apiKey || typeof apiKey !== "string" || !apiKey.startsWith("AIzaSy") || warnedInvalidKey) {
     return null;
   }
 

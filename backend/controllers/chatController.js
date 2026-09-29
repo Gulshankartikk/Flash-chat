@@ -19,7 +19,7 @@ async function checkTransactionSupport() {
     supportsTransactions = true;
   } catch (e) {
     supportsTransactions = false;
-    console.warn("[MongoDB] Transactions are not supported on this MongoDB server configuration (Replica Set is not configured). Running in non-transactional mode.");
+    // Standalone MongoDB: running in non-transactional mode
   }
   return supportsTransactions;
 }
