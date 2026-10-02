@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Search,
   Plus,
@@ -7,6 +8,7 @@ import {
   Sun,
   LogOut,
   User,
+  Settings,
   MessageSquare
 } from 'lucide-react';
 import { Avatar } from '../common/Avatar';
@@ -18,6 +20,7 @@ import { CreateGroupModal } from './CreateGroupModal';
 import { UserProfileModal } from './UserProfileModal';
 
 export const ChatSidebar = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -99,9 +102,16 @@ export const ChatSidebar = () => {
             {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
           <button
+            onClick={() => navigate('/settings')}
+            className="p-2 rounded-xl text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            title="Settings"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+          <button
             onClick={() => setIsProfileModalOpen(true)}
             className="p-2 rounded-xl text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-            title="Profile details"
+            title="Quick Profile Modal"
           >
             <User className="w-4 h-4" />
           </button>
@@ -241,15 +251,20 @@ export const ChatSidebar = () => {
       </div>
 
       {/* User Footer Profile strip */}
-      <div className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3 bg-slate-50/50 dark:bg-slate-950/40">
+      <button
+        onClick={() => navigate('/settings')}
+        className="p-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3 bg-slate-50/50 dark:bg-slate-950/40 hover:bg-slate-100 dark:hover:bg-slate-800/60 transition text-left w-full cursor-pointer"
+        title="Account Settings"
+      >
         <Avatar src={user?.avatar} name={user?.name} size="sm" isOnline showStatus />
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
             {user?.name}
           </p>
-          <p className="text-[10px] text-emerald-500 font-medium">Online</p>
+          <p className="text-[10px] text-emerald-500 font-medium">Online • Settings</p>
         </div>
-      </div>
+        <Settings className="w-4 h-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200" />
+      </button>
 
       <CreateGroupModal
         isOpen={isGroupModalOpen}

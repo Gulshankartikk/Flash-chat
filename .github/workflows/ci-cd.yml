@@ -19,20 +19,25 @@ jobs:
       with:
         node-version: 18
 
-    - name: Install Backend Dependencies
+    - name: Install Root Dependencies
+      run: npm install
+
+    - name: Install Server Dependencies
       run: |
-        cd backend
+        cd server
         npm install
 
-    - name: Install Frontend Dependencies
+    - name: Run Server Lint Checks
       run: |
-        cd frontend
+        cd server
+        npm run lint
+
+    - name: Install Client Dependencies
+      run: |
+        cd client
         npm install
 
-    - name: Build Frontend
+    - name: Build Client (Vite)
       run: |
-        cd frontend
+        cd client
         npm run build
-      env:
-        CI: false
-        REACT_APP_API_URL: http://localhost:8000

@@ -8,12 +8,26 @@ export const SignupPage = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [validationError, setValidationError] = useState('');
   const { signup, isSigningUp, error, clearError } = useAuthStore();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     clearError();
+    setValidationError('');
+
+    if (password.length < 6) {
+      setValidationError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setValidationError('Passwords do not match. Please verify.');
+      return;
+    }
+
     try {
       await signup({ name: name.trim(), email: email.trim(), password });
       navigate('/');
@@ -39,10 +53,10 @@ export const SignupPage = () => {
           </p>
         </div>
 
-        {error && (
+        {(validationError || error) && (
           <div className="mb-5 p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 flex items-center gap-2.5 text-xs text-red-600 dark:text-red-400">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{error}</span>
+            <span>{validationError || error}</span>
           </div>
         )}
 
@@ -110,6 +124,24 @@ export const SignupPage = () => {
             </div>
           </div>
 
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              Confirm Password
+            </label>
+            <div className="relative">
+              <Lock className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              <input
+                type="password"
+                required
+                minLength={6}
+                placeholder="Re-enter password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
           <button
             type="submit"
             disabled={isSigningUp}
@@ -120,15 +152,23 @@ export const SignupPage = () => {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
-          Already have an account?{' '}
+        <div className="mt-6 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
           <Link
-            to="/login"
-            className="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+            to="/welcome"
+            className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
           >
-            Sign in
+            ← Back to Welcome
           </Link>
-        </p>
+          <div>
+            Already registered?{' '}
+            <Link
+              to="/login"
+              className="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+            >
+              Sign in
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -30,22 +30,21 @@ services:
       retries: 5
       start_period: 10s
 
-  backend:
+  server:
     build:
-      context: ./backend
+      context: ./server
       dockerfile: Dockerfile
-    container_name: flash-chat-backend
+    container_name: flash-chat-server
     ports:
-      - "8000:8000"
+      - "5000:5000"
     environment:
-      - PORT=8000
+      - PORT=5000
       - NODE_ENV=production
       - MONGO_URI=mongodb://mongo:27017/flashchat
       - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=flash_chat_production_jwt_secret_key_32_chars
-      - FRONTEND_URL=http://localhost:3000
+      - CLIENT_URL=http://localhost:5173
     env_file:
-      - ./backend/.env
+      - ./server/.env
     depends_on:
       mongo:
         condition: service_healthy
@@ -53,17 +52,15 @@ services:
         condition: service_healthy
     restart: always
 
-  frontend:
+  client:
     build:
-      context: ./frontend
+      context: ./client
       dockerfile: Dockerfile
-      args:
-        - REACT_APP_API_URL=http://localhost:8000
-    container_name: flash-chat-frontend
+    container_name: flash-chat-client
     ports:
-      - "3000:80"
+      - "5173:80"
     depends_on:
-      - backend
+      - server
     restart: always
 
 volumes:

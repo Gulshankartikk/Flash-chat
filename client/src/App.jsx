@@ -1,9 +1,14 @@
 import React, { useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/useAuthStore';
+import { useThemeStore } from './store/useThemeStore';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { PublicRoute } from './components/auth/PublicRoute';
 
-// Code-splitting with lazy-loaded routes
+// Code-splitting with lazy-loaded route components
+const WelcomePage = lazy(() =>
+  import('./pages/WelcomePage').then((module) => ({ default: module.WelcomePage }))
+);
 const ChatPage = lazy(() =>
   import('./pages/ChatPage').then((module) => ({ default: module.ChatPage }))
 );
@@ -23,36 +28,49 @@ const ResetPasswordPage = lazy(() =>
     default: module.ResetPasswordPage
   }))
 );
+const SettingsPage = lazy(() =>
+  import('./pages/SettingsPage').then((module) => ({ default: module.SettingsPage }))
+);
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-    <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      <span className="text-xs font-semibold text-slate-400">Loading Flash Chat...</span>
+    </div>
   </div>
 );
 
 export function App() {
   const { checkAuth } = useAuthStore();
+  const { initTheme } = useThemeStore();
 
   useEffect(() => {
+    initTheme();
     checkAuth();
-  }, [checkAuth]);
+  }, [checkAuth, initTheme]);
 
   return (
     <BrowserRouter>
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          {/* Protected Main Chat Application */}
+          {/* Protected Routes (require authenticated user session) */}
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<ChatPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/profile" element={<SettingsPage />} />
           </Route>
 
-          {/* Public Auth Routes */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
+          {/* Public Auth Routes (authenticated users redirected to Home "/") */}
+          <Route element={<PublicRoute />}>
+            <Route path="/welcome" element={<WelcomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+          </Route>
 
-          {/* Fallback */}
+          {/* Fallback Catch-all Route */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Suspense>

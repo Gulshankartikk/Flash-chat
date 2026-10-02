@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 
-export const ProtectedRoute = () => {
+export const PublicRoute = () => {
   const { user, isCheckingAuth } = useAuthStore();
 
   if (isCheckingAuth) {
@@ -18,7 +18,7 @@ export const ProtectedRoute = () => {
     );
   }
 
-  return user ? <Outlet /> : <Navigate to="/welcome" replace />;
+  return user ? <Navigate to="/" replace /> : <Outlet />;
 };
 
-export default ProtectedRoute;
+export default PublicRoute;

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import api from '../services/api';
 import { getSocket } from '../services/socket';
+import { useAuthStore } from './useAuthStore';
 
 export const useChatStore = create((set, get) => ({
   chats: [],
@@ -81,6 +82,7 @@ export const useChatStore = create((set, get) => ({
     const activeChat = get().activeChat;
     if (!activeChat) return;
 
+    const currentUser = useAuthStore.getState().user;
     const tempId = `temp-${Date.now()}`;
     const optimisticMessage = {
       _id: tempId,
@@ -90,10 +92,9 @@ export const useChatStore = create((set, get) => ({
       mediaType: file ? (file.type.startsWith('image/') ? 'image' : 'file') : 'text',
       fileName: file ? file.name : '',
       fileSize: file ? file.size : 0,
-      sender: {
-        _id: 'me',
-        name: 'You'
-      },
+      sender: currentUser
+        ? { _id: currentUser._id, name: currentUser.name, avatar: currentUser.avatar }
+        : { _id: 'me', name: 'You' },
       createdAt: new Date().toISOString(),
       readBy: [],
       deliveredTo: [],
@@ -163,13 +164,20 @@ export const useChatStore = create((set, get) => ({
   markAsRead: async (chatId) => {
     try {
       await api.patch(`/messages/read/${chatId}`);
+      const currentUser = useAuthStore.getState().user;
+      const currentUserId = currentUser?._id;
+
       // Clear unread count for current user in local chat list
       set((state) => ({
         chats: state.chats.map((c) => {
-          if (c._id === chatId && c.unreadCounts) {
+          if (c._id === chatId) {
+            const updatedCounts = { ...(c.unreadCounts || {}) };
+            if (currentUserId) {
+              updatedCounts[currentUserId] = 0;
+            }
             return {
               ...c,
-              unreadCounts: { ...c.unreadCounts, me: 0 }
+              unreadCounts: updatedCounts
             };
           }
           return c;

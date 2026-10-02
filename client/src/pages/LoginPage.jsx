@@ -111,15 +111,23 @@ export const LoginPage = () => {
           </button>
         </form>
 
-        <p className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
-          Don't have an account?{' '}
+        <div className="mt-6 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
           <Link
-            to="/signup"
-            className="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+            to="/welcome"
+            className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
           >
-            Create account
+            ← Back to Welcome
           </Link>
-        </p>
+          <div>
+            Need an account?{' '}
+            <Link
+              to="/signup"
+              className="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
+            >
+              Sign up
+            </Link>
+          </div>
+        </div>
       </div>
     </div>
   );
