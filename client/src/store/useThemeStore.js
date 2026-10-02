@@ -1,27 +1,41 @@
 import { create } from 'zustand';
 
-export const useThemeStore = create((set) => {
-  const savedTheme = localStorage.getItem('flash_chat_theme') || 'dark';
-
-  if (savedTheme === 'dark') {
-    document.documentElement.classList.add('dark');
-  } else {
-    document.documentElement.classList.remove('dark');
+const applyThemeToDOM = (theme) => {
+  if (typeof document !== 'undefined') {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }
+};
+
+export const useThemeStore = create((set, get) => {
+  const initialTheme = (typeof localStorage !== 'undefined' && localStorage.getItem('flash_chat_theme')) || 'dark';
+  applyThemeToDOM(initialTheme);
 
   return {
-    theme: savedTheme,
+    theme: initialTheme,
+
+    initTheme: () => {
+      const current = get().theme;
+      applyThemeToDOM(current);
+    },
+
+    setTheme: (newTheme) => {
+      if (newTheme !== 'dark' && newTheme !== 'light') return;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('flash_chat_theme', newTheme);
+      }
+      applyThemeToDOM(newTheme);
+      set({ theme: newTheme });
+    },
+
     toggleTheme: () => {
-      set((state) => {
-        const nextTheme = state.theme === 'dark' ? 'light' : 'dark';
-        localStorage.setItem('flash_chat_theme', nextTheme);
-        if (nextTheme === 'dark') {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.remove('dark');
-        }
-        return { theme: nextTheme };
-      });
+      const nextTheme = get().theme === 'dark' ? 'light' : 'dark';
+      get().setTheme(nextTheme);
     }
   };
 });
+
+export default useThemeStore;

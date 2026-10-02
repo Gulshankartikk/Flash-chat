@@ -51,7 +51,7 @@ export function App() {
   }, [checkAuth, initTheme]);
 
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Protected Routes (require authenticated user session) */}
