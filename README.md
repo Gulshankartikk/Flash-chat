@@ -249,47 +249,190 @@ Example email log entry:
 ### REST API Endpoints
 
 #### Authentication (`/api/auth`)
-- `POST /api/auth/signup` — Create user (`{ name, email, password }`)
-- `POST /api/auth/login` — Sign in (`{ email, password }`)
+- `POST /api/auth/send-otp` — Request 6-digit OTP via SMS or Email (`{ identifier, type: "phone" | "email" }`)
+- `POST /api/auth/verify-otp` — Verify OTP, register/login, set refresh token cookie (`{ identifier, otp }`)
+- `POST /api/auth/refresh-token` — Silent access token renewal via httpOnly refresh cookie
+- `POST /api/auth/onboard` — Complete initial profile onboarding (`{ name, username, bio, avatar }`)
+- `GET /api/auth/check-username/:username` — Live username availability verification
+- `GET /api/auth/sessions` — List active device sessions
+- `POST /api/auth/logout` — Invalidate current session and clear cookies
+- `POST /api/auth/logout-all` — Terminate all active sessions across all devices
+- `POST /api/auth/signup` — Legacy email registration (`{ name, email, password }`)
+- `POST /api/auth/login` — Legacy email sign-in (`{ email, password }`)
 - `POST /api/auth/google` — Sign in / Authorize with Google (`{ credential }`)
-- `POST /api/auth/logout` — Clear session cookie and update presence
-- `GET /api/auth/me` — Retrieve current authenticated user
+- `GET /api/auth/me` — Retrieve current authenticated user session
 - `POST /api/auth/forgot-password` — Send reset email (`{ email }`)
 - `POST /api/auth/reset-password` — Reset password (`{ token, newPassword }`)
 
+#### Users (`/api/users`)
+- `GET /api/users/me` — Get authenticated user profile with privacy and settings
+- `PATCH /api/users/me` — Update profile (`name, username, bio, avatar, privacy, isPrivateAccount, theme`)
+- `GET /api/users/search?q=<query>&page=1&limit=20` — Debounced, paginated user search (excludes self)
+- `GET /api/users/:username` — Public profile overview (respects privacy settings)
+- `GET /api/users/check-username/:username` — Live username availability check
+
 #### Chats (`/api/chats`)
-- `GET /api/chats` — Get conversations sorted by recent activity
-- `POST /api/chats/private` — Get or create 1-to-1 conversation (`{ recipientId }`)
-- `POST /api/chats/group` — Create group channel (`{ name, participantIds }`)
-- `GET /api/chats/:chatId` — Get chat metadata
+- `POST /api/chats/direct` — Get or create 1:1 conversation (`{ userId }`)
+- `POST /api/chats/group` — Create group conversation (`{ name, memberIds, avatar, description }`)
+- `GET /api/chats` — Get conversation list with lastMessage, unread count, sorted by pinned first & recent activity
+- `GET /api/chats/:id` — Retrieve conversation metadata and populated members
+- `PATCH /api/chats/:id` — Update group name, avatar, description, or `disappearAfter`
+- `PATCH /api/chats/:id/settings` — Update user-specific conversation settings (`{ pin, archive, muteUntil }`)
+- `GET /api/chats/:id/messages?cursor=&limit=30` — Cursor-paginated message history
+- `GET /api/chats/:id/media?type=` — Media gallery of photos, videos, and documents
+- `GET /api/chats/search/messages?q=&conversationId=` — Search message history
+- `POST /api/chats/:id/members` — Add member to group (admin only)
+- `DELETE /api/chats/:id/members/:userId` — Remove member from group (admin only)
+- `PATCH /api/chats/:id/members/:userId/role` — Update member role to admin or member
+- `POST /api/chats/:id/leave` — Leave group conversation
+- `GET /api/chats/join/:inviteCode` & `POST /api/chats/join/:inviteCode` — Preview and join group by invite link
+- `POST /api/chats/:id/invite/reset` — Reset group invite code (admin only)
 
 #### Messages (`/api/messages`)
-- `GET /api/messages/:chatId?before=<timestamp>&limit=30` — Cursor-based message pagination
-- `POST /api/messages` — Send message with optional file upload (`multipart/form-data`)
-- `PUT /api/messages/:messageId` — Edit message content
-- `DELETE /api/messages/:messageId` — Soft-delete message
-- `PATCH /api/messages/read/:chatId` — Mark all messages in chat as read
+- `POST /api/messages` — Send message (`{ conversationId, type, text, media, location, contact, replyTo }`)
+- `PATCH /api/messages/:id` — Edit message content (within 15 minutes of sending)
+- `DELETE /api/messages/:id?scope=me|everyone` — Delete message for current user or everyone
+- `POST /api/messages/:id/react` — Add or toggle emoji reaction (`{ emoji }`)
+- `POST /api/messages/:id/star` — Toggle starred status on message
+- `POST /api/messages/forward` — Forward message to multiple target conversations (`{ messageId, conversationIds }`)
+- `PATCH /api/messages/read/:chatId` — Mark all unread messages in chat as read
 
-#### Users & Mail
-- `GET /api/users/search?q=<query>` — Debounced user search
-- `PATCH /api/users/profile` — Update user name and bio
-- `GET /api/health` — System and mailer health diagnostic
-- `POST /api/mail/test` — Send diagnostic email
+#### Media Uploads (`/api/upload`)
+- `POST /api/upload` — Upload media (`file` in multipart/form-data; 10MB limit; image/video/audio/pdf) -> `{ url, publicId, type }`
+- `POST /api/upload/avatar` — Upload avatar image with face auto-cropping -> `{ url, publicId, type }`
+
+#### Voice & Video Calls (`/api/calls`)
+- `GET /api/calls` — Paginated user call history (`cursor`, `limit=30`)
+- `GET /api/calls/:id` — Details of a specific call
+- `DELETE /api/calls/:id` — Soft-delete call from user's personal history
+- `GET /api/calls/ice-config` — Get ICE servers (STUN + dynamic/static TURN credentials)
+
+#### Social Network (Instagram Clone)
+- **Follow & Privacy (`/api/follow` & `/api/users`)**:
+  - `POST /api/follow/:userId` — Follow user (instant for public, creates pending request for private accounts)
+  - `DELETE /api/follow/:userId` — Unfollow user or cancel pending request
+  - `GET /api/follow/requests` — View pending incoming follow requests
+  - `POST /api/follow/requests/:id/accept` / `reject` — Approve or reject follow request
+  - `GET /api/users/:id/followers` & `GET /api/users/:id/following` — Cursor-paginated follower graph
+  - `POST /api/users/:id/block` & `DELETE /api/users/:id/block` — Block/unblock user
+  - `GET /api/users/blocked` — List blocked users
+- **Posts (`/api/posts`)**:
+  - `POST /api/posts` — Create post with multi-media, auto-parsed hashtags & @mentions
+  - `GET /api/posts/feed` — Cursor-paginated feed of followed users + own posts
+  - `GET /api/posts/:id` — Inspect post with privacy verification
+  - `PATCH /api/posts/:id` — Edit caption
+  - `DELETE /api/posts/:id` — Cascading delete
+  - `POST /api/posts/:id/like` & `DELETE /api/posts/:id/like` — Atomic like/unlike
+  - `POST /api/posts/:id/save` & `DELETE /api/posts/:id/save` — Bookmark post
+  - `GET /api/users/:id/posts` — User profile posts grid
+- **Reels (`/api/reels`)**:
+  - `POST /api/reels` — Upload vertical reel with video, thumbnail, and audio name
+  - `GET /api/reels/feed` — Vertical scroll reels feed
+  - `GET /api/reels/:id` — Inspect reel
+  - `POST /api/reels/:id/like` & `DELETE /api/reels/:id/like` — Like/unlike reel
+  - `POST /api/reels/:id/save` & `DELETE /api/reels/:id/save` — Bookmark reel
+  - `POST /api/reels/:id/view` — Atomic increment view count
+  - `GET /api/users/:id/reels` — User profile reels
+- **Stories (`/api/stories`)**:
+  - `POST /api/stories` — Create 24h story with image/video, text, stickers, closeFriendsOnly
+  - `GET /api/stories/tray` — Grouped active stories from following + me (unseen first)
+  - `POST /api/stories/:id/view` — Record story view (idempotent)
+  - `GET /api/stories/:id/viewers` — Viewers list (author only)
+  - `DELETE /api/stories/:id` — Delete story
+  - `POST /api/stories/:id/reply` — Cross-link story reply directly into 1-to-1 chat message
+- **Comments (`/api/posts/:id/comments`, `/api/reels/:id/comments`, `/api/comments`)**:
+  - `GET /api/posts/:id/comments` & `GET /api/reels/:id/comments` — Top-level comments
+  - `POST /api/posts/:id/comments` & `POST /api/reels/:id/comments` — Create comment or nested reply (1 level)
+  - `GET /api/comments/:id/replies` — Load replies for top-level comment
+  - `DELETE /api/comments/:id` — Delete comment (author or post/reel owner)
+  - `POST /api/comments/:id/like` & `DELETE /api/comments/:id/like` — Like/unlike comment
+- **Explore & Search (`/api/explore`, `/api/hashtags/:tag`, `/api/search`)**:
+  - `GET /api/explore` — Trending public posts/reels in last 7 days (cached in Redis for 60s)
+  - `GET /api/hashtags/:tag` — Posts by hashtag with post count
+  - `GET /api/search?q=&type=users|tags|posts` — Multi-entity search
+- **Cross-linking Share (`/api/share`)**:
+  - `POST /api/share` — Share post, reel, story or profile to multiple chats with snapshot preview
+  - `GET /api/share/suggestions` — Contact suggestions for share sheet
+- **Notifications (`/api/notifications`)**:
+  - `GET /api/notifications` — Notification feed (cursor paginated)
+  - `GET /api/notifications/unread-count` — Count of unread notifications
+  - `PATCH /api/notifications/:id/read` & `PATCH /api/notifications/read-all` — Read statuses
+- **Reports (`/api/reports`)**:
+  - `POST /api/reports` — Submit abuse report against post, reel, story, comment, or user
+
+#### System Diagnostics
+- `GET /api/health` — System, memory, and mailer health diagnostic
+- `POST /api/mail/test` — Send diagnostic test email
 
 ### Socket.IO Realtime Events
 
+#### Messaging Events
 | Event | Direction | Payload | Description |
 | :--- | :---: | :--- | :--- |
-| `chat:join` | Client -> Server | `chatId` | Join room for active chat |
-| `chat:leave` | Client -> Server | `chatId` | Leave previous chat room |
-| `typing:start` | Client -> Server | `{ chatId }` | Notify typing in room |
-| `typing:stop` | Client -> Server | `{ chatId }` | Stop typing indicator |
-| `message:new` | Server -> Client | `Message` | Broadcast message to room |
-| `message:edited` | Server -> Client | `Message` | Broadcast edited content |
-| `message:deleted` | Server -> Client | `{ messageId, chatId }` | Broadcast deleted state |
-| `message:read_receipt` | Server -> Client | `{ chatId, readByUserId }`| Broadcast read status |
-| `user:presence` | Server -> Client | `{ userId, isOnline }` | Broadcast online/offline |
-| `users:online_list`| Server -> Client | `[userId, ...]` | List of current online users |
+| `message:send` | Client -> Server | `{ conversationId, clientId, type, text, media, replyTo, ... }` | Send message with acknowledgement callback |
+| `message:delivered` | Client -> Server | `{ conversationId, messageId }` | Notify message delivery to recipient |
+| `message:read` | Client -> Server | `{ conversationId, upToMessageId }` | Mark messages as read |
+| `typing:start` | Client -> Server | `{ conversationId }` | Broadcast typing start |
+| `typing:stop` | Client -> Server | `{ conversationId }` | Broadcast typing stop |
+| `message:edit` | Client -> Server | `{ conversationId, messageId, text }` | Edit message content in real-time |
+| `message:delete` | Client -> Server | `{ conversationId, messageId, scope }` | Soft-delete message for me or everyone |
+| `message:react` | Client -> Server | `{ conversationId, messageId, emoji }` | Add or toggle emoji reaction |
+| `message:new` | Server -> Client | `Message` | Real-time message broadcast to conversation room `conv:<id>` |
+| `message:updated` | Server -> Client | `Message` | Broadcast edited content or updated reaction pill |
+| `message:deleted` | Server -> Client | `{ conversationId, messageId }` | Broadcast deleted state to room |
+| `message:status` | Server -> Client | `{ conversationId, messageId, status, userId }` | Broadcast delivered / read receipt ticks |
+| `typing` | Server -> Client | `{ conversationId, userId, userName, isTyping }` | Live typing indicator broadcast |
+| `presence:update` | Server -> Client | `{ userId, isOnline, lastSeen }` | Broadcast online/offline presence (respects privacy) |
+| `conversation:updated` | Server -> Client | `{ conversationId, lastMessage }` | Update conversation order & unread counters |
+| `users:online_list` | Server -> Client | `[userId, ...]` | List of currently connected users on connection |
+
+#### Voice & Video Calling Events (WebRTC Mesh)
+| Event | Direction | Payload | Description |
+| :--- | :---: | :--- | :--- |
+| `call:start` | Client -> Server | `{ conversationId, type: 'audio' \| 'video' }` | Initiate call; returns `{ success, status, call }` |
+| `call:accept` | Client -> Server | `{ callId }` | Accept incoming call and join call room |
+| `call:decline` | Client -> Server | `{ callId }` | Decline incoming call |
+| `call:cancel` | Client -> Server | `{ callId }` | Cancel outgoing call before recipient answers |
+| `call:end` | Client -> Server | `{ callId }` | Terminate active ongoing call |
+| `call:offer` | Client <-> Server | `{ callId, toUserId / fromUserId, sdp }` | Relay WebRTC SDP offer to remote peer |
+| `call:answer` | Client <-> Server | `{ callId, toUserId / fromUserId, sdp }` | Relay WebRTC SDP answer to remote peer |
+| `call:ice` | Client <-> Server | `{ callId, toUserId / fromUserId, candidate }` | Relay ICE candidate to remote peer |
+| `call:toggle` | Client <-> Server | `{ callId, audio, video }` | Broadcast mute or camera toggle state to peers |
+| `call:switch-to-video` | Client <-> Server | `{ callId }` | Upgrade voice call to video call |
+| `call:incoming` | Server -> Client | `{ call, caller }` | Notify callee with incoming ringing modal |
+| `call:accepted` | Server -> Client | `{ callId, participant }` | Notify caller that call was accepted |
+| `call:declined` | Server -> Client | `{ callId, participantId }` | Notify caller that call was declined |
+| `call:busy` | Server -> Client | `{ callId }` | Notify caller that recipient is already on another call |
+| `call:missed` | Server -> Client | `{ callId }` | 45-second ring timeout fired without answer |
+| `call:ended` | Server -> Client | `{ callId, reason, duration }` | Call terminated (completed, canceled, disconnected) |
+| `call:participant-joined` | Server -> Client | `{ callId, user }` | Notify mesh peers that new participant joined (group call) |
+| `call:participant-left` | Server -> Client | `{ callId, userId }` | Notify mesh peers that participant left |
+
+---
+
+## WebRTC STUN / TURN Setup & Production Deployment
+
+Flash Chat includes out-of-the-box support for mesh WebRTC 1:1 and group calling.
+
+### Coturn Service in Docker
+A pre-configured Coturn container is defined in `docker-compose.yml` with `turnserver.conf`:
+- **STUN/TURN Port**: `3478` (UDP & TCP)
+- **Relay UDP Ports**: `49160-49200`
+- **Default Credentials**: `user=flashchat:flashchatpassword123`
+- **Static Auth Secret**: `flashchat_coturn_static_auth_secret_2026`
+
+### Environment Variables
+Configure the following in your `.env` or `server/.env`:
+```env
+STUN_URLS=stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302
+TURN_URL=turn:your-domain.com:3478
+TURN_USERNAME=flashchat
+TURN_CREDENTIAL=flashchatpassword123
+TURN_SECRET=flashchat_coturn_static_auth_secret_2026
+```
+
+> ⚠️ **IMPORTANT NOTE FOR PRODUCTION**:
+> WebRTC `navigator.mediaDevices.getUserMedia()` is restricted by modern web browsers to **Secure Contexts (HTTPS)** only (except `localhost`). When deploying Flash Chat to a remote server or domain, you **MUST configure an SSL certificate (HTTPS)** via Nginx, Caddy, or Cloudflare, or browsers will refuse camera and microphone access.
 
 ---
 
@@ -330,3 +473,62 @@ Example email log entry:
 ## 13. License & Contributing
 
 Distributed under the MIT License. Contributions and feedback are welcome!
+
+---
+
+## 14. Step 6: Social Engine (Instagram Clone) & Unified Super-App Cross-Linking
+
+Flash Chat unifies messaging and social media under **ONE account, ONE contact graph, and ONE real-time engine**.
+
+### Social Routes
+- `/social`: Community feed with 24-hour horizontal `StoriesTray`, multi-media `PostCard` carousels, double-tap hearts, and cursor-based infinite scroll.
+- `/social/reels`: Full-screen vertical scroll-snap reels (`100dvh` mobile safe), preloaded next reel, tap-to-pause, persistent mute toggle, right action column, and audio ticker.
+- `/social/explore`: Masonry grid mixing trending posts and reels (with Play badge) and infinite scroll.
+- `/social/search`: Search with tabs **People \| Tags \| Posts**, debounced live query, and `localStorage` recent searches.
+- `/social/hashtag/:tag`: Tagged posts grid with post count and `PostViewerModal` tap preview.
+- `/social/post/:id`: Dedicated post view with comments expander and sharing.
+- `/social/notifications`: Activity grouped into **Today**, **This week**, and **Earlier**, inline follow-back and accept/reject actions, and real-time socket delivery (`notification:new`).
+- `/u/:username`: Upgraded social profile with counts, follow status, direct Message & WebRTC Call triggers, tabbed grids (Posts / Reels / Saved), and private account lock state.
+
+### Cross-Linking Rules
+1. **Message Button on Profile**:
+   - Calling "Message" on `/u/:username` resolves via `POST /api/chats/direct` and deep links into `/chats/:conversationId` within the unified messaging engine.
+2. **Audio & Video Calling from Profile**:
+   - Profiles invoke `useCall().startCall({ conversationId, type: 'audio' | 'video' })` inside the same conversation.
+3. **Share to Chats (`<ShareSheet />`)**:
+   - Shares any post, reel, story, or profile to multiple conversations (up to 10) with an optional note.
+   - Saves a rich `snapshot` (`thumbnail`, `authorUsername`, `authorName`, `authorAvatar`, `captionSnippet`, `mediaType`) onto the `Message` document so previews render instantly without additional network round-trips.
+4. **Story Reply Cross-Linking**:
+   - Replying to any 24h story sends a `shared_story` message into direct chat with a thumbnail preview and opens `/chats/:conversationId` via toast action.
+5. **In-Chat Preview Cards (`MessageBubble`)**:
+   - Messages of type `shared_post`, `shared_reel`, `shared_story`, and `shared_profile` render as rounded cards with media preview and caption.
+   - Tapping opens `PostViewerModal`, `ReelViewer`, or `StoryViewer` without navigating away from the chat thread.
+   - If an item is deleted or a story expired (>24h), shows *"This content is no longer available"*.
+6. **Chat Header "View Profile"**:
+   - Header menu for 1-to-1 chats contains a direct link to `/u/:username`, enabling seamless two-way navigation between Chats and Social.
+7. **Social DM Icon**:
+   - Paper plane in the Feed header links directly to `/chats`.
+
+---
+
+## 15. Step 6 Test & Verification Checklist
+
+- [x] **Create Flow**: Create a Post (multi-media, crop 1:1 / 4:5 / original), a Reel (<= 90s duration validation), and a Story (<= 30s).
+- [x] **Stories Tray & Viewer**: Unseen gradient ring (`#F97316` to `#EC4899`), segmented progress bars, tap left/right, pause on hold, swipe down to close, own story viewers sheet + delete.
+- [x] **Story Reply**: Send reply to another user's story -> lands in direct chat with story preview thumbnail and toast link to `/chats/:conversationId`.
+- [x] **Post Interactions**: Double-tap to like with floating heart burst, optimistic like & save with rollback on network failure, caption `#hashtag` and `@mention` navigation.
+- [x] **Video Autoplay**: Videos autoplay only when >60% visible using native `IntersectionObserver` and pause when scrolled away.
+- [x] **Reels Scroll Feed**: Vertical scroll-snap, preloaded next reel, tap to pause, mute preference synced across app, author follow button, comments overlay.
+- [x] **Comments Bottom Sheet**: Top-level comments with cursor pagination, "View N replies" expander (`GET /api/comments/:id/replies`), 1 level of nesting, reply chip, live `@` mention autocomplete, comment liking and author deletion.
+- [x] **Share Sheet**: Search recipients, multi-select check badges, optional note, send to multiple chats, confirmation toast with "Open chat" deep link.
+- [x] **Explore & Search**: Tabs for People, Tags, Posts, recent searches in `localStorage`, trending masonry grid with `PostViewerModal`.
+- [x] **Hashtag Page**: Post count, simple grid, infinite scroll.
+- [x] **Public Profile**:
+  - Follow / Following / Requested button states for public and private accounts.
+  - "Message" button resolves conversation and deep links to `/chats/:conversationId`.
+  - Voice Call & Video Call buttons trigger `useCall()`.
+  - Followers and Following modals with search and inline follow buttons.
+  - Three-dot menu: Block/Unblock, Report, Copy profile link, Share profile.
+- [x] **Activity / Notifications**: Grouped by Today / This week / Earlier, real-time socket toast (`notification:new`), badge counter on Social tab and Activity sub-tab, inline follow-back and accept/reject buttons.
+- [x] **Chat Preview Cards**: `MessageBubble` renders `shared_post`, `shared_reel`, `shared_story`, and `shared_profile` snapshots with in-chat modal viewers; expired stories display fallback banner; no duplicate messages on share.
+

@@ -14,20 +14,24 @@ const userSchema = new mongoose.Schema(
       sparse: true,
       lowercase: true,
       trim: true,
-      maxlength: 30
+      minlength: 3,
+      maxlength: 30,
+      index: true
     },
     email: {
       type: String,
       unique: true,
       sparse: true,
       lowercase: true,
-      trim: true
+      trim: true,
+      index: true
     },
     phoneNumber: {
       type: String,
       unique: true,
       sparse: true,
-      trim: true
+      trim: true,
+      index: true
     },
     passwordHash: {
       type: String,
@@ -50,9 +54,39 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    isPrivateAccount: {
+      type: Boolean,
+      default: false
+    },
     isPrivate: {
       type: Boolean,
       default: false
+    },
+    theme: {
+      type: String,
+      enum: ['light', 'dark', 'system'],
+      default: 'light'
+    },
+    privacy: {
+      lastSeen: {
+        type: String,
+        enum: ['everyone', 'contacts', 'nobody'],
+        default: 'everyone'
+      },
+      profilePhoto: {
+        type: String,
+        enum: ['everyone', 'contacts', 'nobody'],
+        default: 'everyone'
+      },
+      readReceipts: {
+        type: Boolean,
+        default: true
+      }
+    },
+    privacySettings: {
+      lastSeen: { type: String, enum: ['everyone', 'contacts', 'nobody'], default: 'everyone' },
+      profilePhoto: { type: String, enum: ['everyone', 'contacts', 'nobody'], default: 'everyone' },
+      readReceipts: { type: Boolean, default: true }
     },
     followersCount: {
       type: Number,
@@ -79,11 +113,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       select: false
     },
-    privacySettings: {
-      lastSeen: { type: String, enum: ['everyone', 'contacts', 'nobody'], default: 'everyone' },
-      profilePhoto: { type: String, enum: ['everyone', 'contacts', 'nobody'], default: 'everyone' },
-      readReceipts: { type: Boolean, default: true }
-    },
     refreshTokens: [
       {
         token: { type: String, required: true },
@@ -98,6 +127,6 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-userSchema.index({ name: 'text', username: 'text', email: 'text', phoneNumber: 'text' });
+userSchema.index({ name: 'text', username: 'text' });
 
 module.exports = mongoose.model('User', userSchema);

@@ -84,7 +84,7 @@ export const useAuthStore = create((set, get) => ({
   completeOnboarding: async ({ name, username, bio, avatar }) => {
     set({ isOnboarding: true, error: null });
     try {
-      const res = await api.post('/auth/onboarding', { name, username, bio, avatar });
+      const res = await api.post('/auth/onboard', { name, username, bio, avatar });
       const updatedUser = res.data.user;
       set({ user: updatedUser, isOnboarding: false });
       return updatedUser;
@@ -192,7 +192,11 @@ export const useAuthStore = create((set, get) => ({
   },
 
   updateProfile: async (data) => {
-    const res = await api.patch('/users/profile', data);
+    if (data._id) {
+      set({ user: data });
+      return data;
+    }
+    const res = await api.patch('/users/me', data);
     set({ user: res.data.user });
     return res.data.user;
   }

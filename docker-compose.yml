@@ -75,6 +75,20 @@ services:
       - server
     restart: always
 
+  coturn:
+    image: coturn/coturn:latest
+    container_name: flash-chat-turn
+    restart: always
+    ports:
+      - "3478:3478"
+      - "3478:3478/udp"
+      - "49160-49200:49160-49200/udp"
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command:
+      - "-c"
+      - "/etc/coturn/turnserver.conf"
+
 volumes:
   mongo_data:
     driver: local

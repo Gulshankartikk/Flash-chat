@@ -42,7 +42,14 @@ const envSchema = z.object({
 
   // Redis & Logging
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
-  REDIS_URL: z.string().optional().default('')
+  REDIS_URL: z.string().optional().default(''),
+
+  // WebRTC STUN / TURN Configuration
+  STUN_URLS: z.string().default('stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302'),
+  TURN_URL: z.string().optional().default(''),
+  TURN_USERNAME: z.string().optional().default(''),
+  TURN_CREDENTIAL: z.string().optional().default(''),
+  TURN_SECRET: z.string().optional().default('')
 });
 
 const parsed = envSchema.safeParse(process.env);

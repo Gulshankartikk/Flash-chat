@@ -1,12 +1,29 @@
 const mongoose = require('mongoose');
 
+const mediaItemSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true },
+    publicId: { type: String, default: '' },
+    mimeType: { type: String, default: '' },
+    size: { type: Number, default: 0 },
+    duration: { type: Number, default: 0 }, // For audio/voice/video in seconds
+    thumbnail: { type: String, default: '' }
+  },
+  { _id: false }
+);
+
 const messageSchema = new mongoose.Schema(
   {
-    chatId: {
+    conversation: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Chat',
+      ref: 'Conversation',
       required: true,
       index: true
+    },
+    // Backwards compatibility alias
+    chatId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Conversation'
     },
     sender: {
       type: mongoose.Schema.Types.ObjectId,
@@ -14,29 +31,69 @@ const messageSchema = new mongoose.Schema(
       required: true,
       index: true
     },
-    content: {
+    type: {
+      type: String,
+      enum: [
+        'text',
+        'image',
+        'video',
+        'audio',
+        'voice',
+        'document',
+        'location',
+        'contact',
+        'system',
+        'shared_post',
+        'shared_reel',
+        'shared_story'
+      ],
+      default: 'text',
+      index: true
+    },
+    text: {
       type: String,
       trim: true,
       default: ''
     },
-    mediaUrl: {
-      type: String,
-      default: ''
+    media: [mediaItemSchema],
+    location: {
+      lat: { type: Number },
+      lng: { type: Number },
+      label: { type: String, default: '' }
     },
-    mediaType: {
-      type: String,
-      enum: ['text', 'image', 'file', 'audio'],
-      default: 'text'
+    contact: {
+      name: { type: String },
+      phone: { type: String }
     },
-    fileName: {
-      type: String,
-      default: ''
+    replyTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Message'
     },
-    fileSize: {
-      type: Number,
-      default: 0
+    forwardedFrom: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Message'
     },
-    readBy: [
+    reactions: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        emoji: { type: String }
+      }
+    ],
+    starredBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      }
+    ],
+    editedAt: {
+      type: Date,
+      default: null
+    },
+    deletedForEveryone: {
+      type: Boolean,
+      default: false
+    },
+    deletedFor: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
@@ -44,21 +101,35 @@ const messageSchema = new mongoose.Schema(
     ],
     deliveredTo: [
       {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        at: { type: Date, default: Date.now }
       }
     ],
-    isEdited: {
-      type: Boolean,
-      default: false
+    readBy: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        at: { type: Date, default: Date.now }
+      }
+    ],
+    expiresAt: {
+      type: Date,
+      default: null
     },
-    isDeleted: {
-      type: Boolean,
-      default: false
+    sharedRef: {
+      kind: { type: String, enum: ['post', 'reel', 'story', 'profile'] },
+      refId: { type: mongoose.Schema.Types.ObjectId }
     },
-    replyTo: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Message'
+    snapshot: {
+      thumbnail: { type: String, default: '' },
+      authorUsername: { type: String, default: '' },
+      authorName: { type: String, default: '' },
+      authorAvatar: { type: String, default: '' },
+      captionSnippet: { type: String, default: '' },
+      mediaType: { type: String, default: '' }
+    },
+    clientId: {
+      type: String,
+      index: true
     }
   },
   {
@@ -66,7 +137,22 @@ const messageSchema = new mongoose.Schema(
   }
 );
 
-// High-performance cursor pagination index
+// High performance cursor pagination index
+messageSchema.index({ conversation: 1, createdAt: -1 });
 messageSchema.index({ chatId: 1, createdAt: -1 });
+
+// Full text search index
+messageSchema.index({ text: 'text' });
+
+// TTL Index for disappearing messages (automatically purged by MongoDB when expiresAt is passed)
+messageSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+// Pre-save hook to ensure chatId is synced with conversation
+messageSchema.pre('save', function (next) {
+  if (this.conversation && !this.chatId) {
+    this.chatId = this.conversation;
+  }
+  next();
+});
 
 module.exports = mongoose.model('Message', messageSchema);

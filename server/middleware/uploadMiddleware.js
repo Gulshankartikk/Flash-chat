@@ -1,44 +1,40 @@
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
 
-const uploadDir = path.resolve(__dirname, '../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+// Memory storage for direct processing / streaming
+const storage = multer.memoryStorage();
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    cb(null, `${file.fieldname}-${uniqueSuffix}${ext}`);
-  }
-});
+// Allowed MIME types: image, video, audio, pdf
+const ALLOWED_MIME_TYPES = [
+  // Images
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+  'image/svg+xml',
+  // Videos
+  'video/mp4',
+  'video/webm',
+  'video/quicktime',
+  'video/x-msvideo',
+  // Audio
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/wav',
+  'audio/ogg',
+  'audio/webm',
+  'audio/m4a',
+  'audio/aac',
+  // Documents
+  'application/pdf'
+];
 
 const fileFilter = (req, file, cb) => {
-  // Allow common image formats, audio, and documents
-  const allowedMimeTypes = [
-    'image/jpeg',
-    'image/png',
-    'image/webp',
-    'image/gif',
-    'audio/mpeg',
-    'audio/ogg',
-    'audio/webm',
-    'application/pdf',
-    'application/zip',
-    'text/plain'
-  ];
-
-  if (allowedMimeTypes.includes(file.mimetype)) {
+  if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
     cb(null, true);
   } else {
     cb(
       new Error(
-        `Unsupported file type: ${file.mimetype}. Allowed types: JPEG, PNG, WEBP, GIF, MP3, OGG, PDF, ZIP, TXT`
+        `Invalid file format: ${file.mimetype}. Allowed types: image, video, audio, pdf.`
       ),
       false
     );
@@ -48,7 +44,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10 MB maximum
+    fileSize: 10 * 1024 * 1024 // 10MB limit as requested
   },
   fileFilter
 });

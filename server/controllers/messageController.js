@@ -1,52 +1,73 @@
 const { z } = require('zod');
+const chatService = require('../services/chatService');
 const Message = require('../models/Message');
-const Chat = require('../models/Chat');
-const User = require('../models/User');
-const chatService = require('../services/chat/chatService');
-const mailer = require('../services/mailer/mailerService');
-const logger = require('../utils/logger');
 
 const sendMessageSchema = z.object({
-  chatId: z.string().min(1, 'Chat ID is required'),
-  content: z.string().optional().default(''),
-  replyTo: z.string().optional().nullable()
+  conversationId: z.string().min(1, 'conversationId is required'),
+  clientId: z.string().optional(),
+  type: z
+    .enum([
+      'text',
+      'image',
+      'video',
+      'audio',
+      'voice',
+      'document',
+      'location',
+      'contact',
+      'system',
+      'shared_post',
+      'shared_reel',
+      'shared_story'
+    ])
+    .optional()
+    .default('text'),
+  text: z.string().optional().default(''),
+  media: z
+    .array(
+      z.object({
+        url: z.string().url(),
+        publicId: z.string().optional(),
+        mimeType: z.string().optional(),
+        size: z.number().optional(),
+        duration: z.number().optional(),
+        thumbnail: z.string().optional()
+      })
+    )
+    .optional()
+    .default([]),
+  location: z
+    .object({
+      lat: z.number(),
+      lng: z.number(),
+      label: z.string().optional()
+    })
+    .optional(),
+  contact: z
+    .object({
+      name: z.string(),
+      phone: z.string()
+    })
+    .optional(),
+  replyTo: z.string().optional(),
+  forwardedFrom: z.string().optional()
 });
 
 const editMessageSchema = z.object({
-  content: z.string().min(1, 'Updated content cannot be empty')
+  text: z.string().min(1, 'Updated message text cannot be empty')
+});
+
+const reactMessageSchema = z.object({
+  emoji: z.string().min(1, 'Emoji is required')
+});
+
+const forwardMessageSchema = z.object({
+  messageId: z.string().min(1, 'messageId is required'),
+  conversationIds: z.array(z.string()).min(1, 'At least one target conversation is required')
 });
 
 /**
- * Fetch messages for a chat with cursor pagination
- */
-const getMessages = async (req, res, next) => {
-  try {
-    const { chatId } = req.params;
-    const { before, limit } = req.query;
-
-    const chat = await Chat.findOne({
-      _id: chatId,
-      participants: req.user._id
-    }).lean();
-
-    if (!chat) {
-      return res.status(403).json({ success: false, message: 'Access to this chat is denied.' });
-    }
-
-    const parsedLimit = limit ? Math.min(Math.max(parseInt(limit, 10), 5), 100) : 30;
-    const result = await chatService.getMessagesCursor(chatId, before, parsedLimit);
-
-    res.status(200).json({
-      success: true,
-      ...result
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-/**
- * Send a message (text and/or file/image)
+ * POST /api/messages
  */
 const sendMessage = async (req, res, next) => {
   try {
@@ -55,245 +76,156 @@ const sendMessage = async (req, res, next) => {
       return res.status(400).json({ success: false, message: parsed.error.issues[0].message });
     }
 
-    const { chatId, content, replyTo } = parsed.data;
-    const currentUserId = req.user._id;
+    const message = await chatService.sendMessage(req.user._id, parsed.data);
 
-    // Verify chat membership
-    const chat = await Chat.findOne({
-      _id: chatId,
-      participants: currentUserId
-    });
-
-    if (!chat) {
-      return res.status(403).json({ success: false, message: 'Cannot send message to this chat.' });
-    }
-
-    let mediaUrl = '';
-    let mediaType = 'text';
-    let fileName = '';
-    let fileSize = 0;
-
-    if (req.file) {
-      mediaUrl = `/uploads/${req.file.filename}`;
-      fileName = req.file.originalname;
-      fileSize = req.file.size;
-
-      if (req.file.mimetype.startsWith('image/')) {
-        mediaType = 'image';
-      } else if (req.file.mimetype.startsWith('audio/')) {
-        mediaType = 'audio';
-      } else {
-        mediaType = 'file';
-      }
-    }
-
-    if (!content && !mediaUrl) {
-      return res.status(400).json({
-        success: false,
-        message: 'Message must contain either text content or an attachment.'
-      });
-    }
-
-    let message = await Message.create({
-      chatId,
-      sender: currentUserId,
-      content,
-      mediaUrl,
-      mediaType,
-      fileName,
-      fileSize,
-      replyTo: replyTo || undefined,
-      deliveredTo: [currentUserId],
-      readBy: [currentUserId]
-    });
-
-    message = await Message.findById(message._id)
-      .populate('sender', '_id name avatar')
-      .populate('replyTo', '_id content sender mediaType isDeleted');
-
-    // Update chat latestMessage and increment unread count for other participants
-    chat.latestMessage = message._id;
-    chat.participants.forEach((pId) => {
-      const pidStr = pId.toString();
-      if (pidStr !== currentUserId.toString()) {
-        const currentCount = chat.unreadCounts.get(pidStr) || 0;
-        chat.unreadCounts.set(pidStr, currentCount + 1);
-      }
-    });
-
-    await chat.save();
-    await chatService.invalidateChatCache(chat.participants);
-
-    // Emit via Socket.IO
+    // Broadcast to room if Socket.IO is attached
     if (req.io) {
-      req.io.to(`chat:${chatId}`).emit('message:new', message);
-      chat.participants.forEach((pId) => {
-        req.io.to(`user:${pId}`).emit('chat:updated', {
-          chatId,
-          latestMessage: message
-        });
-      });
+      req.io.to(`conv:${parsed.data.conversationId}`).emit('message:new', message);
     }
 
-    // Check offline participants for offline email digest if needed
-    setImmediate(async () => {
-      try {
-        const offlineParticipants = await User.find({
-          _id: { $in: chat.participants, $ne: currentUserId },
-          isOnline: false
-        }).lean();
-
-        for (const offlineUser of offlineParticipants) {
-          const unread = chat.unreadCounts.get(offlineUser._id.toString()) || 1;
-          // Send digest email on 5 unread messages threshold to avoid spamming
-          if (unread === 5) {
-            mailer.sendOfflineDigest(offlineUser.email, {
-              name: offlineUser.name,
-              senderName: req.user.name,
-              count: unread
-            });
-          }
-        }
-      } catch (err) {
-        logger.warn({ err: err.message }, 'Offline digest notification check error');
-      }
-    });
-
-    res.status(201).json({
-      success: true,
-      message
-    });
+    return res.status(201).json({ success: true, message });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Edit a message
+ * PATCH /api/messages/:id
  */
 const editMessage = async (req, res, next) => {
   try {
-    const { messageId } = req.params;
+    const { id } = req.params;
     const parsed = editMessageSchema.safeParse(req.body);
     if (!parsed.success) {
       return res.status(400).json({ success: false, message: parsed.error.issues[0].message });
     }
 
-    const message = await Message.findById(messageId);
-    if (!message) {
-      return res.status(404).json({ success: false, message: 'Message not found.' });
-    }
-
-    if (message.sender.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Cannot edit another user\'s message.' });
-    }
-
-    if (message.isDeleted) {
-      return res.status(400).json({ success: false, message: 'Cannot edit a deleted message.' });
-    }
-
-    message.content = parsed.data.content;
-    message.isEdited = true;
-    await message.save();
-
-    const populated = await Message.findById(message._id)
-      .populate('sender', '_id name avatar')
-      .populate('replyTo', '_id content sender mediaType isDeleted');
+    const updated = await chatService.editMessage(req.user._id, id, parsed.data.text);
 
     if (req.io) {
-      req.io.to(`chat:${message.chatId}`).emit('message:edited', populated);
+      req.io.to(`conv:${updated.conversation}`).emit('message:updated', updated);
     }
 
-    res.status(200).json({
-      success: true,
-      message: populated
-    });
+    return res.status(200).json({ success: true, message: updated });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Soft delete a message
+ * DELETE /api/messages/:id?scope=me|everyone
  */
 const deleteMessage = async (req, res, next) => {
   try {
-    const { messageId } = req.params;
-    const message = await Message.findById(messageId);
+    const { id } = req.params;
+    const scope = req.query.scope === 'everyone' ? 'everyone' : 'me';
 
-    if (!message) {
-      return res.status(404).json({ success: false, message: 'Message not found.' });
-    }
+    const result = await chatService.deleteMessage(req.user._id, id, scope);
 
-    if (message.sender.toString() !== req.user._id.toString()) {
-      return res.status(403).json({ success: false, message: 'Cannot delete another user\'s message.' });
-    }
-
-    message.isDeleted = true;
-    message.content = 'This message was deleted';
-    message.mediaUrl = '';
-    await message.save();
-
-    if (req.io) {
-      req.io.to(`chat:${message.chatId}`).emit('message:deleted', {
-        messageId: message._id,
-        chatId: message.chatId
+    if (req.io && scope === 'everyone') {
+      req.io.to(`conv:${result.conversationId}`).emit('message:deleted', {
+        messageId: id,
+        conversationId: result.conversationId
       });
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Message deleted'
-    });
+    return res.status(200).json({ success: true, result });
   } catch (error) {
     next(error);
   }
 };
 
 /**
- * Mark messages in a chat as read by authenticated user
+ * POST /api/messages/:id/react
  */
-const markAsRead = async (req, res, next) => {
+const reactMessage = async (req, res, next) => {
   try {
-    const { chatId } = req.params;
-    const userId = req.user._id;
+    const { id } = req.params;
+    const parsed = reactMessageSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, message: parsed.error.issues[0].message });
+    }
 
-    // Reset unread count for user in Chat document
-    await Chat.findByIdAndUpdate(chatId, {
-      $set: { [`unreadCounts.${userId}`]: 0 }
-    });
-
-    // Add user to readBy array for unread messages
-    await Message.updateMany(
-      {
-        chatId,
-        readBy: { $ne: userId }
-      },
-      {
-        $addToSet: { readBy: userId }
-      }
-    );
+    const updated = await chatService.reactToMessage(req.user._id, id, parsed.data.emoji);
 
     if (req.io) {
-      req.io.to(`chat:${chatId}`).emit('message:read_receipt', {
-        chatId,
-        readByUserId: userId
+      req.io.to(`conv:${updated.conversation}`).emit('message:updated', updated);
+    }
+
+    return res.status(200).json({ success: true, message: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/messages/:id/star
+ */
+const starMessage = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await chatService.toggleStar(req.user._id, id);
+    return res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/messages/forward
+ */
+const forwardMessage = async (req, res, next) => {
+  try {
+    const parsed = forwardMessageSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, message: parsed.error.issues[0].message });
+    }
+
+    const { messageId, conversationIds } = parsed.data;
+    const forwardedMessages = await chatService.forwardMessage(req.user._id, messageId, conversationIds);
+
+    if (req.io) {
+      forwardedMessages.forEach((msg) => {
+        req.io.to(`conv:${msg.conversation}`).emit('message:new', msg);
       });
     }
 
-    res.status(200).json({
-      success: true,
-      message: 'Chat marked as read'
-    });
+    return res.status(200).json({ success: true, messages: forwardedMessages });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * PATCH /api/messages/read/:chatId
+ */
+const markChatAsRead = async (req, res, next) => {
+  try {
+    const { chatId } = req.params;
+    const { upToMessageId } = req.body;
+
+    await chatService.markRead(req.user._id, chatId, upToMessageId);
+
+    if (req.io) {
+      req.io.to(`conv:${chatId}`).emit('message:status', {
+        conversationId: chatId,
+        readByUserId: req.user._id,
+        status: 'read'
+      });
+    }
+
+    return res.status(200).json({ success: true, message: 'Chat marked as read' });
   } catch (error) {
     next(error);
   }
 };
 
 module.exports = {
-  getMessages,
   sendMessage,
   editMessage,
   deleteMessage,
-  markAsRead
+  reactMessage,
+  starMessage,
+  forwardMessage,
+  markChatAsRead
 };

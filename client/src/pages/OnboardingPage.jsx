@@ -69,12 +69,16 @@ export const OnboardingPage = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Instant local preview
+    const localPreview = URL.createObjectURL(file);
+    setAvatar(localPreview);
+
     setIsUploadingAvatar(true);
     try {
       const formData = new FormData();
-      formData.append('avatar', file);
+      formData.append('file', file);
 
-      const res = await api.post('/upload/avatar', formData, {
+      const res = await api.post('/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -82,7 +86,8 @@ export const OnboardingPage = () => {
         setAvatar(res.data.url);
       }
     } catch (err) {
-      console.error('Avatar upload failed:', err);
+      // If Cloudinary is not configured on dev server, keep the preview URL
+      console.warn('Cloudinary upload warning:', err.message);
     } finally {
       setIsUploadingAvatar(false);
     }

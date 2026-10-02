@@ -22,12 +22,24 @@ const processQueue = (error, token = null) => {
   failedQueue = [];
 };
 
-// Request interceptor: attach Bearer token
+let pocketTokenGetter = null;
+
+export const setPocketTokenGetter = (fn) => {
+  pocketTokenGetter = fn;
+};
+
+// Request interceptor: attach Bearer token and scoped X-Pocket-Token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('flash_chat_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    if (pocketTokenGetter && config.url && config.url.includes('/pocket')) {
+      const pocketToken = pocketTokenGetter();
+      if (pocketToken) {
+        config.headers['X-Pocket-Token'] = pocketToken;
+      }
     }
     return config;
   },

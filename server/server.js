@@ -24,6 +24,19 @@ const messageRoutes = require('./routes/messageRoutes');
 const userRoutes = require('./routes/userRoutes');
 const mailRoutes = require('./routes/mailRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
+const callRoutes = require('./routes/callRoutes');
+const followRoutes = require('./routes/followRoutes');
+const postRoutes = require('./routes/postRoutes');
+const reelRoutes = require('./routes/reelRoutes');
+const storyRoutes = require('./routes/storyRoutes');
+const commentRoutes = require('./routes/commentRoutes');
+const exploreRoutes = require('./routes/exploreRoutes');
+const shareRoutes = require('./routes/shareRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const reportRoutes = require('./routes/reportRoutes');
+const pocketRoutes = require('./routes/pocketRoutes');
+const pocketService = require('./services/pocketService');
+const redisService = require('./services/redisService');
 
 const app = express();
 const server = http.createServer(app);
@@ -113,10 +126,40 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/mail', mailRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/calls', callRoutes);
+app.use('/api/follow', followRoutes);
+app.use('/api/posts', postRoutes);
+app.use('/api/reels', reelRoutes);
+app.use('/api/stories', storyRoutes);
+app.use('/api/comments', commentRoutes);
+app.use('/api/share', shareRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/pocket', pocketRoutes);
+app.use('/api', exploreRoutes); // mounts /api/explore, /api/hashtags/:tag, /api/search
 
 // Centralized Error Handling
 app.use(notFoundHandler);
 app.use(errorHandler);
+
+// Scheduled 30-day Pocket trash automated cleanup with distributed Redis lock
+const schedulePocketTrashCleanup = () => {
+  const runCleanup = async () => {
+    try {
+      const lockKey = 'pocket:trash:cleanup_lock';
+      const acquired = await redisService.set(lockKey, '1', 'EX', 3600);
+      if (acquired) {
+        await pocketService.cleanupOldTrash();
+      }
+    } catch (err) {
+      logger.error({ err: err.message }, 'Scheduled Pocket trash cleanup failed');
+    }
+  };
+
+  // Initial pass after 30 seconds, recurring every 6 hours
+  setTimeout(runCleanup, 30000);
+  setInterval(runCleanup, 6 * 60 * 60 * 1000);
+};
 
 // Server Startup Function
 const startServer = async () => {
@@ -127,7 +170,10 @@ const startServer = async () => {
     // 2. Verify Nodemailer SMTP at server startup (Item 4 Requirement)
     await mailer.verifyConnection();
 
-    // 3. Start HTTP + Socket.IO Server
+    // 3. Start Scheduled Pocket Trash Cleanup
+    schedulePocketTrashCleanup();
+
+    // 4. Start HTTP + Socket.IO Server
     server.listen(config.PORT, () => {
       logger.info(
         `⚡ Flash Chat Server is actively listening on http://localhost:${config.PORT} [${config.NODE_ENV}]`

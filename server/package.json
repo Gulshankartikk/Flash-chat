@@ -10,6 +10,8 @@
     "format": "node -e \"console.log('Server format check passed.')\""
   },
   "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
+    "archiver": "^8.0.0",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.11.0",
     "compression": "^1.7.4",

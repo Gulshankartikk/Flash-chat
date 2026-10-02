@@ -8,6 +8,7 @@ const { authLimiter, mailLimiter } = require('../middleware/rateLimiter');
 router.post('/send-otp', mailLimiter, authController.sendOtp);
 router.post('/verify-otp', authLimiter, authController.verifyOtp);
 router.post('/refresh-token', authController.refreshToken);
+router.post('/onboard', authMiddleware, authController.onboarding);
 router.post('/onboarding', authMiddleware, authController.onboarding);
 router.get('/check-username/:username', authController.checkUsername);
 router.get('/sessions', authMiddleware, authController.getSessions);
