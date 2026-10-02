@@ -4,26 +4,34 @@ const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, 'Name is required'],
       trim: true,
-      maxlength: 60
+      maxlength: 60,
+      default: ''
+    },
+    username: {
+      type: String,
+      unique: true,
+      sparse: true,
+      lowercase: true,
+      trim: true,
+      maxlength: 30
     },
     email: {
       type: String,
-      required: [true, 'Email is required'],
       unique: true,
+      sparse: true,
       lowercase: true,
-      trim: true,
-      index: true
+      trim: true
+    },
+    phoneNumber: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true
     },
     passwordHash: {
       type: String,
       select: false
-    },
-    googleId: {
-      type: String,
-      sparse: true,
-      index: true
     },
     avatar: {
       type: String,
@@ -31,12 +39,32 @@ const userSchema = new mongoose.Schema(
     },
     bio: {
       type: String,
-      default: 'Hey there! I am using Flash Chat.',
+      default: '⚡ Hey there! I am using Flash Chat.',
       maxlength: 160
     },
     isVerified: {
       type: Boolean,
       default: false
+    },
+    isOnboarded: {
+      type: Boolean,
+      default: false
+    },
+    isPrivate: {
+      type: Boolean,
+      default: false
+    },
+    followersCount: {
+      type: Number,
+      default: 0
+    },
+    followingCount: {
+      type: Number,
+      default: 0
+    },
+    postsCount: {
+      type: Number,
+      default: 0
     },
     isOnline: {
       type: Boolean,
@@ -47,28 +75,29 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now
     },
-    otp: {
+    pocketPinHash: {
       type: String,
       select: false
     },
-    otpExpires: {
-      type: Date,
-      select: false
+    privacySettings: {
+      lastSeen: { type: String, enum: ['everyone', 'contacts', 'nobody'], default: 'everyone' },
+      profilePhoto: { type: String, enum: ['everyone', 'contacts', 'nobody'], default: 'everyone' },
+      readReceipts: { type: Boolean, default: true }
     },
-    resetPasswordToken: {
-      type: String,
-      select: false
-    },
-    resetPasswordExpires: {
-      type: Date,
-      select: false
-    }
+    refreshTokens: [
+      {
+        token: { type: String, required: true },
+        deviceId: { type: String },
+        deviceInfo: { type: String },
+        createdAt: { type: Date, default: Date.now }
+      }
+    ]
   },
   {
     timestamps: true
   }
 );
 
-userSchema.index({ name: 'text', email: 'text' });
+userSchema.index({ name: 'text', username: 'text', email: 'text', phoneNumber: 'text' });
 
 module.exports = mongoose.model('User', userSchema);

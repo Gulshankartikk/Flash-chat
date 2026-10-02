@@ -18,6 +18,9 @@ const LoginPage = lazy(() =>
 const SignupPage = lazy(() =>
   import('./pages/SignupPage').then((module) => ({ default: module.SignupPage }))
 );
+const OnboardingPage = lazy(() =>
+  import('./pages/OnboardingPage').then((module) => ({ default: module.OnboardingPage }))
+);
 const ForgotPasswordPage = lazy(() =>
   import('./pages/ForgotPasswordPage').then((module) => ({
     default: module.ForgotPasswordPage
@@ -33,10 +36,10 @@ const SettingsPage = lazy(() =>
 );
 
 const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+  <div className="min-h-screen flex items-center justify-center bg-[#FFF7ED]">
     <div className="flex flex-col items-center gap-3">
-      <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-      <span className="text-xs font-semibold text-slate-400">Loading Flash Chat...</span>
+      <div className="w-10 h-10 border-4 border-[#F97316] border-t-transparent rounded-full animate-spin" />
+      <span className="text-xs font-semibold text-[#6B7280]">Loading Flash Chat...</span>
     </div>
   </div>
 );
@@ -57,6 +60,7 @@ export function App() {
           {/* Protected Routes (require authenticated user session) */}
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<ChatPage />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/profile" element={<SettingsPage />} />
           </Route>

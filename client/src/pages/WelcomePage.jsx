@@ -1,44 +1,44 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Zap, MessageSquare, ShieldCheck, Users, ArrowRight, Sun, Moon } from 'lucide-react';
-import { useThemeStore } from '../store/useThemeStore';
+import { motion } from 'framer-motion';
+import {
+  MessageSquare,
+  Share2,
+  Lock,
+  Sparkles,
+  ArrowRight,
+  Zap,
+  PhoneCall,
+  CheckCircle2
+} from 'lucide-react';
 
 export const WelcomePage = () => {
-  const { theme, toggleTheme } = useThemeStore();
-
   return (
-    <div className="min-h-screen flex flex-col justify-between bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+    <div className="min-h-screen flex flex-col justify-between bg-[#FFF7ED] text-[#1F2937]">
       {/* Top Navbar */}
       <header className="max-w-6xl w-full mx-auto px-6 py-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#F97316] to-[#EC4899] flex items-center justify-center text-white shadow-lg shadow-orange-500/25">
             <span className="font-black text-xl">⚡</span>
           </div>
           <div>
             <span className="text-xl font-black tracking-tight">Flash Chat</span>
-            <span className="hidden sm:inline-block ml-2 text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/50 dark:border-indigo-800">
-              v1.0
+            <span className="hidden sm:inline-block ml-2 text-[10px] uppercase font-bold tracking-widest px-2.5 py-0.5 rounded-full bg-orange-100 text-[#F97316] border border-[#FED7AA]">
+              Super-App
             </span>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            onClick={toggleTheme}
-            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-indigo-500 transition"
-            title="Toggle Dark / Light Mode"
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
           <Link
             to="/login"
-            className="px-4 py-2 text-sm font-semibold rounded-xl text-slate-700 dark:text-slate-200 hover:bg-slate-200/60 dark:hover:bg-slate-800/60 transition"
+            className="px-4 py-2 text-sm font-semibold rounded-xl text-[#1F2937] hover:bg-orange-100/60 transition"
           >
             Sign In
           </Link>
           <Link
-            to="/signup"
-            className="px-4 py-2 text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 transition"
+            to="/login"
+            className="px-5 py-2 text-sm font-semibold rounded-xl bg-gradient-to-r from-[#F97316] to-[#EC4899] hover:from-[#EA580C] hover:to-[#DB2777] text-white shadow-md shadow-orange-500/25 transition cursor-pointer"
           >
             Get Started
           </Link>
@@ -46,77 +46,90 @@ export const WelcomePage = () => {
       </header>
 
       {/* Hero Section */}
-      <main className="max-w-4xl mx-auto px-6 py-12 text-center flex-1 flex flex-col justify-center items-center">
+      <main className="max-w-4xl mx-auto px-6 py-10 text-center flex-1 flex flex-col justify-center items-center">
         {/* Glow backdrop */}
-        <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-[#F97316]/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200/60 dark:border-indigo-800/60 text-indigo-600 dark:text-indigo-400 text-xs font-semibold mb-6">
-          <Zap className="w-3.5 h-3.5 fill-indigo-600 dark:fill-indigo-400" />
-          <span>Real-time WebSocket Messaging Engine</span>
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-[#FED7AA] text-[#F97316] text-xs font-semibold mb-6 shadow-sm">
+          <Zap className="w-3.5 h-3.5 fill-[#F97316]" />
+          <span>The All-In-One Unified Super-App</span>
         </div>
 
-        <h1 className="text-4xl sm:text-6xl font-black tracking-tight leading-tight max-w-2xl">
-          Lightning-Fast, Private Conversations.
+        <h1 className="text-4xl sm:text-6xl font-black tracking-tight leading-tight max-w-3xl text-[#1F2937]">
+          Chats, Social Feed, Personal Pocket & Gemini AI.
         </h1>
 
-        <p className="mt-5 text-sm sm:text-base text-slate-500 dark:text-slate-400 max-w-xl leading-relaxed">
-          Experience sub-millisecond real-time chat, instant presence tracking, typing indicators, rich media sharing, and group messaging built for modern teams.
+        <p className="mt-5 text-sm sm:text-base text-[#6B7280] max-w-2xl leading-relaxed">
+          One unified account, one contact graph, one messaging engine. Seamlessly switch between WhatsApp-style chats, Instagram-style social media, an encrypted personal data vault, and intelligent AI assistance.
         </p>
 
         {/* CTA Button Group */}
         <div className="mt-8 flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
           <Link
-            to="/signup"
-            className="w-full sm:w-auto px-7 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-xl shadow-indigo-600/25 flex items-center justify-center gap-2 transition hover:-translate-y-0.5"
-          >
-            <span>Create Free Account</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link
             to="/login"
-            className="w-full sm:w-auto px-7 py-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-sm shadow-sm transition"
+            className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[#F97316] to-[#EC4899] hover:from-[#EA580C] hover:to-[#DB2777] text-white font-bold text-sm shadow-xl shadow-orange-500/25 flex items-center justify-center gap-2 transition hover:-translate-y-0.5 cursor-pointer"
           >
-            Log In to Existing Account
+            <span>Launch with Phone or Email OTP</span>
+            <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
 
-        {/* Feature Cards Grid */}
-        <div className="mt-14 grid grid-cols-1 sm:grid-cols-3 gap-4 w-full text-left">
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mb-3">
+        {/* 4 Super-App Feature Cards */}
+        <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full text-left">
+          <div className="p-5 rounded-2xl bg-white border border-[#FED7AA] shadow-sm hover:shadow-md transition">
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center text-[#F97316] mb-3">
               <MessageSquare className="w-5 h-5" />
             </div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Real-Time Messaging</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Live delivery via tuned Socket.IO websockets with read receipts and cursor pagination.
+            <h2 className="text-sm font-bold text-[#1F2937]">Chats (WhatsApp)</h2>
+            <p className="text-xs text-[#6B7280] mt-1 leading-relaxed">
+              1:1 & groups, rich media, real-time read ticks, voice notes & WebRTC video calls.
             </p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
-            <div className="w-9 h-9 rounded-xl bg-violet-50 dark:bg-violet-950/60 flex items-center justify-center text-violet-600 dark:text-violet-400 mb-3">
-              <Users className="w-5 h-5" />
+          <div className="p-5 rounded-2xl bg-white border border-[#FED7AA] shadow-sm hover:shadow-md transition">
+            <div className="w-10 h-10 rounded-xl bg-pink-50 flex items-center justify-center text-[#EC4899] mb-3">
+              <Share2 className="w-5 h-5" />
             </div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Direct & Group Rooms</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              Create instant group channels, search participants, and organize discussions effortlessly.
+            <h2 className="text-sm font-bold text-[#1F2937]">Social (Instagram)</h2>
+            <p className="text-xs text-[#6B7280] mt-1 leading-relaxed">
+              Feed, vertical Reels, 24h Stories, direct DM integration into the same chat engine.
             </p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-3">
-              <ShieldCheck className="w-5 h-5" />
+          <div className="p-5 rounded-2xl bg-white border border-[#FED7AA] shadow-sm hover:shadow-md transition">
+            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 mb-3">
+              <Lock className="w-5 h-5" />
             </div>
-            <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100">Secure Sessions</h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-              HttpOnly JWT tokens, Google OAuth 2.0 verification, and server-side rate-limiting security.
+            <h2 className="text-sm font-bold text-[#1F2937]">Pocket Vault</h2>
+            <p className="text-xs text-[#6B7280] mt-1 leading-relaxed">
+              Private vault with PIN protection. Save any message, post, note, or document with 1 tap.
+            </p>
+          </div>
+
+          <div className="p-5 rounded-2xl bg-white border border-[#FED7AA] shadow-sm hover:shadow-md transition">
+            <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-[#F43F5E] mb-3">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <h2 className="text-sm font-bold text-[#1F2937]">Gemini AI</h2>
+            <p className="text-xs text-[#6B7280] mt-1 leading-relaxed">
+              Standalone AI chat + smart replies, chat summarizer, and post caption generator.
             </p>
           </div>
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="py-6 border-t border-slate-200 dark:border-slate-800/80 text-center text-xs text-slate-400">
-        <p>© {new Date().getFullYear()} Flash Chat. Fast, secure and reliable communication.</p>
+      <footer className="max-w-6xl w-full mx-auto px-6 py-6 border-t border-[#FED7AA]/60 flex flex-col sm:flex-row items-center justify-between text-xs text-[#6B7280] gap-4">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-[#1F2937]">⚡ Flash Chat Super-App</span>
+          <span>•</span>
+          <span>Production Ready MERN</span>
+        </div>
+        <div className="flex items-center gap-4">
+          <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
+            <CheckCircle2 className="w-3.5 h-3.5" /> High-Performance Stack
+          </span>
+        </div>
       </footer>
     </div>
   );

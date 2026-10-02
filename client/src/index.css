@@ -2,12 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-warm: #FFF7ED;
+  --card-white: #FFFFFF;
+  --primary-orange: #F97316;
+  --secondary-pink: #EC4899;
+  --accent-rose: #F43F5E;
+  --text-navy: #1F2937;
+  --muted-gray: #6B7280;
+  --border-orange: #FED7AA;
+}
+
+.dark {
+  --bg-warm: #0F172A;
+  --card-white: #1E293B;
+  --text-navy: #F8FAFC;
+  --muted-gray: #94A3B8;
+  --border-orange: #334155;
+}
+
 @layer base {
   * {
     box-sizing: border-box;
   }
 
   body {
+    background-color: var(--bg-warm);
+    color: var(--text-navy);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     overflow-x: hidden;
   }
 }
@@ -23,18 +45,18 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.4);
+  background: rgba(249, 115, 22, 0.3);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(148, 163, 184, 0.7);
+  background: rgba(249, 115, 22, 0.6);
 }
 
 .dark ::-webkit-scrollbar-thumb {
-  background: rgba(71, 85, 105, 0.5);
+  background: rgba(148, 163, 184, 0.3);
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: rgba(71, 85, 105, 0.8);
+  background: rgba(148, 163, 184, 0.6);
 }

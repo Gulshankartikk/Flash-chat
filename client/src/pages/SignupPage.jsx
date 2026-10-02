@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/useAuthStore';
 import { GoogleButton } from '../components/auth/GoogleButton';
-import { User, Mail, Lock, AlertCircle, ArrowRight } from 'lucide-react';
+import { User, Mail, Lock, AlertCircle, ArrowRight, Sparkles } from 'lucide-react';
 
 export const SignupPage = () => {
   const [name, setName] = useState('');
@@ -29,32 +30,54 @@ export const SignupPage = () => {
     }
 
     try {
-      await signup({ name: name.trim(), email: email.trim(), password });
-      navigate('/');
+      const user = await signup({ name: name.trim(), email: email.trim(), password });
+      if (!user.isOnboarded) {
+        navigate('/onboarding', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
     } catch {
       // Error handled by store
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 dark:bg-slate-950">
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-500/10 dark:bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#FFF7ED]">
+      <div className="fixed top-0 left-1/4 w-96 h-96 bg-[#F97316]/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="fixed bottom-0 right-1/4 w-96 h-96 bg-[#EC4899]/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-xl border border-slate-200 dark:border-slate-800">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+        className="relative w-full max-w-md bg-white rounded-3xl p-8 shadow-xl border border-[#FED7AA]"
+      >
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 text-white font-black text-xl mb-3 shadow-lg shadow-indigo-500/25">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#F97316] to-[#EC4899] text-white font-black text-2xl mb-3 shadow-lg shadow-orange-500/25">
             ⚡
           </div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">
-            Create an account
+          <h1 className="text-2xl font-black tracking-tight text-[#1F2937]">
+            Create an Account
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Join Flash Chat for real-time messaging
+          <p className="text-xs text-[#6B7280] mt-1 font-medium">
+            Join the Flash Chat Super-App community
           </p>
         </div>
 
+        {/* Quick OTP Banner */}
+        <div className="mb-5 p-3 rounded-2xl bg-orange-50 border border-orange-200 flex items-center justify-between text-xs">
+          <span className="text-orange-950 font-medium">Prefer Phone or Email OTP?</span>
+          <Link
+            to="/login"
+            className="font-bold text-[#F97316] hover:underline flex items-center gap-1"
+          >
+            <span>One-Tap OTP</span>
+            <ArrowRight className="w-3 h-3" />
+          </Link>
+        </div>
+
         {(validationError || error) && (
-          <div className="mb-5 p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 flex items-center gap-2.5 text-xs text-red-600 dark:text-red-400">
+          <div className="mb-5 p-3 rounded-2xl bg-rose-50 border border-rose-200 flex items-center gap-2.5 text-xs text-[#F43F5E]">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
             <span>{validationError || error}</span>
           </div>
@@ -65,79 +88,77 @@ export const SignupPage = () => {
         </div>
 
         <div className="relative flex items-center justify-center my-5">
-          <div className="border-t border-slate-200 dark:border-slate-800 w-full" />
-          <span className="bg-white dark:bg-slate-900 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 absolute">
+          <div className="border-t border-[#FED7AA] w-full" />
+          <span className="bg-white px-3 text-[11px] font-semibold uppercase tracking-wider text-[#6B7280] absolute">
             or with email
           </span>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-[#1F2937] mb-1.5">
               Full Name
             </label>
             <div className="relative">
-              <User className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              <User className="w-4 h-4 absolute left-3.5 top-3.5 text-[#6B7280]" />
               <input
                 type="text"
                 required
                 placeholder="John Doe"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#FED7AA] bg-[#FFF7ED]/30 text-sm text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#F97316]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-[#1F2937] mb-1.5">
               Email Address
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-[#6B7280]" />
               <input
                 type="email"
                 required
                 placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#FED7AA] bg-[#FFF7ED]/30 text-sm text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#F97316]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-[#1F2937] mb-1.5">
               Password
             </label>
             <div className="relative">
-              <Lock className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-[#6B7280]" />
               <input
                 type="password"
                 required
-                minLength={6}
                 placeholder="At least 6 characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#FED7AA] bg-[#FFF7ED]/30 text-sm text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#F97316]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <label className="block text-xs font-semibold text-[#1F2937] mb-1.5">
               Confirm Password
             </label>
             <div className="relative">
-              <Lock className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-[#6B7280]" />
               <input
                 type="password"
                 required
-                minLength={6}
-                placeholder="Re-enter password"
+                placeholder="Repeat your password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#FED7AA] bg-[#FFF7ED]/30 text-sm text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#F97316]"
               />
             </div>
           </div>
@@ -145,31 +166,25 @@ export const SignupPage = () => {
           <button
             type="submit"
             disabled={isSigningUp}
-            className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-md hover:shadow-indigo-500/25 transition disabled:opacity-50 flex items-center justify-center gap-2"
+            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#F97316] to-[#EC4899] hover:from-[#EA580C] hover:to-[#DB2777] text-white font-semibold text-sm shadow-md hover:shadow-orange-500/25 transition disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
           >
-            <span>{isSigningUp ? 'Creating account...' : 'Create account'}</span>
-            <ArrowRight className="w-4 h-4" />
+            <Sparkles className="w-4 h-4" />
+            <span>{isSigningUp ? 'Creating Account...' : 'Create Account'}</span>
           </button>
         </form>
 
-        <div className="mt-6 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+        <div className="mt-6 text-center text-xs text-[#6B7280]">
+          Already have an account?{' '}
           <Link
-            to="/welcome"
-            className="hover:text-indigo-600 dark:hover:text-indigo-400 transition"
+            to="/login"
+            className="font-bold text-[#F97316] hover:underline"
           >
-            ← Back to Welcome
+            Sign in
           </Link>
-          <div>
-            Already registered?{' '}
-            <Link
-              to="/login"
-              className="font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-400"
-            >
-              Sign in
-            </Link>
-          </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
+
+export default SignupPage;

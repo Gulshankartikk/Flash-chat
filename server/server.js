@@ -23,6 +23,7 @@ const chatRoutes = require('./routes/chatRoutes');
 const messageRoutes = require('./routes/messageRoutes');
 const userRoutes = require('./routes/userRoutes');
 const mailRoutes = require('./routes/mailRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
 
 const app = express();
 const server = http.createServer(app);
@@ -111,6 +112,7 @@ app.use('/api/chats', chatRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/mail', mailRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Centralized Error Handling
 app.use(notFoundHandler);

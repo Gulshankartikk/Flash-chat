@@ -13,27 +13,77 @@ const googleClient = new OAuth2Client(
 
 class AuthService {
   /**
-   * Generate JWT token for user
+   * Generate short-lived Access Token (15 minutes)
    * @param {string} userId
    * @returns {string}
    */
-  generateToken(userId) {
-    return jwt.sign({ id: userId }, config.JWT_SECRET, {
+  generateAccessToken(userId) {
+    const secret = config.JWT_ACCESS_SECRET || config.JWT_SECRET;
+    return jwt.sign({ id: userId }, secret, {
+      expiresIn: '15m'
+    });
+  }
+
+  /**
+   * Generate long-lived Refresh Token (7 days)
+   * @param {string} userId
+   * @returns {string}
+   */
+  generateRefreshToken(userId) {
+    const secret = config.JWT_REFRESH_SECRET || (config.JWT_SECRET + '_refresh');
+    return jwt.sign({ id: userId }, secret, {
       expiresIn: '7d'
     });
   }
 
   /**
-   * Get cookie options for secure JWT storage
+   * Verify Access Token
+   * @param {string} token
+   * @returns {object}
    */
-  getCookieOptions() {
+  verifyAccessToken(token) {
+    const secret = config.JWT_ACCESS_SECRET || config.JWT_SECRET;
+    return jwt.verify(token, secret);
+  }
+
+  /**
+   * Verify Refresh Token
+   * @param {string} token
+   * @returns {object}
+   */
+  verifyRefreshToken(token) {
+    const secret = config.JWT_REFRESH_SECRET || (config.JWT_SECRET + '_refresh');
+    return jwt.verify(token, secret);
+  }
+
+  /**
+   * Backward-compatible token generator
+   * @param {string} userId
+   * @returns {string}
+   */
+  generateToken(userId) {
+    return this.generateAccessToken(userId);
+  }
+
+  /**
+   * Cookie options for Refresh Token storage
+   */
+  getRefreshCookieOptions() {
     const isProd = config.NODE_ENV === 'production';
     return {
       httpOnly: true,
       secure: isProd,
       sameSite: isProd ? 'none' : 'lax',
+      path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     };
+  }
+
+  /**
+   * Legacy cookie options
+   */
+  getCookieOptions() {
+    return this.getRefreshCookieOptions();
   }
 
   /**
