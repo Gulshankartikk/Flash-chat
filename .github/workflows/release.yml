@@ -35,7 +35,7 @@ jobs:
       image_tag: ${{ steps.version_step.outputs.image_tag }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate Tag & Package Version Consistency
         id: version_step
@@ -62,7 +62,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
@@ -108,7 +108,7 @@ jobs:
       client_digest: ${{ steps.build_client.outputs.digest }}
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -139,7 +139,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Extract Release Notes from CHANGELOG.md
         run: |
@@ -153,7 +153,7 @@ jobs:
     environment: staging
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Execute Zero-Downtime Deployment on Staging
         run: |
@@ -168,7 +168,7 @@ jobs:
     environment: production
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Enforce Image Digest Equality
         run: |
