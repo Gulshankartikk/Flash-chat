@@ -35,6 +35,10 @@ const shareRoutes = require('./routes/shareRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const pocketRoutes = require('./routes/pocketRoutes');
+const aiRoutes = require('./routes/aiRoutes');
+const contactRoutes = require('./routes/contactRoutes');
+const supportRoutes = require('./routes/supportRoutes');
+const adminSupportRoutes = require('./routes/adminSupportRoutes');
 const pocketService = require('./services/pocketService');
 const redisService = require('./services/redisService');
 
@@ -66,10 +70,30 @@ app.use((req, res, next) => {
   next();
 });
 
-// Security & Performance Middlewares
+// Security & Performance Middlewares with CSP Policy
 app.use(
   helmet({
-    crossOriginResourcePolicy: { policy: 'cross-origin' }
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'wasm-unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+        imgSrc: [
+          "'self'",
+          'data:',
+          'blob:',
+          'https://res.cloudinary.com',
+          'https://api.dicebear.com',
+          'https://*.googleusercontent.com'
+        ],
+        mediaSrc: ["'self'", 'data:', 'blob:', 'https://res.cloudinary.com'],
+        connectSrc: ["'self'", 'ws:', 'wss:', 'http:', 'https:'],
+        frameAncestors: ["'none'"],
+        objectSrc: ["'none'"]
+      }
+    }
   })
 );
 
@@ -78,7 +102,7 @@ app.use(
     origin: [config.CLIENT_URL, 'http://localhost:5173', 'http://localhost:3000'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Pocket-Token']
   })
 );
 
@@ -93,6 +117,44 @@ app.use(cookieParser());
 // Express Mongo Sanitize (prevent NoSQL injection)
 app.use(mongoSanitize());
 
+// CSRF Protection on mutating requests
+const csrfProtection = (req, res, next) => {
+  if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
+    const origin = req.headers.origin || req.headers.referer;
+    if (origin) {
+      try {
+        const originUrl = new URL(origin);
+        const allowedOrigins = [
+          config.CLIENT_URL,
+          'http://localhost:5173',
+          'http://localhost:3000',
+          'http://localhost:5000'
+        ].map((u) => {
+          try {
+            return new URL(u).origin;
+          } catch (e) {
+            return u;
+          }
+        });
+
+        if (!allowedOrigins.includes(originUrl.origin)) {
+          logger.warn({ origin }, 'CSRF: Blocked cross-origin request');
+          return res.status(403).json({
+            success: false,
+            code: 'CSRF_ORIGIN_MISMATCH',
+            message: 'Cross-site request blocked.'
+          });
+        }
+      } catch (e) {
+        // Invalid origin URL format
+      }
+    }
+  }
+  next();
+};
+
+app.use(csrfProtection);
+
 // HTTP Request Logger
 app.use(loggerMiddleware);
 
@@ -101,15 +163,27 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Health Check Endpoint (Item 7 Requirement)
 app.get('/api/health', (req, res) => {
+  const mongoose = require('mongoose');
+  const redisClient = require('./config/redis');
   const memory = process.memoryUsage();
+
+  const mongoStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+  const redisStatus = redisClient && redisClient.status === 'ready' ? 'connected' : 'disconnected';
+
+  const pkg = require('./package.json');
   res.status(200).json({
     status: 'healthy',
     service: 'Flash Chat Server',
+    version: pkg.version || '1.1.0',
     uptime: `${Math.floor(process.uptime())}s`,
     timestamp: new Date().toISOString(),
-    mailer: {
-      mode: mailer.authMode,
-      ready: mailer.isReady
+    services: {
+      mongodb: mongoStatus,
+      redis: redisStatus,
+      mailer: {
+        mode: mailer.authMode,
+        ready: mailer.isReady
+      }
     },
     memory: {
       rssMB: Math.round(memory.rss / 1024 / 1024),
@@ -117,6 +191,26 @@ app.get('/api/health', (req, res) => {
     }
   });
 });
+
+// Readiness Probe Endpoint
+app.get('/api/ready', (req, res) => {
+  const mongoose = require('mongoose');
+  const isMongoReady = mongoose.connection.readyState === 1;
+
+  if (isMongoReady) {
+    res.status(200).json({
+      status: 'ready',
+      timestamp: new Date().toISOString()
+    });
+  } else {
+    res.status(503).json({
+      status: 'not_ready',
+      message: 'Database is connecting'
+    });
+  }
+});
+
+const pushRoutes = require('./routes/pushRoutes');
 
 // API Routes with rate limiter
 app.use('/api', apiLimiter);
@@ -136,6 +230,11 @@ app.use('/api/share', shareRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/pocket', pocketRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/contacts', contactRoutes);
+app.use('/api/support', supportRoutes);
+app.use('/api/admin/support', adminSupportRoutes);
+app.use('/api/push', pushRoutes);
 app.use('/api', exploreRoutes); // mounts /api/explore, /api/hashtags/:tag, /api/search
 
 // Centralized Error Handling
@@ -188,16 +287,26 @@ const startServer = async () => {
 
 startServer();
 
-// Graceful Shutdown (Item 5 Requirement: close server, DB, and mailer pool)
+// Graceful Shutdown (Item 5 Requirement: close server, DB, mailer, and redis)
 const gracefulShutdown = async (signal) => {
   logger.info(`Received ${signal}. Gracefully shutting down...`);
 
   server.close(async () => {
     logger.info('HTTP & Socket.IO server closed.');
-    await mailer.close();
-    const mongoose = require('mongoose');
-    await mongoose.connection.close(false);
-    logger.info('MongoDB connection closed.');
+    try {
+      await mailer.close();
+      const mongoose = require('mongoose');
+      await mongoose.connection.close(false);
+      logger.info('MongoDB connection closed.');
+
+      const redisClient = require('./config/redis');
+      if (redisClient && typeof redisClient.quit === 'function') {
+        await redisClient.quit();
+        logger.info('Redis connection closed.');
+      }
+    } catch (err) {
+      logger.warn({ err: err.message }, 'Error during graceful cleanup');
+    }
     process.exit(0);
   });
 

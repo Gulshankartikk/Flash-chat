@@ -45,7 +45,9 @@ const messageSchema = new mongoose.Schema(
         'system',
         'shared_post',
         'shared_reel',
-        'shared_story'
+        'shared_story',
+        'shared_profile',
+        'ai'
       ],
       default: 'text',
       index: true

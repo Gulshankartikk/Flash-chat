@@ -11,10 +11,12 @@ import {
   LogOut,
   Camera,
   Check,
-  AlertCircle
+  AlertCircle,
+  Sparkles
 } from 'lucide-react';
 import { Avatar } from '../Avatar';
 import { Button } from '../Button';
+import { Switch } from '../Switch';
 import { useToast } from '../Toast';
 import api from '../../services/api';
 
@@ -117,14 +119,14 @@ export const GroupInfoPanel = ({
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-white border-l border-[#FED7AA] shadow-2xl flex flex-col animate-slideLeft">
+    <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-96 bg-card border-l border-line shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
       {/* Header */}
-      <div className="p-4 border-b border-[#FED7AA] flex items-center justify-between">
-        <h3 className="font-bold text-base text-[#1F2937]">Group Info</h3>
+      <div className="p-4 border-b border-line flex items-center justify-between">
+        <h3 className="font-black text-base text-ink">Group Info</h3>
         <button
           type="button"
           onClick={onClose}
-          className="p-1.5 rounded-full text-[#6B7280] hover:text-[#1F2937] hover:bg-orange-50 transition"
+          className="p-1.5 rounded-full text-muted hover:text-ink hover:bg-cream transition"
         >
           <X className="w-5 h-5" />
         </button>
@@ -135,34 +137,35 @@ export const GroupInfoPanel = ({
         <div className="flex flex-col items-center text-center space-y-2">
           <Avatar
             src={conversation.avatar}
-            alt={conversation.name}
+            name={conversation.name}
             size="2xl"
+            className="shadow-md shadow-primary/10"
           />
-          <h2 className="text-lg font-black text-[#1F2937] mt-2">
+          <h2 className="text-lg font-black text-ink mt-2">
             {conversation.name}
           </h2>
-          <p className="text-xs text-[#6B7280]">
+          <p className="text-xs text-muted">
             Group • {conversation.members?.length || 0} participants
           </p>
           {conversation.description && (
-            <p className="text-xs text-[#6B7280] max-w-xs mt-1 italic">
+            <p className="text-xs text-muted max-w-xs mt-1 italic">
               "{conversation.description}"
             </p>
           )}
         </div>
 
         {/* Invite Link Card */}
-        <div className="p-3.5 rounded-2xl bg-[#FFF7ED] border border-[#FED7AA] space-y-2">
+        <div className="p-3.5 rounded-2xl bg-cream border border-line space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-[#1F2937] flex items-center gap-1.5">
-              <LinkIcon className="w-3.5 h-3.5 text-[#F97316]" />
+            <span className="text-xs font-bold text-ink flex items-center gap-1.5">
+              <LinkIcon className="w-3.5 h-3.5 text-primary" />
               <span>Group Invite Link</span>
             </span>
             {isAdmin && (
               <button
                 type="button"
                 onClick={handleResetInvite}
-                className="text-[10px] text-[#F97316] font-semibold hover:underline"
+                className="text-[10px] text-primary font-bold hover:underline"
               >
                 Reset link
               </button>
@@ -173,13 +176,13 @@ export const GroupInfoPanel = ({
               type="text"
               readOnly
               value={inviteUrl}
-              className="flex-1 text-[11px] p-2 bg-white rounded-xl border border-[#FED7AA] text-[#6B7280]"
+              className="flex-1 text-[11px] p-2 bg-card rounded-xl border border-line text-muted font-mono"
             />
             <Button
               variant="primary"
               size="sm"
               onClick={handleCopyInvite}
-              icon={isCopied ? Check : Copy}
+              icon={isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
             >
               {isCopied ? 'Copied' : 'Copy'}
             </Button>
@@ -189,15 +192,15 @@ export const GroupInfoPanel = ({
         {/* Disappearing Messages Settings */}
         {isAdmin && (
           <div className="space-y-2">
-            <label className="text-xs font-bold text-[#1F2937] flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-[#F97316]" />
+            <label className="text-xs font-bold text-ink flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-primary" />
               <span>Disappearing Messages</span>
             </label>
             <select
               value={selectedDisappear}
               onChange={(e) => handleDisappearChange(Number(e.target.value))}
               disabled={isUpdatingSettings}
-              className="w-full py-2 px-3 rounded-xl border border-[#FED7AA] bg-[#FFF7ED]/30 text-xs font-semibold text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+              className="w-full py-2 px-3 rounded-xl border border-line bg-cream text-xs font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value={0}>Off</option>
               <option value={86400}>24 Hours</option>
@@ -207,9 +210,40 @@ export const GroupInfoPanel = ({
           </div>
         )}
 
+        {/* AI Bot Settings */}
+        {isAdmin && (
+          <div className="p-3.5 rounded-2xl bg-cream border border-line space-y-1.5">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 pr-2">
+                <span className="text-xs font-bold text-ink flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
+                  <span>Allow Flash AI in Group</span>
+                </span>
+                <p className="text-[11px] text-muted mt-0.5">
+                  Allow members to tag @ai to ask questions and get answers directly in this group chat.
+                </p>
+              </div>
+              <Switch
+                checked={conversation.allowAi !== false}
+                onChange={async (newVal) => {
+                  try {
+                    await api.patch(`/chats/${conversation._id}`, { allowAi: newVal });
+                    toast.success(newVal ? 'Flash AI enabled for this group' : 'Flash AI disabled for this group');
+                    if (onUpdateConversation) {
+                      onUpdateConversation({ ...conversation, allowAi: newVal });
+                    }
+                  } catch (err) {
+                    toast.error('Failed to update group AI setting');
+                  }
+                }}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Participants List */}
         <div className="space-y-2.5">
-          <div className="flex items-center justify-between text-xs font-bold text-[#1F2937]">
+          <div className="flex items-center justify-between text-xs font-bold text-ink">
             <span>Participants ({conversation.members?.length || 0})</span>
           </div>
 
@@ -223,29 +257,29 @@ export const GroupInfoPanel = ({
               return (
                 <div
                   key={u._id || idx}
-                  className="flex items-center justify-between p-2.5 rounded-2xl border border-[#FED7AA]/50 hover:bg-[#FFF7ED]/50 transition"
+                  className="flex items-center justify-between p-2.5 rounded-2xl border border-line hover:bg-cream/60 transition"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
                     <Avatar
                       src={u.avatar}
-                      alt={u.name}
+                      name={u.name}
                       size="sm"
                       isOnline={u.isOnline}
                       showStatus
                     />
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-[#1F2937] truncate">
+                      <p className="text-xs font-bold text-ink truncate">
                         {u.name || 'Member'} {isSelf && '(You)'}
                       </p>
-                      <p className="text-[10px] text-[#6B7280] truncate">
+                      <p className="text-[10px] text-muted truncate">
                         @{u.username || 'user'}
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
                     {isMemAdmin && (
-                      <span className="text-[10px] font-bold text-[#F97316] bg-orange-100 px-2 py-0.5 rounded-full border border-orange-200">
+                      <span className="text-[10px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-full border border-primary/20">
                         Admin
                       </span>
                     )}
@@ -255,7 +289,7 @@ export const GroupInfoPanel = ({
                         <button
                           type="button"
                           onClick={() => handleToggleRole(u._id, member.role)}
-                          className="p-1 text-[#6B7280] hover:text-[#F97316] rounded-md transition"
+                          className="p-1 text-muted hover:text-primary rounded-md transition"
                           title={isMemAdmin ? 'Dismiss as admin' : 'Make group admin'}
                         >
                           <Shield className="w-3.5 h-3.5" />
@@ -263,7 +297,7 @@ export const GroupInfoPanel = ({
                         <button
                           type="button"
                           onClick={() => handleRemoveMember(u._id)}
-                          className="p-1 text-[#6B7280] hover:text-[#F43F5E] rounded-md transition"
+                          className="p-1 text-muted hover:text-accent rounded-md transition"
                           title="Remove from group"
                         >
                           <UserX className="w-3.5 h-3.5" />
@@ -278,15 +312,16 @@ export const GroupInfoPanel = ({
         </div>
 
         {/* Leave Group Action */}
-        <div className="pt-4 border-t border-[#FED7AA]/60">
-          <button
+        <div className="pt-4 border-t border-line/60">
+          <Button
             type="button"
+            variant="ghost"
             onClick={handleLeaveGroup}
-            className="w-full py-2.5 px-4 rounded-xl border border-rose-200 text-[#F43F5E] hover:bg-rose-50 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
+            icon={<LogOut className="w-4 h-4 text-accent" />}
+            className="w-full text-accent hover:bg-accent/10"
           >
-            <LogOut className="w-4 h-4" />
-            <span>Leave Group</span>
-          </button>
+            Leave Group
+          </Button>
         </div>
       </div>
     </div>

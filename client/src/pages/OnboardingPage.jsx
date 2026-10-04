@@ -218,18 +218,18 @@ export const OnboardingPage = () => {
                 <span className="text-[11px] text-[#F97316] animate-pulse">Checking...</span>
               )}
               {usernameStatus.available === true && (
-                <span className="text-[11px] text-emerald-600 font-medium flex items-center gap-1">
+                <span className="text-[11px] text-primary font-medium flex items-center gap-1">
                   <Check className="w-3 h-3" /> Available
                 </span>
               )}
               {usernameStatus.error && (
-                <span className="text-[11px] text-[#F43F5E] font-medium">
+                <span className="text-[11px] text-accent font-medium">
                   {usernameStatus.error}
                 </span>
               )}
             </div>
             <div className="relative">
-              <AtSign className="w-4 h-4 absolute left-3.5 top-3.5 text-[#6B7280]" />
+              <AtSign className="w-4 h-4 absolute left-3.5 top-3.5 text-muted" />
               <input
                 type="text"
                 required
@@ -238,11 +238,11 @@ export const OnboardingPage = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                 className={`w-full pl-10 pr-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 ${usernameStatus.available === true
-                    ? 'border-emerald-400 focus:ring-emerald-500 bg-emerald-50/20'
+                    ? 'border-primary focus:ring-primary bg-cream'
                     : usernameStatus.error
-                      ? 'border-rose-400 focus:ring-rose-500 bg-rose-50/20'
-                      : 'border-[#FED7AA] focus:ring-[#F97316] bg-[#FFF7ED]/30'
-                  } text-[#1F2937]`}
+                      ? 'border-accent focus:ring-accent bg-cream'
+                      : 'border-line focus:ring-primary bg-cream'
+                  } text-ink`}
               />
             </div>
           </div>

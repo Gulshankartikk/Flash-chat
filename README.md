@@ -16,8 +16,11 @@ Flash Chat is built from the ground up for speed, reliability, and security.
 - 📜 **Cursor-based Message Pagination**: Infinite scroll upwards with zero skipped messages and fast indexed queries.
 - 📎 **Rich Media & Attachments**: Image previews, audio playback, file downloads, and emoji picker.
 - ✏️ **Message Lifecycle**: In-place edit with `(edited)` indicator and soft-deletion (`isDeleted`).
-- 🌓 **Dynamic Theme Engine**: Dark & Light mode toggle with CSS tokens and local storage persistence.
-- 🛡️ **Enterprise Security**: Helmet HTTP headers, CORS whitelisting, Express rate limiting, and NoSQL injection sanitization (`express-mongo-sanitize`).
+- 🤖 **Flash AI Integration**: Rebranded native assistant ("Flash AI") powered by Gemini with streaming responses, `@ai` chat prompts, Pocket RAG search, and honest provider disclosures (`AiProviderDisclosure`).
+- 👥 **Manual Contacts System**: Private, owner-isolated address book (`/contacts`) with international E.164 phone formatting, automatic registered user discovery (`On Flash Chat`), deduplication, SMS/email invite generation with 7-day cooldowns, CSV / Contact Picker API import, and custom saved contact names across chats and calls.
+- 💬 **"Chat with us" Support Desk**: Dedicated customer support portal (`/support`) with searchable FAQ knowledge base, diagnostic payload attachment, automated Flash AI first response, "Talk to a human" live handoff, reusable `ChatWindow`, satisfaction rating (1-5 stars, once only), and role-guarded agent management console (`/admin/support`).
+- 🎨 **Unified Design System**: Single-source-of-truth tokens (`cream`, `card`, `primary`, `secondary`, `accent`, `ink`, `muted`, `line`, `brand`) with verified WCAG AA contrast, light/dark themes, and `/dev/ui` component styleguide.
+- 🛡️ **Enterprise Security**: Helmet HTTP headers, CORS whitelisting, Express rate limiting, NoSQL injection sanitization (`express-mongo-sanitize`), and role-based access control (`user`, `support`, `admin`).
 - ⚡ **Zero-Config Developer Experience**: Install once with `npm run install:all` and run with `npm run dev`.
 
 ---
@@ -531,4 +534,174 @@ Flash Chat unifies messaging and social media under **ONE account, ONE contact g
   - Three-dot menu: Block/Unblock, Report, Copy profile link, Share profile.
 - [x] **Activity / Notifications**: Grouped by Today / This week / Earlier, real-time socket toast (`notification:new`), badge counter on Social tab and Activity sub-tab, inline follow-back and accept/reject buttons.
 - [x] **Chat Preview Cards**: `MessageBubble` renders `shared_post`, `shared_reel`, `shared_story`, and `shared_profile` snapshots with in-chat modal viewers; expired stories display fallback banner; no duplicate messages on share.
+
+---
+
+## 16. Step 7: Pocket (Personal Data Store & Private Vault)
+
+Flash Chat integrates a zero-knowledge, owner-isolated personal data store called **Pocket**. Save notes, URLs, images, videos, voice notes, documents, snippets, chat message excerpts, and social snapshots securely.
+
+### Pocket Routes
+- `/pocket`: Vault home with storage meter, category filters, quick-add bar, pinned items, list/masonry toggle, and multi-select floating action bar.
+- `/pocket/folder/:id`: Sub-folder explorer with nested item navigation.
+- `/pocket/item/:id`: Rich markdown detail editor with 800ms debounced autosave, folder picker, tags, and client-side AES-GCM encryption toggle.
+- `/pocket/trash`: Soft-deleted items with 30-day countdown labels, single/bulk restore, permanent deletion, and empty trash.
+- `/pocket/export`: Export manager with asynchronous ZIP packaging, real-time polling, and 1-hour signed download URLs.
+- `/pocket/settings`: PIN setup/change/removal, auto-lock timers (1m, 5m, 15m, 30m, never), categorized storage breakdown, and danger zone data purge.
+- `/pocket/search`: 300ms debounced full-text search with type/folder/tag filters, highlighted matches, and privacy-respecting search history.
+
+### Pocket Security Model
+1. **Strict Owner Isolation**: Every query checks `owner: req.user._id`. No cross-user sharing or social exposure exists for Pocket items.
+2. **In-Memory Unlock Token**: When unlocked via PIN or WebAuthn, `X-Pocket-Token` is stored **strictly in volatile memory** (`usePocketStore`) and attached exclusively to `/api/pocket/*` requests via an Axios interceptor. It is never stored in `localStorage` or `sessionStorage`.
+3. **Client-Side AES-GCM Encryption**: Encrypted items are encrypted and decrypted in the browser using Web Crypto `AES-GCM-256` + `PBKDF2` (250,000 iterations). Raw ciphertexts and initialization vectors (`iv`, `salt`) are stored on the server.
+4. **Auto-Lock on Inactivity & Tab Blur**: Automatically clears unlock tokens and blurs vault content when the tab visibility changes (`document.visibilitychange: hidden`) or the user is inactive beyond the configured timeout.
+5. **SSRF Defense**: URL link preview scraper checks hostnames and resolves DNS to strictly block private IPv4 (RFC 1918), loopback, link-local, and IPv6 private addresses.
+
+### Save-to-Pocket Cross-Linking
+- **Chats**: Single and multi-select message action menu item: "Save to Pocket" copies chat excerpts or attachments into Pocket with a reference back to the conversation.
+- **Social**: ShareSheet "Add to Pocket" and Post/Reel three-dot menu saves social posts with thumbnails, captions, and links.
+- **AI**: `saveAiAnswerToPocket({ text, prompt, model })` enables one-tap saving of Gemini AI generated responses directly into Pocket notes.
+- **Feedback & Undo**: Instant toast feedback with **Undo** (soft-deletes) and **Open** (navigates directly to `/pocket/item/:id`).
+- **Session Indicators**: Pocket bottom navigation and sidebar icons render a persistent notification dot when new items are saved in the current session.
+
+---
+
+## 17. Step 8: Gemini AI Everywhere (Unified AI Engine & Cross-App Integrations)
+
+Flash Chat integrates Google Gemini generative AI through **ONE shared backend service (`ai.service.js`)** and **ONE shared frontend AI kit (`features/ai`)**.
+
+### 1. Where AI Appears Across the App
+- **Dedicated AI Tab (`/ai` & `/ai/:chatId`)**:
+  - Full-featured conversational assistant with token-by-token SSE streaming, conversation list, pin/rename/delete/clear-all, model switcher (Gemini 1.5 Flash / Pro), multi-modal attachments, and thumbs up/down feedback.
+- **Chats & Messaging (`/chats/:id`)**:
+  - **Smart Replies**: 3 contextual quick-reply chips above `MessageInput` (generated lazily from recent messages, tap to fill input, dismiss with X, refresh icon to regenerate).
+  - **Message Actions**: "Translate" with language picker, recent languages, cached translations in React Query, and "Show original" toggle; "Ask AI about this" pre-filling `AiSheet`.
+  - **Chat Summaries**: Header menu option "Summarize this chat" (Unread, Today, Last 50 messages) with `AiConsentDialog` on first use, Copy, Save to Pocket, and "Send summary to chat" actions.
+  - **Rewrite in Composer**: Sparkle rewrite tool offering Formal, Friendly, and Short tones with an instant Undo toast.
+  - **`@ai` Mention Bot**: Messages starting with `@ai ` trigger automated bot responses (`type: 'ai'`) rendered in `MessageBubble` with `AiBadge`, gradient border, `Asked by <name>` label, and live `ai:thinking` indicator.
+  - **Group Control**: Group admins can toggle **"Allow AI in this group"** (`conversation.allowAi`). When disabled, `@ai` mentions and AI tools are blocked in that group.
+- **Social Network (`/social`)**:
+  - **Create Flow**: "Generate caption" with tone chips (fun, professional, short, poetic), "Suggest hashtags" with selectable chips, and "Describe image" alt-text for accessibility.
+  - **Moderation Check**: Pre-publish non-blocking moderation analysis (timeout 4s) warning users of sensitive or offensive language with "Edit" or "Post anyway" options.
+  - **Comments Sheet**: "Suggest reply" sparkle on each comment generating 3 suggested response chips.
+  - **AI Assisted Tag**: Optional `#AIAssisted` label checkbox before sharing.
+- **Pocket Personal Vault (`/pocket`)**:
+  - **Item Detail**: "Summarize" and "Auto-tag" buttons opening `AiSheet` with Apply (saves `aiSummary`/`aiTags`), Copy, and Regenerate. Disabled with tooltips for encrypted items and locked vaults.
+  - **Ask My Pocket (RAG Search)**: Search bar mode querying your personal vault using Google Gemini. Requires `aiUsesPocket` opt-in dialog, renders answers in `AiMarkdown`, and includes source item citation chips `[Item #1]` linking directly to `/pocket/item/:id`.
+  - **Multi-Select Bulk Auto-Tag**: "Auto-tag" in the floating multi-select bar (max 10 items) with progress indicator.
+  - **AI Tag Markers**: Pocket cards show AI tags with an amber sparkle marker (`✨ #tag`) to distinguish AI tags from manual user tags.
+
+---
+
+### 2. Privacy & Security Model
+1. **Granular Privacy Toggles (Profile > Privacy > AI Settings)**:
+   - `aiEnabled`: Master switch. Disabling immediately hides all AI sparkle buttons, smart replies, rewrite, and AI tabs.
+   - `aiInChats`: Controls AI access within chats (smart replies, translation, summaries, `@ai`).
+   - `aiUsesPocket`: Explicit opt-in required for "Ask my Pocket". Zero data is sent without explicit user consent.
+2. **Client-Side Encrypted Items Isolation**: E2E encrypted items (`isEncrypted: true`) and locked items without unlock tokens are **never** indexed, searched, or sent to Gemini.
+3. **Prompt-Injection Quarantining**: All user text, chat history, social captions, and Pocket items are enclosed in `<untrusted_user_data>...</untrusted_user_data>` blocks with system instructions explicitly prohibiting role overrides.
+4. **PII Redaction**: Email addresses and phone numbers are stripped from prompt strings before dispatch.
+5. **No Private Content Logging**: Raw chat history and vault contents are never logged to console or disk.
+
+---
+
+### 3. Server Tests & Troubleshooting
+
+#### Running AI Security & Integration Tests
+```bash
+cd server
+npm test
+```
+Runs the automated verification suite checking prompt injection containment, mock mode fallbacks, rate limit enforcement, and daily quota meters.
+
+#### Troubleshooting Common AI Scenarios
+- **No API Key (`GEMINI_API_KEY=""`)**:
+  - The server automatically activates **Offline Mock Fallback Mode**. All endpoints return high-quality mock responses without crashing.
+- **Rate Limit Hit (`429 AI_RATE_LIMITED`)**:
+  - When the daily quota is reached (default 50 requests/day), responses return HTTP 429 with `resetsAt` (midnight UTC). Frontend `AiButton` components disable and display the reset time.
+- **SSE Streaming Buffering in Nginx**:
+  - `nginx.conf` is pre-configured with `proxy_buffering off;`, `proxy_read_timeout 120s;`, and `chunked_transfer_encoding on;` under `/api/ai/` to ensure real-time chunk streaming.
+
+---
+
+## 18. Step 8 Test & Verification Checklist
+
+- [x] **Smart Replies**: 3 suggestion chips appear above `MessageInput` on incoming messages; tap fills input without auto-sending; X dismisses; refresh icon regenerates.
+- [x] **Translate Message**: Language picker with recent languages, translation displays under bubble with "Show original" toggle, cached per message+language.
+- [x] **Chat Summaries**: Header menu "Summarize this chat" (unread / today / last 50) with `AiConsentDialog` on first use, Copy, Save to Pocket, and "Send summary to chat".
+- [x] **Composer Rewrite**: Sparkle button with Formal, Friendly, and Short tones and instant Undo toast.
+- [x] **`@ai` Mention Bot**: In direct and group chats, `@ai <query>` returns system AI answers with `AiBadge`, soft gradient border, `Asked by <name>` label, and live `ai:thinking` indicator.
+- [x] **Group `allowAi` Setting**: Group info panel toggle for admins; when disabled, `@ai` mentions and AI tools are hidden and server-rejected.
+- [x] **Social Create Flow**: "Generate caption" with tone chips, "Suggest hashtags" with selectable chips, "Describe image" alt-text button, and optional `#AIAssisted` tag.
+- [x] **Social Moderation**: Pre-publish moderation check with non-blocking 4s timeout; warns with "Edit" or "Post anyway" options.
+- [x] **Comments Reply Suggestions**: "Suggest reply" sparkle button on comment rows; 3 reply chips fill the comment input.
+- [x] **Pocket Item Detail**: "Summarize" and "Auto-tag" buttons opening `AiSheet` with Apply, Copy, Regenerate; disabled with tooltip on encrypted items and locked vault.
+- [x] **Ask My Pocket (RAG)**: Search mode with `AiConsentDialog` opt-in, answers in `AiMarkdown`, source citation chips `[Item #N]`, and "Save as AI Answer" button.
+- [x] **Bulk Auto-Tag**: Multi-select floating bar "Auto-tag" (max 10 items) with progress indicator.
+- [x] **AI Tag Markers**: Item cards show AI tags with amber sparkle marker.
+- [x] **Settings Toggles**: `aiEnabled`, `aiInChats`, and `aiUsesPocket` instantly reflect across all app surfaces.
+- [x] **Zero-Knowledge Security**: Encrypted and locked vault items are strictly isolated from all AI prompts.
+- [x] **Automated Tests**: Server integration and prompt-injection tests pass (`npm test` in `server`).
+
+---
+
+## 19. Design System & Semantic Tokens (Part B.1)
+
+Flash Chat uses a single source of truth for all styling tokens:
+
+| Token Name | Hex Code | Purpose |
+|---|---|---|
+| `cream` | `#FFF7ED` | App background (warm cream) |
+| `card` | `#FFFFFF` | Card, modal & sheet backgrounds (light) |
+| `primary` | `#F97316` | Primary action orange |
+| `secondary` | `#EC4899` | Secondary pink accent |
+| `accent` | `#F43F5E` | Destructive actions, unread badges, rose alerts |
+| `ink` | `#1F2937` | High-contrast body text (dark navy) |
+| `muted` | `#6B7280` | Secondary captions, timestamps, placeholders |
+| `line` | `#FED7AA` | Light borders & dividers |
+| `brand` | `linear-gradient(135deg, #F97316, #EC4899)` | Brand action gradient |
+
+- **Component Styleguide**: Access `/dev/ui` in development mode to preview all tokenized components (Buttons, Inputs, Modals, Chips, Skeletons, Toasts).
+- **Automated Token Scanner**: Vitest / Node test scans `/client/src` to prevent hardcoded arbitrary Tailwind color classes.
+
+---
+
+## 20. Flash AI Rebranding & Provider Disclosure (Part B.3)
+
+- **Branding**: Native AI capabilities are presented uniformly as **"Flash AI"** across all user surfaces, headers, sparkle badges (`FlashAiLogo`), `@ai` bot mentions, and notifications.
+- **Deep Links & Compatibility**: The route `/ai` is preserved and `/flash-ai` automatically redirects to `/ai`.
+- **Honest Transparency (`AiProviderDisclosure`)**:
+  - Centralized disclosure: *"Flash AI is powered by Google Gemini. Selected content is sent to Google to generate results."*
+  - Prominently presented in consent dialogs and `Settings > Privacy > Flash AI`.
+
+---
+
+## 21. Manual Contacts System (Part B.4)
+
+- **Address Book Route**: `/contacts` (accessible via bottom nav, desktop sidebar, top header, and "New Chat" modal).
+- **International E.164 Engine**: Built-in phone formatter supporting country codes, clean formatting (`+1 (234) 567-8900`), and validation.
+- **Automatic Linking (`On Flash Chat`)**: Matches registered users respecting privacy discovery toggles (`discoverableByPhone`, `discoverableByEmail`).
+- **Owner-Only Custom Saved Names**: Contact names assigned by an owner (`contactName`) appear in chat headers, member lists, and notifications for that owner only.
+- **Batch CSV & Contact Picker API**: Progressive enhancement import supporting up to 200 contacts per batch with per-row results.
+- **Offline Sync**: Queues contact creations offline and flushes seamlessly upon reconnection.
+
+---
+
+## 22. "Chat with us" Support Desk & Admin Console (Part B.5)
+
+- **User Support Portal**: `/support` with searchable FAQ knowledge base, topic chips, and ticket creation with diagnostic logs.
+- **Support Chat Flow (`/support/chat`)**: Reuses the core `ChatWindow` component with verified badge, automated Flash AI first reply, and "Talk to a human" handoff button.
+- **Satisfaction Rating**: 1-5 star rating and feedback allowed strictly once per resolved ticket.
+- **Agent Support Console (`/admin/support`)**:
+  - Role-guarded for `support` and `admin` roles.
+  - Ticket queue management, priority/status updating, canned replies, and user info panel.
+- **Seeding Support Agents**:
+  ```bash
+  # In server terminal or script:
+  # Update user role to 'support' or 'admin'
+  # Example: db.users.updateOne({ email: "agent@flashchat.com" }, { $set: { role: "support" } })
+  ```
+
+
+
 

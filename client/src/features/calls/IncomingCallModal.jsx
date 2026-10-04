@@ -90,12 +90,12 @@ export const IncomingCallModal = () => {
               <button
                 type="button"
                 onClick={acceptCall}
-                className="w-14 h-14 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/30 hover:scale-105 active:scale-95 transition cursor-pointer"
+                className="w-14 h-14 rounded-full bg-brand-gradient text-white flex items-center justify-center shadow-soft hover:scale-105 active:scale-95 transition cursor-pointer"
                 title="Accept"
               >
                 {isVideo ? <Video className="w-6 h-6" /> : <Phone className="w-6 h-6" />}
               </button>
-              <span className="text-[11px] font-bold text-emerald-700">Accept</span>
+              <span className="text-[11px] font-bold text-primary">Accept</span>
             </div>
           </div>
         </motion.div>

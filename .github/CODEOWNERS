@@ -1,0 +1,24 @@
+# Flash Chat - Code Ownership & Review Routing
+# Critical infrastructure & security paths require maintainer review
+
+# Infrastructure & CI/CD
+/.github/                     @flashchat-maintainers
+/scripts/                     @flashchat-maintainers
+/docker-compose*.yml          @flashchat-maintainers
+/turnserver.conf              @flashchat-maintainers
+/nginx.conf                   @flashchat-maintainers
+
+# Backend Security & Core Architecture
+/server/src/middleware/       @flashchat-security-team
+/server/src/services/ai/      @flashchat-ai-team
+/server/src/services/pocket/  @flashchat-security-team
+/server/src/config/           @flashchat-maintainers
+
+# Frontend Tokens & Design System
+/client/src/styles/           @flashchat-design-team
+/client/src/styles/tokens.css @flashchat-design-team
+
+# Documentation & Governance
+/SECURITY.md                  @flashchat-security-team
+/CHANGELOG.md                 @flashchat-maintainers
+/docs/                        @flashchat-maintainers

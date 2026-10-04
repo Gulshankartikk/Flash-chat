@@ -6,6 +6,7 @@ export const Avatar = ({
   size = 'md', // 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl'
   isOnline = false,
   showStatus = false,
+  hasStory = false,
   className = '',
   onClick
 }) => {
@@ -35,27 +36,31 @@ export const Avatar = ({
     <div
       onClick={onClick}
       className={`relative inline-flex items-center justify-center flex-shrink-0 rounded-full select-none ${
-        sizeClasses[size] || sizeClasses.md
-      } ${onClick ? 'cursor-pointer hover:opacity-90 transition' : ''} ${className}`}
+        hasStory ? 'p-0.5 bg-brand-gradient' : ''
+      } ${sizeClasses[size] || sizeClasses.md} ${
+        onClick ? 'cursor-pointer hover:opacity-90 transition' : ''
+      } ${className}`}
     >
-      {src && !imageError ? (
-        <img
-          src={src}
-          alt={alt}
-          onError={() => setImageError(true)}
-          className="w-full h-full object-cover rounded-full border border-[#FED7AA] bg-[#FFF7ED]"
-        />
-      ) : (
-        <div className="w-full h-full rounded-full bg-gradient-to-tr from-[#F97316] to-[#EC4899] text-white font-bold flex items-center justify-center border border-[#FED7AA] shadow-sm">
-          {fallbackInitial}
-        </div>
-      )}
+      <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center">
+        {src && !imageError ? (
+          <img
+            src={src}
+            alt={alt}
+            onError={() => setImageError(true)}
+            className="w-full h-full object-cover rounded-full border border-line bg-cream"
+          />
+        ) : (
+          <div className="w-full h-full rounded-full bg-brand-gradient text-white font-bold flex items-center justify-center border border-line shadow-sm">
+            {fallbackInitial}
+          </div>
+        )}
+      </div>
 
       {showStatus && (
         <span
-          className={`absolute bottom-0 right-0 rounded-full ring-white ${
+          className={`absolute bottom-0 right-0 rounded-full ring-card ${
             statusSizeClasses[size] || statusSizeClasses.md
-          } ${isOnline ? 'bg-emerald-500' : 'bg-gray-400'}`}
+          } ${isOnline ? 'bg-primary ring-2' : 'bg-muted ring-2'}`}
           title={isOnline ? 'Online' : 'Offline'}
         />
       )}

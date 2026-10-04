@@ -13,25 +13,25 @@ export const Button = ({
   ...props
 }) => {
   const baseStyles =
-    'inline-flex items-center justify-center font-semibold rounded-xl transition duration-150 select-none focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer';
+    'inline-flex items-center justify-center font-semibold rounded-xl transition duration-150 select-none focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.97] motion-reduce:transform-none';
 
   const sizeStyles = {
-    sm: 'text-xs px-3 py-1.5 gap-1.5',
-    md: 'text-sm px-4 py-2.5 gap-2',
-    lg: 'text-base px-6 py-3 gap-2.5'
+    sm: 'text-xs px-3 py-2 min-h-[36px] gap-1.5',
+    md: 'text-sm px-4 py-2.5 min-h-[44px] gap-2',
+    lg: 'text-base px-6 py-3 min-h-[48px] gap-2.5'
   };
 
   const variantStyles = {
     primary:
-      'bg-gradient-to-r from-[#F97316] to-[#EC4899] hover:from-[#EA580C] hover:to-[#DB2777] text-white shadow-md shadow-orange-500/25 focus:ring-[#F97316]',
+      'bg-brand-gradient hover:opacity-95 text-white shadow-soft focus:ring-primary',
     secondary:
-      'bg-white text-[#1F2937] border border-[#FED7AA] hover:bg-[#FFF7ED] shadow-sm focus:ring-[#FED7AA]',
+      'bg-card text-ink border border-line hover:bg-cream focus:ring-primary',
     outline:
-      'border-2 border-[#F97316] text-[#F97316] hover:bg-orange-50 focus:ring-[#F97316]',
+      'border-2 border-primary text-primary hover:bg-cream focus:ring-primary',
     ghost:
-      'text-[#6B7280] hover:text-[#1F2937] hover:bg-orange-50/50 focus:ring-orange-200',
+      'text-muted hover:text-ink hover:bg-cream focus:ring-primary',
     danger:
-      'bg-rose-500 hover:bg-rose-600 text-white shadow-md shadow-rose-500/25 focus:ring-rose-500'
+      'bg-accent hover:opacity-95 text-white shadow-soft focus:ring-accent'
   };
 
   return (
@@ -47,7 +47,11 @@ export const Button = ({
       {isLoading ? (
         <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
       ) : Icon ? (
-        <Icon className="w-4 h-4 flex-shrink-0" />
+        React.isValidElement(Icon) ? (
+          Icon
+        ) : typeof Icon === 'function' || (typeof Icon === 'object' && Icon !== null) ? (
+          <Icon className="w-4 h-4 flex-shrink-0" />
+        ) : null
       ) : null}
       <span>{children}</span>
     </button>

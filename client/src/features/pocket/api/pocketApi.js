@@ -50,6 +50,21 @@ export const fetchPocketTrash = async (params = {}) => {
   return res.data;
 };
 
+export const emptyPocketTrash = async () => {
+  const res = await api.delete('/pocket/trash/empty');
+  return res.data;
+};
+
+export const purgeAllPocketData = async () => {
+  const res = await api.delete('/pocket/danger/purge-all');
+  return res.data;
+};
+
+export const fetchSavedRefs = async (kind = 'chat_message') => {
+  const res = await api.get(`/pocket/saved-refs?kind=${kind}`);
+  return res.data;
+};
+
 export const restorePocketItem = async (id) => {
   const res = await api.post(`/pocket/items/${id}/restore`);
   return res.data;

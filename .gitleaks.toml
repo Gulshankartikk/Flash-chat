@@ -1,0 +1,20 @@
+# Flash Chat - Gitleaks Secret Scanner Configuration
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowed test fixtures and obviously fake placeholders"
+regexes = [
+  '''test_jwt_access_secret_super_secure_12345''',
+  '''test_jwt_refresh_secret_super_secure_67890''',
+  '''VAPID_PUBLIC_KEY''',
+  '''VAPID_PRIVATE_KEY''',
+  '''EXAMPLE_KEY'''
+]
+paths = [
+  '''^\.env\.example$''',
+  '''^server/tests/.*''',
+  '''^client/tests/.*''',
+  '''^scripts/.*'''
+]

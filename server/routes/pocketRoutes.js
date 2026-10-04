@@ -20,6 +20,7 @@ router.post('/items/bulk', pocketController.bulkAction);
 
 // --- Trash & Permanent Deletion ---
 router.get('/trash', pocketController.getTrash);
+router.delete('/trash/empty', pocketController.emptyTrash);
 router.post('/items/:id/restore', pocketController.restoreTrashItem);
 router.delete('/items/:id/permanent', pocketController.permanentDeleteItem);
 
@@ -37,6 +38,10 @@ router.post('/tags/rename', pocketController.renameTag);
 // --- Cross-linking: Save From Anywhere ---
 router.post('/save', pocketController.saveFromAnywhere);
 router.post('/save-starred', pocketController.saveStarredMessages);
+router.get('/saved-refs', pocketController.getSavedRefs);
+
+// --- Danger Zone ---
+router.delete('/danger/purge-all', pocketController.purgeAll);
 
 // --- Link Preview (SSRF Protected) ---
 router.get('/preview', pocketController.getLinkPreview);
@@ -59,3 +64,4 @@ router.delete('/pin', pocketController.removePin);
 router.get('/search', pocketController.searchItems);
 
 module.exports = router;
+

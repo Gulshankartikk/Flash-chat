@@ -4,6 +4,7 @@ const User = require('../models/User');
 const authService = require('../services/auth/authService');
 const otpService = require('../services/otpService');
 const mailer = require('../services/mailer/mailerService');
+const contactService = require('../services/contactService');
 const config = require('../config/env');
 const logger = require('../utils/logger');
 
@@ -154,6 +155,12 @@ const verifyOtp = async (req, res, next) => {
     // Set Refresh Token in httpOnly cookie
     res.cookie('refreshToken', refreshToken, authService.getRefreshCookieOptions());
 
+    if (isNewUser) {
+      contactService.linkContactsForNewUser(user).catch((e) =>
+        logger.warn({ err: e.message }, 'Failed background contact matching on new user signup')
+      );
+    }
+
     const safeUser = user.toObject();
     delete safeUser.passwordHash;
     delete safeUser.refreshTokens;
@@ -207,19 +214,65 @@ const refreshToken = async (req, res, next) => {
       });
     }
 
-    const hasSession = user.refreshTokens && user.refreshTokens.some((s) => s.token === token);
-    if (!hasSession) {
+    const sessionIndex = user.refreshTokens
+      ? user.refreshTokens.findIndex((s) => s.token === token)
+      : -1;
+
+    if (sessionIndex === -1) {
+      // Reuse detection: a validly signed token that was previously rotated or revoked is being reused
+      logger.warn({ userId: user._id }, 'CRITICAL: Refresh token reuse detected. Revoking all sessions.');
+      user.refreshTokens = [];
+      await user.save();
+      res.clearCookie('refreshToken', authService.getRefreshCookieOptions());
       return res.status(401).json({
         success: false,
-        message: 'Session has been revoked'
+        code: 'REFRESH_TOKEN_REUSE_DETECTED',
+        message: 'Security alert: Refresh token reuse detected. All active sessions have been revoked.'
       });
     }
 
+    // Rotate tokens
     const newAccessToken = authService.generateAccessToken(user._id);
+    const newRefreshToken = authService.generateRefreshToken(user._id);
+
+    user.refreshTokens[sessionIndex].token = newRefreshToken;
+    user.refreshTokens[sessionIndex].createdAt = new Date();
+    await user.save();
+
+    res.cookie('refreshToken', newRefreshToken, authService.getRefreshCookieOptions());
 
     return res.status(200).json({
       success: true,
       accessToken: newAccessToken
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Delete a specific device session
+ */
+const deleteSession = async (req, res, next) => {
+  try {
+    const { sid } = req.params;
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const initialLength = user.refreshTokens.length;
+    user.refreshTokens = user.refreshTokens.filter(
+      (s) => String(s._id) !== String(sid) && String(s.deviceId) !== String(sid)
+    );
+
+    if (user.refreshTokens.length < initialLength) {
+      await user.save();
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: 'Session revoked successfully'
     });
   } catch (error) {
     next(error);
@@ -599,6 +652,7 @@ module.exports = {
   onboarding,
   checkUsername,
   getSessions,
+  deleteSession,
   logout,
   logoutAll,
   getMe,

@@ -16,14 +16,20 @@ export const AppLayout = () => {
     if (path.startsWith('/chats')) {
       return { title: 'Chats', subtitle: 'Encrypted real-time messaging & calls' };
     }
+    if (path.startsWith('/contacts')) {
+      return { title: 'Contacts', subtitle: 'Your personal address book & connections' };
+    }
+    if (path.startsWith('/support') || path.startsWith('/admin/support')) {
+      return { title: 'Help & Support', subtitle: 'FAQs, live assistance & tickets' };
+    }
     if (path.startsWith('/social')) {
       return { title: 'Social Feed', subtitle: 'Posts, stories, and viral reels' };
     }
     if (path.startsWith('/pocket')) {
       return { title: 'Pocket Vault', subtitle: 'Your secure personal data store' };
     }
-    if (path.startsWith('/ai')) {
-      return { title: 'Gemini AI Assistant', subtitle: 'Multimodal intelligence & smart actions' };
+    if (path.startsWith('/ai') || path.startsWith('/flash-ai')) {
+      return { title: 'Flash AI', subtitle: 'Intelligent assistant & smart actions' };
     }
     if (path.startsWith('/profile')) {
       return { title: 'Profile & Settings', subtitle: 'Manage identity, privacy & security' };
@@ -50,7 +56,7 @@ export const AppLayout = () => {
 
   return (
     <ToastProvider>
-      <div className="flex h-screen w-screen overflow-hidden bg-[#FFF7ED] text-[#1F2937]">
+      <div className="flex h-screen w-screen overflow-hidden bg-cream text-ink">
         {/* Desktop Left Sidebar */}
         <Sidebar onOpenSearch={() => setIsSearchOpen(true)} />
 
@@ -63,8 +69,8 @@ export const AppLayout = () => {
             onOpenSearch={() => setIsSearchOpen(true)}
           />
 
-          {/* Tab Route Content */}
-          <main className="flex-1 overflow-y-auto pb-16 md:pb-0">
+          {/* Subview Outlet */}
+          <main className="flex-1 overflow-hidden relative">
             <Outlet />
           </main>
 
@@ -72,7 +78,7 @@ export const AppLayout = () => {
           <BottomNav />
         </div>
 
-        {/* Global User Search Modal */}
+        {/* Search Modal */}
         <UserSearchModal
           isOpen={isSearchOpen}
           onClose={() => setIsSearchOpen(false)}

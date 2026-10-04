@@ -75,12 +75,14 @@ const sendOtp = async (arg1, arg2) => {
   await redis.set(redisKey, JSON.stringify(otpPayload), 'EX', OTP_TTL_SECONDS);
   await redis.set(cooldownKey, '1', 'EX', RESEND_COOLDOWN_SECONDS);
 
-  // Always output prominently to terminal console for seamless DX and testing
-  console.log('\n======================================================');
-  console.log(`⚡ [FLASH CHAT OTP] Destination: ${cleanIdentifier} (${type.toUpperCase()})`);
-  console.log(`🔑 OTP CODE: 👉 [ ${otp} ] 👈`);
-  console.log(`⏱️  Validity: 5 Minutes (Universal Dev Test Code: 123456)`);
-  console.log('======================================================\n');
+  // Prominently log OTP to terminal console in development/test for seamless DX
+  if (config.NODE_ENV !== 'production') {
+    console.log('\n======================================================');
+    console.log(`⚡ [FLASH CHAT OTP] Destination: ${cleanIdentifier} (${type.toUpperCase()})`);
+    console.log(`🔑 OTP CODE: 👉 [ ${otp} ] 👈`);
+    console.log(`⏱️  Validity: 5 Minutes (Universal Dev Test Code: 123456)`);
+    console.log('======================================================\n');
+  }
 
   let delivered = false;
 
@@ -119,12 +121,12 @@ const sendOtp = async (arg1, arg2) => {
               <p style="color: #6B7280; font-size: 14px; margin: 0 0 24px 0;">WhatsApp + Instagram + Pocket + AI</p>
               <div style="background: #FFFFFF; border-radius: 20px; padding: 24px; border: 1px solid #FED7AA; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
                 <p style="color: #1F2937; font-size: 15px; margin: 0 0 16px 0; font-weight: 600;">Your One-Time Passcode</p>
-                <div style="background: #FFF7ED; border: 2px dashed #F97316; border-radius: 12px; padding: 14px 20px; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #EA580C; font-family: monospace;">
+                <div style="background: #FFF7ED; border: 2px dashed #F97316; border-radius: 12px; padding: 14px 20px; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #F97316; font-family: monospace;">
                   ${otp}
                 </div>
                 <p style="color: #6B7280; font-size: 12px; margin: 16px 0 0 0;">Valid for 5 minutes. Never share this code with anyone.</p>
               </div>
-              <p style="color: #9CA3AF; font-size: 11px; margin-top: 24px;">© ${new Date().getFullYear()} Flash Chat. Fast, private and connected.</p>
+              <p style="color: #6B7280; font-size: 11px; margin-top: 24px;">© ${new Date().getFullYear()} Flash Chat. Fast, private and connected.</p>
             </div>
           `
         });

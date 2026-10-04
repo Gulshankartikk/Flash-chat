@@ -16,11 +16,13 @@ import { useSocialStore } from '../store/useSocialStore';
 import { BottomSheet } from '../../../components/BottomSheet';
 import { SocialAvatar } from './SocialAvatar';
 import { fetchShareSuggestions, shareContentApi } from '../api/api';
+import { useSaveToPocket } from '../../pocket';
 
 export const ShareSheet = () => {
   const navigate = useNavigate();
   const { shareSheet, closeShareSheet } = useSocialStore();
   const { isOpen, contentType, contentId, snapshot } = shareSheet;
+  const { saveToPocket } = useSaveToPocket();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -255,14 +257,21 @@ export const ShareSheet = () => {
               <span>Copy Link</span>
             </button>
 
-            {/* Add to Pocket: Placeholder for Step 7 */}
+            {/* Add to Pocket */}
             <button
               type="button"
-              disabled
-              title="Coming in Step 7: Pocket Vault"
-              className="flex items-center gap-1.5 text-[#6B7280] opacity-60 cursor-not-allowed"
+              onClick={async () => {
+                const kind = contentType === 'reel' ? 'social_reel' : 'social_post';
+                await saveToPocket({
+                  from: kind,
+                  refId: contentId,
+                  text: snapshot?.captionSnippet || ''
+                });
+                closeShareSheet();
+              }}
+              className="flex items-center gap-1.5 hover:text-[#F97316] transition cursor-pointer text-[#1F2937]"
             >
-              <Bookmark className="w-4 h-4" />
+              <Bookmark className="w-4 h-4 text-[#F97316]" />
               <span>Add to Pocket</span>
             </button>
 
@@ -279,7 +288,7 @@ export const ShareSheet = () => {
 
         {/* Sent Confirmation Toast */}
         {sentToast && (
-          <div className="p-3 bg-emerald-500 text-white flex items-center justify-between text-xs font-bold animate-in fade-in slide-in-from-bottom-2">
+          <div className="p-3 bg-brand-gradient text-white flex items-center justify-between text-xs font-bold animate-in fade-in slide-in-from-bottom-2">
             <span>{sentToast.message}</span>
             {sentToast.conversationId && (
               <button

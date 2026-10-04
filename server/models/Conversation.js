@@ -45,7 +45,7 @@ const conversationSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ['direct', 'group'],
+      enum: ['direct', 'group', 'support'],
       required: true,
       index: true
     },
@@ -78,6 +78,10 @@ const conversationSchema = new mongoose.Schema(
     disappearAfter: {
       type: Number, // in seconds (e.g. 86400 for 24h, 604800 for 7d), null for off
       default: null
+    },
+    allowAi: {
+      type: Boolean,
+      default: true
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

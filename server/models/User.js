@@ -62,6 +62,20 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    role: {
+      type: String,
+      enum: ['user', 'support', 'admin'],
+      default: 'user',
+      index: true
+    },
+    discoverableByPhone: {
+      type: Boolean,
+      default: true
+    },
+    discoverableByEmail: {
+      type: Boolean,
+      default: true
+    },
     theme: {
       type: String,
       enum: ['light', 'dark', 'system'],
@@ -87,6 +101,24 @@ const userSchema = new mongoose.Schema(
       lastSeen: { type: String, enum: ['everyone', 'contacts', 'nobody'], default: 'everyone' },
       profilePhoto: { type: String, enum: ['everyone', 'contacts', 'nobody'], default: 'everyone' },
       readReceipts: { type: Boolean, default: true }
+    },
+    aiSettings: {
+      aiEnabled: { type: Boolean, default: true },
+      aiInChats: { type: Boolean, default: true },
+      aiUsesPocket: { type: Boolean, default: false }
+    },
+    pushSettings: {
+      pushEnabled: { type: Boolean, default: true },
+      pushMessages: { type: Boolean, default: true },
+      pushCalls: { type: Boolean, default: true },
+      pushSocial: { type: Boolean, default: true },
+      pushPreview: { type: Boolean, default: true },
+      quietHours: {
+        enabled: { type: Boolean, default: false },
+        start: { type: String, default: '22:00' },
+        end: { type: String, default: '07:00' },
+        timezone: { type: String, default: 'UTC' }
+      }
     },
     followersCount: {
       type: Number,

@@ -168,8 +168,38 @@ const validateSafeUrl = async (rawUrl) => {
   return parsed;
 };
 
+const isPrivateIp = (ipOrHostname) => {
+  if (!ipOrHostname) return true;
+  const host = String(ipOrHostname).toLowerCase().trim();
+  if (
+    host === 'localhost' ||
+    host === '::1' ||
+    host === '0.0.0.0' ||
+    host.endsWith('.localhost') ||
+    host.endsWith('.local') ||
+    host.endsWith('.internal') ||
+    host.endsWith('.lan')
+  ) {
+    return true;
+  }
+  if (net.isIPv4(host)) return isPrivateIPv4(host);
+  if (net.isIPv6(host)) return isPrivateIPv6(host);
+  return false;
+};
+
+const isValidHttpUrl = (str) => {
+  try {
+    const u = new URL(str);
+    return u.protocol === 'http:' || u.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
 module.exports = {
   validateSafeUrl,
   isPrivateIPv4,
-  isPrivateIPv6
+  isPrivateIPv6,
+  isPrivateIp,
+  isValidHttpUrl
 };

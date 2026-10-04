@@ -1,0 +1,4 @@
+# Flash Chat - Trivy Vulnerability Scanner Allowlist
+# Format: CVE-ID (Expiry-Date) Reason
+
+CVE-2024-0000 (2026-12-31) Accepted low-risk build-time development dependency

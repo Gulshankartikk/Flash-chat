@@ -319,7 +319,7 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
               : 'bg-[#FFF7ED] text-[#1F2937] hover:bg-[#FED7AA]/50'
           }`}
         >
-          <Code2 className="w-3.5 h-3.5 text-indigo-500" />
+          <Code2 className="w-3.5 h-3.5 text-primary" />
           <span>Snippet</span>
         </button>
       </div>

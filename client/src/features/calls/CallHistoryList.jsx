@@ -101,23 +101,23 @@ export const CallHistoryList = () => {
     return (
       <div className="p-4 space-y-3">
         {[1, 2, 3, 4, 5].map((i) => (
-          <Skeleton key={i} variant="card" className="h-16 w-full rounded-2xl" />
+          <Skeleton key={i} className="h-16 w-full rounded-2xl" />
         ))}
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-white select-none">
+    <div className="flex flex-col h-full bg-card select-none">
       {/* Sub-header Filter Tabs (All / Missed) */}
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-[#FED7AA]/50 bg-[#FFF7ED]/30">
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-line bg-cream/30">
         <button
           type="button"
           onClick={() => setFilter('all')}
           className={`px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer ${
             filter === 'all'
-              ? 'bg-[#F97316] text-white shadow-xs'
-              : 'text-[#6B7280] hover:text-[#1F2937]'
+              ? 'bg-primary text-white shadow-xs'
+              : 'text-muted hover:text-ink'
           }`}
         >
           All Calls ({calls.length})
@@ -127,8 +127,8 @@ export const CallHistoryList = () => {
           onClick={() => setFilter('missed')}
           className={`px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer ${
             filter === 'missed'
-              ? 'bg-[#F43F5E] text-white shadow-xs'
-              : 'text-[#6B7280] hover:text-[#1F2937]'
+              ? 'bg-accent text-white shadow-xs'
+              : 'text-muted hover:text-ink'
           }`}
         >
           Missed
@@ -136,11 +136,10 @@ export const CallHistoryList = () => {
       </div>
 
       {/* Calls List */}
-      <div className="flex-1 overflow-y-auto divide-y divide-[#FED7AA]/30">
+      <div className="flex-1 overflow-y-auto divide-y divide-line/30">
         {filteredCalls.length === 0 ? (
           <div className="p-8 text-center">
             <EmptyState
-              emoji="📞"
               title={filter === 'missed' ? 'No Missed Calls' : 'No Call History'}
               description={
                 filter === 'missed'
@@ -176,51 +175,51 @@ export const CallHistoryList = () => {
               <div
                 key={call._id}
                 onClick={() => handleCallBack(call)}
-                className="group flex items-center justify-between px-4 py-3 hover:bg-[#FFF7ED]/40 transition cursor-pointer"
+                className="group flex items-center justify-between px-4 py-3 hover:bg-orange-50/40 transition cursor-pointer"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <Avatar src={displayAvatar} alt={displayName} size="md" />
+                  <Avatar src={displayAvatar} name={displayName} size="md" />
 
                   <div className="min-w-0">
                     <h4
                       className={`text-sm font-bold truncate ${
-                        isMissed ? 'text-[#F43F5E]' : 'text-[#1F2937]'
+                        isMissed ? 'text-accent' : 'text-ink'
                       }`}
                     >
                       {displayName}
                     </h4>
 
-                    <div className="flex items-center gap-1.5 text-xs text-[#6B7280] mt-0.5">
+                    <div className="flex items-center gap-1.5 text-xs text-muted mt-0.5">
                       {/* Direction Icon */}
                       {isCaller ? (
-                        <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                        <ArrowUpRight className="w-3.5 h-3.5 text-primary shrink-0" />
                       ) : isMissed ? (
-                        <ArrowDownLeft className="w-3.5 h-3.5 text-[#F43F5E] flex-shrink-0" />
+                        <ArrowDownLeft className="w-3.5 h-3.5 text-accent shrink-0" />
                       ) : (
-                        <ArrowDownLeft className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                        <ArrowDownLeft className="w-3.5 h-3.5 text-primary shrink-0" />
                       )}
 
                       <span className="truncate">
                         {isMissed ? 'Missed' : isCaller ? 'Outgoing' : 'Incoming'}
                         {call.duration > 0 && ` (${formatDuration(call.duration)})`}
                       </span>
-                      <span>·</span>
-                      <span className="text-[11px] text-[#6B7280]">
+                      <span>•</span>
+                      <span className="text-[11px] text-muted">
                         {formatCallDate(call.createdAt)}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* Right Actions: Call Type Icon & Delete */}
-                <div className="flex items-center gap-1.5 text-[#6B7280]">
+                {/* Right Actions */}
+                <div className="flex items-center gap-1.5 text-muted">
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       handleCallBack(call);
                     }}
-                    className="p-2 rounded-xl text-[#F97316] hover:bg-orange-50 transition cursor-pointer"
+                    className="p-2 rounded-xl text-primary hover:bg-orange-50 transition cursor-pointer"
                     title={`Call back with ${isVideo ? 'video' : 'voice'}`}
                   >
                     {isVideo ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
@@ -229,7 +228,7 @@ export const CallHistoryList = () => {
                   <button
                     type="button"
                     onClick={(e) => handleDeleteCall(e, call._id)}
-                    className="p-2 rounded-xl text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer opacity-0 group-hover:opacity-100"
+                    className="p-2 rounded-xl text-muted hover:text-accent hover:bg-accent/10 transition cursor-pointer opacity-0 group-hover:opacity-100"
                     title="Remove from call log"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -243,3 +242,5 @@ export const CallHistoryList = () => {
     </div>
   );
 };
+
+export default CallHistoryList;

@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { Modal } from '../common/Modal';
-import { Avatar } from '../common/Avatar';
+import { Modal } from '../Modal';
+import { Avatar } from '../Avatar';
+import { Button } from '../Button';
+import { Input } from '../Input';
+import { Textarea } from '../Textarea';
 import { useAuthStore } from '../../store/useAuthStore';
 
 export const UserProfileModal = ({ isOpen, onClose }) => {
@@ -29,66 +32,51 @@ export const UserProfileModal = ({ isOpen, onClose }) => {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Account Profile">
-      <form onSubmit={handleSave} className="space-y-4">
+    <Modal isOpen={isOpen} onClose={onClose} title="Quick Profile" maxWidth="max-w-md">
+      <form onSubmit={handleSave} className="space-y-4 pt-1">
         {message && (
           <div
-            className={`p-3 text-sm rounded-xl border ${
+            className={`p-3 text-xs font-semibold rounded-xl border ${
               message.startsWith('Error')
-                ? 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/40 dark:border-red-900'
-                : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-900'
+                ? 'bg-accent/10 text-accent border-accent/20'
+                : 'bg-primary/10 text-primary border-primary/20'
             }`}
           >
             {message}
           </div>
         )}
 
-        <div className="flex flex-col items-center gap-3 py-2">
+        <div className="flex flex-col items-center gap-2 py-2">
           <Avatar src={user?.avatar} name={user?.name} size="xl" />
-          <p className="text-xs text-slate-400">{user?.email}</p>
+          <p className="text-xs text-muted font-medium">{user?.email || user?.phone}</p>
         </div>
 
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-            Full Name
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
-          />
-        </div>
+        <Input
+          label="Full Name *"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        />
 
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
-            About / Bio
-          </label>
-          <textarea
-            rows="3"
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm resize-none"
-          />
-        </div>
+        <Textarea
+          label="About / Bio"
+          rows={3}
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          placeholder="Tell others a little about yourself..."
+        />
 
         <div className="flex justify-end gap-2 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
+          <Button type="button" variant="secondary" onClick={onClose} className="flex-1">
             Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="px-5 py-2 text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md disabled:opacity-50 transition"
-          >
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </button>
+          </Button>
+          <Button type="submit" variant="primary" isLoading={isSaving} className="flex-1">
+            Save Changes
+          </Button>
         </div>
       </form>
     </Modal>
   );
 };
+
+export default UserProfileModal;

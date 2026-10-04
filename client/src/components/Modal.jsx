@@ -34,22 +34,22 @@ export const Modal = ({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-[#1F2937]/50 backdrop-blur-sm"
+            className="fixed inset-0 bg-ink/50 backdrop-blur-sm"
           />
 
           {/* Modal Container */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className={`relative w-full ${maxWidth} bg-white rounded-3xl p-6 shadow-2xl border border-[#FED7AA] z-10 overflow-hidden max-h-[90vh] flex flex-col`}
+            exit={{ opacity: 0, scale: 0.96, y: 8 }}
+            transition={{ duration: 0.2 }}
+            className={`relative w-full ${maxWidth} bg-card rounded-2xl p-6 shadow-soft border border-line z-10 overflow-hidden max-h-[90vh] flex flex-col`}
           >
             {/* Header */}
             {(title || showClose) && (
-              <div className="flex items-center justify-between pb-4 border-b border-[#FED7AA]/50 mb-4 flex-shrink-0">
+              <div className="flex items-center justify-between pb-3 border-b border-line mb-4 flex-shrink-0">
                 {title && (
-                  <h3 className="text-lg font-bold text-[#1F2937] tracking-tight">
+                  <h3 className="text-lg font-bold text-ink tracking-tight">
                     {title}
                   </h3>
                 )}
@@ -57,8 +57,9 @@ export const Modal = ({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="p-1.5 rounded-full text-[#6B7280] hover:text-[#1F2937] hover:bg-orange-50 transition ml-auto"
+                    className="p-1.5 rounded-full text-muted hover:text-ink hover:bg-cream transition ml-auto focus:outline-none focus:ring-2 focus:ring-primary"
                     title="Close"
+                    aria-label="Close modal"
                   >
                     <X className="w-5 h-5" />
                   </button>

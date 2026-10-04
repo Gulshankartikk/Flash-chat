@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report Security Vulnerability
+    url: https://github.com/your-org/flash-chat/security/advisories/new
+    about: Privately report security vulnerabilities and sensitive security defects.
+  - name: Customer Support & Help Desk
+    url: https://flashchat.app/support
+    about: Get instant help from Flash AI or connect to a live support agent.

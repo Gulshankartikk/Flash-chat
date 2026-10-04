@@ -34,6 +34,10 @@ const envSchema = z.object({
 
   // Google Gemini AI
   GEMINI_API_KEY: z.string().optional().default(''),
+  GEMINI_MODEL: z.string().default('gemini-1.5-flash'),
+  GEMINI_MODEL_PRO: z.string().default('gemini-1.5-pro'),
+  AI_DAILY_LIMIT: z.string().or(z.number()).default(50).transform(val => Number(val) || 50),
+  AI_MAX_INPUT_CHARS: z.string().or(z.number()).default(8000).transform(val => Number(val) || 8000),
 
   // Cloudinary Media Store
   CLOUDINARY_CLOUD_NAME: z.string().optional().default(''),
@@ -43,6 +47,11 @@ const envSchema = z.object({
   // Redis & Logging
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   REDIS_URL: z.string().optional().default(''),
+
+  // Web Push VAPID Keys
+  VAPID_PUBLIC_KEY: z.string().optional().default(''),
+  VAPID_PRIVATE_KEY: z.string().optional().default(''),
+  VAPID_SUBJECT: z.string().default('mailto:support@flashchat.io'),
 
   // WebRTC STUN / TURN Configuration
   STUN_URLS: z.string().default('stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302'),
@@ -59,10 +68,23 @@ if (!parsed.success) {
   parsed.error.issues.forEach((issue) => {
     console.error(`   - [${issue.path.join('.')}] ${issue.message}`);
   });
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Fatal: Invalid environment configuration in production.');
+  }
   console.error('\nStarting with fallback development defaults.\n');
 }
 
 const config = parsed.success ? parsed.data : envSchema.parse({});
+
+// Fail fast in production if default/insecure JWT secrets or missing database URI
+if (config.NODE_ENV === 'production') {
+  if (
+    config.JWT_ACCESS_SECRET.includes('32_chars_min') ||
+    config.JWT_REFRESH_SECRET.includes('32_chars_min')
+  ) {
+    throw new Error('Fatal: Insecure default JWT secrets detected in production. Set strong random keys.');
+  }
+}
 
 // Sync legacy aliases if provided
 if (!config.SMTP_USER && config.GMAIL_USER) {

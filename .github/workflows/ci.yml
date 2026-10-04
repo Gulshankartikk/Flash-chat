@@ -1,0 +1,166 @@
+name: Flash Chat Full CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    - cron: '0 2 * * *' # Nightly run at 2:00 AM UTC
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend-test:
+    name: Backend Lint, Security & Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      mongo:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm run install:all
+
+      - name: Run Documentation Quality & Consistency Suite
+        run: npm run docs:check
+
+      - name: Run Project Integrity & Import Audit
+        run: node server/tests/projectAudit.js
+
+      - name: Run Backend Master Test Suite (11 Suites)
+        env:
+          NODE_ENV: test
+          PORT: 5000
+          MONGO_URI: mongodb://localhost:27017/flashchat_test
+          REDIS_URL: redis://localhost:6379
+          JWT_ACCESS_SECRET: test_jwt_access_secret_super_secure_12345
+          JWT_REFRESH_SECRET: test_jwt_refresh_secret_super_secure_67890
+        run: |
+          cd server
+          npm test
+
+  frontend-test:
+    name: Frontend PWA, Lint & Client Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Client Dependencies
+        run: |
+          cd client
+          npm ci || npm install
+
+      - name: Run Client Unit & Security Test Suite
+        run: |
+          cd client
+          npm test
+
+      - name: Run Token Strictness & Brand Compliance Linters
+        run: |
+          cd client
+          npm run lint:tokens
+          npm run lint:brand
+
+      - name: Run Accessibility Compliance Sweep
+        run: |
+          cd client
+          npm run test:a11y
+
+      - name: Build Production Client Bundle & Budget Check (< 250 KB gzip)
+        run: |
+          cd client
+          npm run perf:bundle
+
+  e2e-and-audit:
+    name: E2E, Visual Regression & Audit
+    needs: [backend-test, frontend-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run Visual Regression Test Suite
+        run: |
+          cd client
+          npm run test:visual
+
+      - name: Run Cross-Browser & Device Test Suite
+        run: |
+          cd client
+          npm run test:crossbrowser
+
+      - name: Run Performance & Lighthouse CI Suite
+        run: |
+          cd client
+          npm run perf:lhci
+
+      - name: Upload Test Reports & QA Summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: flash-chat-test-reports
+          path: reports/final/
+          retention-days: 14
+
+  docker-build:
+    name: Multi-Stage Docker Image Build Validation
+    needs: [backend-test, frontend-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Server Production Image
+        run: docker build -f server/Dockerfile.prod ./server
+
+      - name: Build Client Production Image
+        run: docker build -f client/Dockerfile.prod ./client

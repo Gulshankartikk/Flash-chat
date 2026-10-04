@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { updateSocketToken } from './socket';
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api',
@@ -82,6 +83,7 @@ api.interceptors.response.use(
           localStorage.setItem('flash_chat_token', accessToken);
           api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
           originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+          updateSocketToken(accessToken);
           processQueue(null, accessToken);
           return api(originalRequest);
         }

@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const upload = require('../middleware/uploadMiddleware');
+const { upload, verifyUploadedFile } = require('../middleware/uploadMiddleware');
 const authMiddleware = require('../middleware/authMiddleware');
+const { uploadLimiter } = require('../middleware/rateLimiter');
 const { cloudinary, isCloudinaryConfigured } = require('../config/cloudinary');
 const logger = require('../utils/logger');
 
@@ -19,9 +20,8 @@ const getResourceTypeAndType = (mimetype) => {
 /**
  * POST /api/upload
  * Returns: { url, publicId, type }
- * If Cloudinary keys are empty, returns a clear error message instead of crashing.
  */
-router.post('/', authMiddleware, upload.single('file'), async (req, res, next) => {
+router.post('/', authMiddleware, uploadLimiter, upload.single('file'), verifyUploadedFile, async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../services/api';
 import { Mail, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Input } from '../components/Input';
+import { Button } from '../components/Button';
 
 export const ForgotPasswordPage = () => {
   const [email, setEmail] = useState('');
@@ -25,76 +27,72 @@ export const ForgotPasswordPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 dark:bg-slate-950">
-      <div className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-8 shadow-xl border border-slate-200 dark:border-slate-800">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-cream select-none">
+      <div className="relative w-full max-w-md bg-card rounded-3xl p-8 shadow-xl border border-line">
         <Link
           to="/login"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 mb-6 transition"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-muted hover:text-ink mb-6 transition"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to sign in</span>
         </Link>
 
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 mb-3 border border-indigo-100 dark:border-indigo-900">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-brand text-white mb-3 shadow-md shadow-primary/20">
             <Mail className="w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100">
+          <h1 className="text-2xl font-black tracking-tight text-ink">
             Reset Password
           </h1>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-muted mt-1">
             Enter your email to receive a password reset link
           </p>
         </div>
 
         {error && (
-          <div className="mb-5 p-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 flex items-center gap-2.5 text-xs text-red-600 dark:text-red-400">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <div className="mb-5 p-3 rounded-2xl bg-accent/10 border border-accent/20 flex items-center gap-2.5 text-xs text-accent font-semibold">
+            <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {isSubmitted ? (
           <div className="text-center py-4 space-y-3">
-            <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-primary/10 text-primary mx-auto flex items-center justify-center">
               <CheckCircle2 className="w-6 h-6" />
             </div>
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+            <p className="text-sm font-bold text-ink">
               Check your inbox!
             </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            <p className="text-xs text-muted leading-relaxed">
               If an account with that email exists, we've sent password reset instructions to <strong>{email}</strong>.
             </p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                Email Address
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
-                <input
-                  type="email"
-                  required
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
+            <Input
+              label="Email Address"
+              type="email"
+              required
+              placeholder="name@example.com"
+              icon={<Mail className="w-4 h-4 text-muted" />}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
 
-            <button
+            <Button
               type="submit"
-              disabled={isSubmitting}
-              className="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm shadow-md hover:shadow-indigo-500/25 transition disabled:opacity-50"
+              variant="primary"
+              isLoading={isSubmitting}
+              className="w-full py-2.5"
             >
-              {isSubmitting ? 'Sending Link...' : 'Send Reset Link'}
-            </button>
+              Send Reset Link
+            </Button>
           </form>
         )}
       </div>
     </div>
   );
 };
+
+export default ForgotPasswordPage;

@@ -6,10 +6,12 @@ import {
   Bookmark,
   Sparkles,
   User,
+  Users,
   Search,
   LogOut,
   Moon,
-  Sun
+  Sun,
+  LifeBuoy
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
@@ -20,7 +22,14 @@ export const Sidebar = ({ onOpenSearch }) => {
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
   const { unreadNotificationsCount } = useSocialStore();
+  const [hasPocketNotification, setHasPocketNotification] = React.useState(false);
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const handlePocketSaved = () => setHasPocketNotification(true);
+    window.addEventListener('pocket_item_saved', handlePocketSaved);
+    return () => window.removeEventListener('pocket_item_saved', handlePocketSaved);
+  }, []);
 
   const navItems = [
     { label: 'Chats', path: '/chats', icon: MessageSquare, badge: null },
@@ -28,11 +37,19 @@ export const Sidebar = ({ onOpenSearch }) => {
       label: 'Social',
       path: '/social',
       icon: Flame,
-      badge: unreadNotificationsCount > 0 ? (unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount) : 'Feed',
+      badge: unreadNotificationsCount > 0 ? (unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount) : null,
       isAlert: unreadNotificationsCount > 0
     },
-    { label: 'Pocket', path: '/pocket', icon: Bookmark, badge: 'Vault' },
-    { label: 'Gemini AI', path: '/ai', icon: Sparkles, badge: 'AI' },
+    {
+      label: 'Pocket',
+      path: '/pocket',
+      icon: Bookmark,
+      badge: hasPocketNotification ? 'Saved' : null,
+      isAlert: hasPocketNotification
+    },
+    { label: 'Flash AI', path: '/ai', icon: Sparkles, badge: 'AI' },
+    { label: 'Contacts', path: '/contacts', icon: Users, badge: null },
+    { label: 'Help & Support', path: '/support', icon: LifeBuoy, badge: null },
     { label: 'My Profile', path: '/profile', icon: User, badge: null }
   ];
 
@@ -42,24 +59,24 @@ export const Sidebar = ({ onOpenSearch }) => {
   };
 
   return (
-    <aside className="hidden md:flex flex-col justify-between w-64 h-screen bg-white border-r border-[#FED7AA] p-4 flex-shrink-0 select-none shadow-sm z-30">
+    <aside className="hidden md:flex flex-col justify-between w-64 h-screen bg-card border-r border-line p-4 flex-shrink-0 select-none shadow-soft z-30">
       {/* Brand & Search Top Section */}
       <div>
         {/* Logo */}
         <div className="flex items-center gap-3 px-2 py-3 mb-4">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#F97316] to-[#EC4899] text-white flex items-center justify-center font-black text-xl shadow-lg shadow-orange-500/25 flex-shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-brand-gradient text-white flex items-center justify-center font-black text-xl shadow-soft flex-shrink-0">
             ⚡
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="font-black text-lg tracking-tight text-[#1F2937]">
+              <span className="font-black text-lg tracking-tight text-ink">
                 Flash Chat
               </span>
-              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-orange-100 text-[#F97316]">
+              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-cream text-primary border border-line">
                 PRO
               </span>
             </div>
-            <p className="text-[11px] text-[#6B7280]">Messaging & Social Super-App</p>
+            <p className="text-[11px] text-muted">Messaging & Social Super-App</p>
           </div>
         </div>
 
@@ -67,13 +84,13 @@ export const Sidebar = ({ onOpenSearch }) => {
         <button
           type="button"
           onClick={onOpenSearch}
-          className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-[#FED7AA] bg-[#FFF7ED]/50 hover:bg-[#FFF7ED] text-[#6B7280] hover:text-[#1F2937] text-xs font-medium transition mb-5 cursor-pointer shadow-sm"
+          className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border border-line bg-cream/70 hover:bg-cream text-muted hover:text-ink text-xs font-medium transition mb-5 cursor-pointer shadow-soft focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <div className="flex items-center gap-2">
-            <Search className="w-4 h-4 text-[#F97316]" />
+            <Search className="w-4 h-4 text-primary" />
             <span>Search users, tags...</span>
           </div>
-          <kbd className="text-[10px] font-semibold bg-white px-1.5 py-0.5 rounded border border-[#FED7AA] text-[#6B7280]">
+          <kbd className="text-[10px] font-semibold bg-card px-1.5 py-0.5 rounded border border-line text-muted">
             ⌘K
           </kbd>
         </button>
@@ -89,8 +106,8 @@ export const Sidebar = ({ onOpenSearch }) => {
                 className={({ isActive }) =>
                   `flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm font-semibold transition ${
                     isActive
-                      ? 'bg-gradient-to-r from-[#F97316]/10 to-[#EC4899]/10 text-[#F97316] border border-[#FED7AA]'
-                      : 'text-[#6B7280] hover:text-[#1F2937] hover:bg-[#FFF7ED]/60'
+                      ? 'bg-cream text-primary border border-line shadow-soft'
+                      : 'text-muted hover:text-ink hover:bg-cream/60'
                   }`
                 }
               >
@@ -99,7 +116,7 @@ export const Sidebar = ({ onOpenSearch }) => {
                     <div className="flex items-center gap-3">
                       <Icon
                         className={`w-5 h-5 ${
-                          isActive ? 'text-[#F97316] stroke-[2.5px]' : 'text-[#6B7280]'
+                          isActive ? 'text-primary stroke-[2.5px]' : 'text-muted'
                         }`}
                       />
                       <span>{item.label}</span>
@@ -108,8 +125,8 @@ export const Sidebar = ({ onOpenSearch }) => {
                       <span
                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                           item.isAlert
-                            ? 'bg-[#F43F5E] text-white shadow-xs'
-                            : 'bg-orange-100 text-[#F97316]'
+                            ? 'bg-accent text-white shadow-soft'
+                            : 'bg-cream text-primary border border-line'
                         }`}
                       >
                         {item.badge}
@@ -124,15 +141,16 @@ export const Sidebar = ({ onOpenSearch }) => {
       </div>
 
       {/* User Card & Controls Bottom Section */}
-      <div className="pt-4 border-t border-[#FED7AA]/60 space-y-3">
+      <div className="pt-4 border-t border-line space-y-3">
         {/* Theme and quick settings */}
-        <div className="flex items-center justify-between px-2 text-xs text-[#6B7280]">
+        <div className="flex items-center justify-between px-2 text-xs text-muted">
           <span>Appearance</span>
           <button
             type="button"
             onClick={toggleTheme}
-            className="p-1.5 rounded-lg border border-[#FED7AA] hover:bg-[#FFF7ED] text-[#1F2937] transition cursor-pointer"
+            className="p-1.5 rounded-lg border border-line hover:bg-cream text-ink transition cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary"
             title="Toggle Light/Dark Theme"
+            aria-label="Toggle theme"
           >
             {theme === 'dark' ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
           </button>
@@ -141,7 +159,7 @@ export const Sidebar = ({ onOpenSearch }) => {
         {/* User Mini Profile */}
         <div
           onClick={() => navigate('/profile')}
-          className="flex items-center justify-between p-2 rounded-2xl hover:bg-[#FFF7ED] transition cursor-pointer border border-transparent hover:border-[#FED7AA]"
+          className="flex items-center justify-between p-2 rounded-2xl hover:bg-cream transition cursor-pointer border border-transparent hover:border-line"
         >
           <div className="flex items-center gap-2.5 min-w-0">
             <Avatar
@@ -152,10 +170,10 @@ export const Sidebar = ({ onOpenSearch }) => {
               showStatus
             />
             <div className="min-w-0">
-              <p className="text-xs font-bold text-[#1F2937] truncate">
+              <p className="text-xs font-bold text-ink truncate">
                 {user?.name || 'Flash User'}
               </p>
-              <p className="text-[11px] text-[#6B7280] truncate">
+              <p className="text-[11px] text-muted truncate">
                 @{user?.username || 'user'}
               </p>
             </div>
@@ -167,8 +185,9 @@ export const Sidebar = ({ onOpenSearch }) => {
               e.stopPropagation();
               handleLogout();
             }}
-            className="p-2 rounded-xl text-[#6B7280] hover:text-[#F43F5E] hover:bg-rose-50 transition"
+            className="p-2 rounded-xl text-muted hover:text-accent hover:bg-accent/10 transition focus:outline-none focus:ring-2 focus:ring-accent"
             title="Log out"
+            aria-label="Log out"
           >
             <LogOut className="w-4 h-4" />
           </button>

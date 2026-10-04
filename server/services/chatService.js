@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const User = require('../models/User');
+const Contact = require('../models/Contact');
 
 class ChatService {
   /**
@@ -236,10 +237,43 @@ class ChatService {
       .sort({ updatedAt: -1 })
       .lean();
 
-    // Map conversation with member-specific metadata (isPinned, isArchived, unreadCount, otherUser)
+    // Retrieve owner's saved contact names to map linkedUser -> saved contact name
+    const savedContacts = await Contact.find({
+      owner: userId,
+      linkedUser: { $ne: null }
+    }).select('name linkedUser').lean();
+
+    const contactMap = {};
+    for (const c of savedContacts) {
+      if (c.linkedUser) contactMap[String(c.linkedUser)] = c.name;
+    }
+
+    // Map conversation with member-specific metadata (isPinned, isArchived, unreadCount, otherUser, contactName)
     const formatted = conversations.map((conv) => {
       const myMember = conv.members.find((m) => String(m.user?._id) === String(userId));
       const otherMember = conv.members.find((m) => String(m.user?._id) !== String(userId));
+      const otherUserId = otherMember?.user?._id ? String(otherMember.user._id) : null;
+      const contactName = otherUserId && contactMap[otherUserId] ? contactMap[otherUserId] : null;
+
+      let displayName = 'Flash User';
+      if (conv.type === 'group') {
+        displayName = conv.name;
+      } else if (conv.type === 'support') {
+        displayName = 'Flash Support';
+      } else if (contactName) {
+        displayName = contactName;
+      } else if (otherMember?.user?.name) {
+        displayName = otherMember.user.name;
+      }
+
+      let displayAvatar = '';
+      if (conv.type === 'group') {
+        displayAvatar = conv.avatar;
+      } else if (conv.type === 'support') {
+        displayAvatar = conv.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=FlashSupport&backgroundColor=f97316';
+      } else {
+        displayAvatar = otherMember?.user?.avatar || '';
+      }
 
       return {
         ...conv,
@@ -248,8 +282,9 @@ class ChatService {
         isMuted: myMember?.mutedUntil && new Date(myMember.mutedUntil) > new Date(),
         unreadCount: myMember?.unreadCount || 0,
         otherUser: conv.type === 'direct' ? otherMember?.user || null : null,
-        displayName: conv.type === 'group' ? conv.name : otherMember?.user?.name || 'Flash User',
-        displayAvatar: conv.type === 'group' ? conv.avatar : otherMember?.user?.avatar || ''
+        contactName: contactName || undefined,
+        displayName,
+        displayAvatar
       };
     });
 
@@ -269,6 +304,16 @@ class ChatService {
       throw new Error('Not authorized to access messages in this conversation.');
     }
 
+    const savedContacts = await Contact.find({
+      owner: userId,
+      linkedUser: { $ne: null }
+    }).select('name linkedUser').lean();
+
+    const contactMap = {};
+    for (const c of savedContacts) {
+      if (c.linkedUser) contactMap[String(c.linkedUser)] = c.name;
+    }
+
     const query = {
       conversation: conversationId,
       deletedFor: { $ne: userId },
@@ -286,8 +331,23 @@ class ChatService {
       .populate('replyTo', '_id sender text type media')
       .lean();
 
+    // Attach saved contactName to message sender if available
+    const mapped = messages.map((m) => {
+      const senderId = m.sender?._id ? String(m.sender._id) : null;
+      if (senderId && contactMap[senderId]) {
+        return {
+          ...m,
+          sender: {
+            ...m.sender,
+            contactName: contactMap[senderId]
+          }
+        };
+      }
+      return m;
+    });
+
     // Oldest to newest for frontend display
-    const ordered = messages.reverse();
+    const ordered = mapped.reverse();
     const nextCursor = messages.length === Number(limit) ? messages[0].createdAt : null;
 
     return {
@@ -395,6 +455,116 @@ class ChatService {
 
     await message.save();
     return { messageId, isStarred };
+  }
+
+  /**
+   * Helper: Get or create Flash AI system bot user
+   */
+  async getOrCreateAiBotUser() {
+    let aiUser = await User.findOne({ username: 'flash_ai' });
+    if (!aiUser) {
+      aiUser = await User.create({
+        username: 'flash_ai',
+        name: 'Flash AI',
+        email: 'ai@flashchat.internal',
+        avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=FlashAI',
+        bio: '⚡ Intelligent AI assistant built directly into Flash Chat.',
+        isVerified: true,
+        isOnboarded: true
+      });
+    }
+    return aiUser;
+  }
+
+  /**
+   * Handle @ai mentions in conversation
+   */
+  async handleAiMention(io, conversationId, userMessage, senderId) {
+    try {
+      const conv = await Conversation.findById(conversationId);
+      if (!conv || conv.allowAi === false) {
+        return null;
+      }
+
+      const rawPrompt = userMessage.text.replace(/^@ai\s*/i, '').trim();
+      if (!rawPrompt) return null;
+
+      const aiBot = await this.getOrCreateAiBotUser();
+
+      // Emit typing indicator for AI bot
+      if (io) {
+        io.to(`conv:${conversationId}`).emit('typing:status', {
+          conversationId,
+          userId: String(aiBot._id),
+          isTyping: true
+        });
+      }
+
+      const aiService = require('./ai.service');
+
+      // Fetch recent 5 messages for conversation context
+      const recentMessages = await Message.find({
+        conversation: conversationId,
+        deletedForEveryone: false,
+        _id: { $ne: userMessage._id }
+      })
+        .sort({ createdAt: -1 })
+        .limit(5)
+        .populate('sender', 'name username')
+        .lean();
+
+      const contextSnippet = recentMessages
+        .reverse()
+        .map((m) => `${m.sender?.name || 'User'}: ${m.text || `[${m.type}]`}`)
+        .join('\n');
+
+      const aiResponseText = await aiService.generate({
+        task: 'askAi',
+        input: { question: rawPrompt, context: contextSnippet },
+        userId: senderId
+      });
+
+      // Stop typing indicator
+      if (io) {
+        io.to(`conv:${conversationId}`).emit('typing:status', {
+          conversationId,
+          userId: String(aiBot._id),
+          isTyping: false
+        });
+      }
+
+      // Create AI response message
+      const aiMessage = await Message.create({
+        conversation: conversationId,
+        chatId: conversationId,
+        sender: aiBot._id,
+        type: 'ai',
+        text: typeof aiResponseText === 'string' ? aiResponseText : JSON.stringify(aiResponseText),
+        replyTo: userMessage._id,
+        deliveredTo: [{ user: senderId, at: new Date() }],
+        readBy: []
+      });
+
+      await Conversation.findByIdAndUpdate(conversationId, {
+        lastMessage: aiMessage._id,
+        updatedAt: new Date()
+      });
+
+      const populatedAiMsg = await Message.findById(aiMessage._id)
+        .populate('sender', '_id name username avatar isVerified')
+        .populate('replyTo', '_id sender text type')
+        .lean();
+
+      if (io) {
+        io.to(`conv:${conversationId}`).emit('message:new', populatedAiMsg);
+      }
+
+      return populatedAiMsg;
+    } catch (err) {
+      const logger = require('../utils/logger');
+      logger.error({ err: err.message }, 'Failed to handle @ai mention in chat');
+      return null;
+    }
   }
 
   /**

@@ -5,6 +5,7 @@ const redisClient = require('../config/redis');
 const User = require('../models/User');
 const Conversation = require('../models/Conversation');
 const chatService = require('../services/chatService');
+const pushService = require('../services/pushService');
 const { registerCallHandlers, handleCallDisconnect } = require('./callSocket');
 const logger = require('../utils/logger');
 
@@ -14,10 +15,13 @@ const onlineUserSockets = new Map();
 // Per-user rate limiting map: userId -> [timestamp]
 const userMessageRateMap = new Map();
 
+// Malformed payload counter map: socketId -> count
+const socketViolationMap = new Map();
+
 const isRateLimited = (userId) => {
   const now = Date.now();
   const windowMs = 5000;
-  const maxMessages = 15; // Max 15 messages per 5 seconds
+  const maxMessages = 20; // Max 20 messages per 5 seconds
 
   let timestamps = userMessageRateMap.get(userId) || [];
   timestamps = timestamps.filter((t) => now - t < windowMs);
@@ -29,6 +33,16 @@ const isRateLimited = (userId) => {
   timestamps.push(now);
   userMessageRateMap.set(userId, timestamps);
   return false;
+};
+
+const recordViolation = (socket) => {
+  const count = (socketViolationMap.get(socket.id) || 0) + 1;
+  socketViolationMap.set(socket.id, count);
+  if (count >= 5) {
+    logger.warn({ socketId: socket.id }, 'Disconnecting socket due to repeated malformed payloads');
+    socket.emit('error', { message: 'Repeated malformed payloads detected. Disconnecting.' });
+    socket.disconnect(true);
+  }
 };
 
 const initSocketIO = (io) => {
@@ -85,7 +99,7 @@ const initSocketIO = (io) => {
       }
 
       const user = await User.findById(decoded.id)
-        .select('_id name username avatar isOnline lastSeen privacy')
+        .select('_id name username avatar isOnline lastSeen privacy pushSettings')
         .lean();
 
       if (!user) {
@@ -119,23 +133,19 @@ const initSocketIO = (io) => {
       userConvs.forEach((c) => {
         socket.join(`conv:${c._id}`);
       });
-    } catch (err) {
-      logger.warn({ err: err.message }, 'Error auto-joining conversation rooms');
+    } catch (e) {
+      logger.error({ err: e.message }, 'Failed to join user conversation rooms');
     }
 
-    // 3. Update presence if first active connection
-    if (onlineUserSockets.get(userId).size === 1) {
-      await User.findByIdAndUpdate(userId, { isOnline: true, lastSeen: new Date() });
-
-      // Respect lastSeen privacy when broadcasting
+    // 3. Mark user online & broadcast presence
+    try {
+      await User.findByIdAndUpdate(userId, { isOnline: true });
       const shouldBroadcast = socket.user.privacy?.lastSeen !== 'nobody';
       if (shouldBroadcast) {
-        io.emit('presence:update', {
-          userId,
-          isOnline: true,
-          lastSeen: new Date()
-        });
+        socket.broadcast.volatile.emit('presence:update', { userId, isOnline: true });
       }
+    } catch (e) {
+      logger.error({ err: e.message }, 'Failed to update online status');
     }
 
     // Send online users list to connecting client
@@ -150,6 +160,12 @@ const initSocketIO = (io) => {
     // -------------------------------------------------------------------------
     socket.on('message:send', async (payload, ack) => {
       try {
+        if (!payload || typeof payload !== 'object' || !payload.conversationId) {
+          recordViolation(socket);
+          if (ack) ack({ success: false, message: 'Invalid message payload' });
+          return;
+        }
+
         if (isRateLimited(userId)) {
           if (ack) ack({ success: false, message: 'Message rate limit exceeded. Slow down.' });
           return;
@@ -160,7 +176,7 @@ const initSocketIO = (io) => {
         // Broadcast to conversation room
         io.to(`conv:${payload.conversationId}`).emit('message:new', message);
 
-        // Check if recipient is online in direct chats and auto-mark delivered
+        // Check if recipient is online in direct chats and auto-mark delivered, else trigger Web Push
         const conv = await Conversation.findById(payload.conversationId).lean();
         if (conv) {
           conv.members.forEach((m) => {
@@ -181,12 +197,26 @@ const initSocketIO = (io) => {
                   status: 'delivered',
                   userId: memberIdStr
                 });
+              } else {
+                // Trigger Web Push notification for offline user
+                pushService.sendChatMessagePush({
+                  recipientId: memberIdStr,
+                  sender: socket.user,
+                  conversation: conv,
+                  message,
+                  isOnline: false
+                }).catch((e) => logger.debug({ err: e.message }, 'Push trigger note'));
               }
             }
           });
         }
 
         if (ack) ack({ success: true, message });
+
+        // Trigger @ai mention processing if message starts with @ai
+        if (payload.text && payload.text.trim().toLowerCase().startsWith('@ai')) {
+          chatService.handleAiMention(io, payload.conversationId, message, userId);
+        }
       } catch (err) {
         logger.error({ err: err.message }, 'Socket message:send error');
         if (ack) ack({ success: false, message: err.message });
@@ -196,8 +226,9 @@ const initSocketIO = (io) => {
     // -------------------------------------------------------------------------
     // Event: message:delivered
     // -------------------------------------------------------------------------
-    socket.on('message:delivered', async ({ conversationId, messageId }) => {
+    socket.on('message:delivered', async ({ conversationId, messageId } = {}) => {
       try {
+        if (!conversationId || !messageId) return;
         await chatService.markDelivered(userId, conversationId, messageId);
         socket.to(`conv:${conversationId}`).emit('message:status', {
           conversationId,
@@ -213,8 +244,9 @@ const initSocketIO = (io) => {
     // -------------------------------------------------------------------------
     // Event: message:read
     // -------------------------------------------------------------------------
-    socket.on('message:read', async ({ conversationId, upToMessageId }) => {
+    socket.on('message:read', async ({ conversationId, upToMessageId } = {}) => {
       try {
+        if (!conversationId) return;
         await chatService.markRead(userId, conversationId, upToMessageId);
 
         // Check user read receipt privacy
@@ -236,10 +268,11 @@ const initSocketIO = (io) => {
     });
 
     // -------------------------------------------------------------------------
-    // Event: typing:start & typing:stop
+    // Event: typing:start & typing:stop (Volatile emits)
     // -------------------------------------------------------------------------
-    socket.on('typing:start', ({ conversationId }) => {
-      socket.to(`conv:${conversationId}`).emit('typing', {
+    socket.on('typing:start', ({ conversationId } = {}) => {
+      if (!conversationId) return;
+      socket.to(`conv:${conversationId}`).volatile.emit('typing', {
         conversationId,
         userId,
         userName: socket.user.name || socket.user.username,
@@ -247,8 +280,9 @@ const initSocketIO = (io) => {
       });
     });
 
-    socket.on('typing:stop', ({ conversationId }) => {
-      socket.to(`conv:${conversationId}`).emit('typing', {
+    socket.on('typing:stop', ({ conversationId } = {}) => {
+      if (!conversationId) return;
+      socket.to(`conv:${conversationId}`).volatile.emit('typing', {
         conversationId,
         userId,
         isTyping: false
@@ -258,8 +292,13 @@ const initSocketIO = (io) => {
     // -------------------------------------------------------------------------
     // Event: message:edit
     // -------------------------------------------------------------------------
-    socket.on('message:edit', async ({ conversationId, messageId, text }, ack) => {
+    socket.on('message:edit', async ({ conversationId, messageId, text } = {}, ack) => {
       try {
+        if (!messageId || !text) {
+          recordViolation(socket);
+          if (ack) ack({ success: false, message: 'Invalid edit payload' });
+          return;
+        }
         const updated = await chatService.editMessage(userId, messageId, text);
         io.to(`conv:${conversationId}`).emit('message:updated', updated);
         if (ack) ack({ success: true, message: updated });
@@ -271,8 +310,13 @@ const initSocketIO = (io) => {
     // -------------------------------------------------------------------------
     // Event: message:delete
     // -------------------------------------------------------------------------
-    socket.on('message:delete', async ({ conversationId, messageId, scope }, ack) => {
+    socket.on('message:delete', async ({ conversationId, messageId, scope } = {}, ack) => {
       try {
+        if (!messageId) {
+          recordViolation(socket);
+          if (ack) ack({ success: false, message: 'Invalid delete payload' });
+          return;
+        }
         const result = await chatService.deleteMessage(userId, messageId, scope);
         if (scope === 'everyone') {
           io.to(`conv:${conversationId}`).emit('message:deleted', {
@@ -289,8 +333,13 @@ const initSocketIO = (io) => {
     // -------------------------------------------------------------------------
     // Event: message:react
     // -------------------------------------------------------------------------
-    socket.on('message:react', async ({ conversationId, messageId, emoji }, ack) => {
+    socket.on('message:react', async ({ conversationId, messageId, emoji } = {}, ack) => {
       try {
+        if (!messageId || !emoji) {
+          recordViolation(socket);
+          if (ack) ack({ success: false, message: 'Invalid reaction payload' });
+          return;
+        }
         const updated = await chatService.reactToMessage(userId, messageId, emoji);
         io.to(`conv:${conversationId}`).emit('message:updated', updated);
         if (ack) ack({ success: true, message: updated });
@@ -303,6 +352,7 @@ const initSocketIO = (io) => {
     // Disconnect
     // -------------------------------------------------------------------------
     socket.on('disconnect', async () => {
+      socketViolationMap.delete(socket.id);
       const userSockets = onlineUserSockets.get(userId);
       if (userSockets) {
         userSockets.delete(socket.id);

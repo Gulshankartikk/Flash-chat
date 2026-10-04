@@ -41,16 +41,16 @@ export const ToastProvider = ({ children }) => {
               exit={{ opacity: 0, scale: 0.95, y: -5 }}
               className={`pointer-events-auto flex items-center justify-between p-3.5 rounded-2xl shadow-xl border text-xs font-medium backdrop-blur-md ${
                 t.type === 'success'
-                  ? 'bg-emerald-50/95 border-emerald-300 text-emerald-800'
+                  ? 'bg-cream border-primary text-primary'
                   : t.type === 'error'
-                  ? 'bg-rose-50/95 border-rose-300 text-[#F43F5E]'
-                  : 'bg-white/95 border-[#FED7AA] text-[#1F2937]'
+                  ? 'bg-cream border-accent text-accent'
+                  : 'bg-card border-line text-ink'
               }`}
             >
               <div className="flex items-center gap-2.5">
-                {t.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />}
-                {t.type === 'error' && <AlertCircle className="w-4 h-4 text-[#F43F5E] flex-shrink-0" />}
-                {t.type === 'info' && <Info className="w-4 h-4 text-[#F97316] flex-shrink-0" />}
+                {t.type === 'success' && <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />}
+                {t.type === 'error' && <AlertCircle className="w-4 h-4 text-accent flex-shrink-0" />}
+                {t.type === 'info' && <Info className="w-4 h-4 text-primary flex-shrink-0" />}
                 <span>{t.message}</span>
               </div>
               <button

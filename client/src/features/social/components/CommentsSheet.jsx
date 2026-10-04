@@ -8,7 +8,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  MessageSquare
+  MessageSquare,
+  Sparkles
 } from 'lucide-react';
 import { useAuthStore } from '../../../store/useAuthStore';
 import { useSocialStore } from '../store/useSocialStore';
@@ -23,6 +24,7 @@ import {
   toggleLikeCommentApi,
   searchSocialApi
 } from '../api/api';
+import { suggestSocialCommentReplies, AiBadge } from '../../ai';
 
 const EMOJI_LIST = ['❤️', '🙌', '🔥', '👏', '😢', '😍', '✨', '😂'];
 
@@ -37,6 +39,11 @@ export const CommentsSheet = () => {
   const [nextCursor, setNextCursor] = useState(null);
   const [hasMore, setHasMore] = useState(false);
 
+  // AI Reply Suggestions
+  const aiEnabled = currentUser?.aiSettings?.aiEnabled ?? true;
+  const [loadingReplyFor, setLoadingReplyFor] = useState(null);
+  const [suggestedReplies, setSuggestedReplies] = useState({ commentId: null, replies: [] });
+
   // Input state
   const [text, setText] = useState('');
   const [replyingTo, setReplyingTo] = useState(null); // { id, username }
@@ -49,6 +56,27 @@ export const CommentsSheet = () => {
 
   const inputRef = useRef(null);
   const commentsEndRef = useRef(null);
+
+  const handleSuggestReply = async (c) => {
+    setLoadingReplyFor(c._id);
+    setReplyingTo({
+      id: c._id,
+      username: c.author?.username
+    });
+    try {
+      const res = await suggestSocialCommentReplies({
+        commentId: c._id,
+        commentText: c.text
+      });
+      if (Array.isArray(res)) {
+        setSuggestedReplies({ commentId: c._id, replies: res });
+      }
+    } catch (err) {
+      console.error('Failed to suggest comment replies:', err);
+    } finally {
+      setLoadingReplyFor(null);
+    }
+  };
 
   // Load top-level comments
   const loadComments = useCallback(
@@ -460,6 +488,19 @@ export const CommentsSheet = () => {
                           >
                             Reply
                           </button>
+
+                          {aiEnabled && (
+                            <button
+                              type="button"
+                              onClick={() => handleSuggestReply(comment)}
+                              disabled={loadingReplyFor === comment._id}
+                              className="flex items-center gap-1 text-[#F97316] hover:text-[#EC4899] transition cursor-pointer font-bold disabled:opacity-50"
+                            >
+                              <Sparkles className="w-3 h-3" />
+                              <span>{loadingReplyFor === comment._id ? 'Thinking...' : 'AI Reply'}</span>
+                            </button>
+                          )}
+
                           {canDelete && (
                             <button
                               type="button"
@@ -607,6 +648,38 @@ export const CommentsSheet = () => {
 
         {/* Sticky Input Footer */}
         <div className="p-3 border-t border-[#FED7AA]/60 bg-[#FFF7ED]/30 space-y-2">
+          {/* AI Reply Suggestion Chips */}
+          {suggestedReplies.replies.length > 0 && (
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-[#6B7280]">AI Suggested Replies:</span>
+                <button
+                  type="button"
+                  onClick={() => setSuggestedReplies({ commentId: null, replies: [] })}
+                  className="text-[10px] text-[#6B7280] hover:text-rose-500 font-semibold cursor-pointer"
+                >
+                  Dismiss
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {suggestedReplies.replies.map((replyText, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setText(replyText);
+                      setSuggestedReplies({ commentId: null, replies: [] });
+                      inputRef.current?.focus();
+                    }}
+                    className="px-2.5 py-1 rounded-xl bg-white border border-[#FED7AA] text-xs font-semibold text-[#1F2937] hover:bg-orange-50 hover:border-[#F97316] transition cursor-pointer shadow-xs text-left"
+                  >
+                    {replyText}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Replying-to chip */}
           {replyingTo && (
             <div className="flex items-center justify-between px-3 py-1 rounded-full bg-orange-100 text-xs text-[#1F2937]">

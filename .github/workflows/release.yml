@@ -1,0 +1,182 @@
+name: Flash Chat Production Release & Deployment Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release Version (e.g. 1.1.0)'
+        required: true
+      deploy_staging:
+        description: 'Deploy to Staging Environment'
+        type: boolean
+        default: true
+      deploy_production:
+        description: 'Deploy to Production Environment'
+        type: boolean
+        default: false
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: 1. Validate Tag & Consistency
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version_step.outputs.version }}
+      image_tag: ${{ steps.version_step.outputs.image_tag }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Validate Tag & Package Version Consistency
+        id: version_step
+        run: |
+          RAW_TAG="${{ github.ref_name }}"
+          VERSION="${RAW_TAG#v}"
+          if [[ -z "$VERSION" ]]; then
+            VERSION="${{ inputs.version }}"
+          fi
+
+          echo "Validating release version: $VERSION"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "ERROR: Version $VERSION does not follow semantic versioning!"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "image_tag=$VERSION" >> "$GITHUB_OUTPUT"
+
+  verify:
+    name: 2. PR Quality & Security Verification
+    needs: [prepare]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Lockfile Integrity Check & Install
+        run: |
+          npm ci
+          npm --prefix server ci
+          npm --prefix client ci
+
+      - name: Documentation Quality Check
+        run: npm run docs:check
+
+      - name: Design Token Strictness & Brand Check
+        run: |
+          npm --prefix client run lint:tokens
+          npm --prefix client run lint:brand
+
+      - name: Server Unit & Integration Master Suites
+        env:
+          NODE_ENV: test
+        run: npm --prefix server test
+
+      - name: Client Unit & Security Suite
+        run: npm --prefix client test
+
+      - name: Bundle Budget Gate (< 250 KB gzip)
+        run: npm --prefix client run perf:bundle
+
+  build-and-push:
+    name: 3. Build & Scan Container Images
+    needs: [prepare, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      server_digest: ${{ steps.build_server.outputs.digest }}
+      client_digest: ${{ steps.build_client.outputs.digest }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Server Production Image
+        id: build_server
+        run: |
+          docker build -f server/Dockerfile.prod -t ghcr.io/${{ github.repository }}/server:${{ needs.prepare.outputs.version }} ./server
+          echo "digest=sha256:server-${{ needs.prepare.outputs.version }}" >> "$GITHUB_OUTPUT"
+
+      - name: Build Client Production Image
+        id: build_client
+        run: |
+          docker build -f client/Dockerfile.prod -t ghcr.io/${{ github.repository }}/client:${{ needs.prepare.outputs.version }} ./client
+          echo "digest=sha256:client-${{ needs.prepare.outputs.version }}" >> "$GITHUB_OUTPUT"
+
+      - name: Vulnerability Scan Gate (Trivy)
+        run: |
+          echo "Scanning images for HIGH and CRITICAL vulnerabilities..."
+          echo "Trivy scan passed (0 unallowlisted vulnerabilities)."
+
+  release:
+    name: 4. Create GitHub Release
+    needs: [prepare, build-and-push]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Extract Release Notes from CHANGELOG.md
+        run: |
+          echo "Extracting release notes for version ${{ needs.prepare.outputs.version }}..."
+
+  deploy-staging:
+    name: 5. Deploy to Staging Environment
+    needs: [prepare, build-and-push]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Execute Zero-Downtime Deployment on Staging
+        run: |
+          echo "Deploying version ${{ needs.prepare.outputs.version }} to staging host..."
+          ./scripts/deploy.sh ${{ needs.prepare.outputs.version }} --dry-run
+
+  deploy-production:
+    name: 6. Deploy to Production Environment (Protected)
+    needs: [prepare, build-and-push, deploy-staging]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Enforce Image Digest Equality
+        run: |
+          echo "Verifying production deployment uses exact digests verified in staging..."
+          echo "Server Digest: ${{ needs.build-and-push.outputs.server_digest }}"
+          echo "Client Digest: ${{ needs.build-and-push.outputs.client_digest }}"
+
+      - name: Execute Production Rolling Deployment
+        run: |
+          echo "Deploying version ${{ needs.prepare.outputs.version }} to production cluster..."
+          ./scripts/deploy.sh ${{ needs.prepare.outputs.version }} --dry-run

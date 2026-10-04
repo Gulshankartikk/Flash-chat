@@ -22,12 +22,14 @@ import {
   Sparkles,
   Film,
   ExternalLink,
-  AlertCircle
+  AlertCircle,
+  Languages
 } from 'lucide-react';
 import { Avatar } from '../Avatar';
 import { PostViewerModal } from '../../features/social/components/PostViewerModal';
 import { useSocialStore } from '../../features/social/store/useSocialStore';
 import { fetchStoriesTray } from '../../features/social/api/api';
+import { AiBadge, AiMarkdown, translateChatMessage } from '../../features/ai';
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '🙏'];
 
@@ -42,8 +44,12 @@ export const MessageBubble = React.memo(function MessageBubble({
   onDelete,
   onReact,
   onStar,
-  onSaveToPocket
+  onSaveToPocket,
+  onAskAi
 }) {
+  const [translatedText, setTranslatedText] = useState(null);
+  const [showOriginal, setShowOriginal] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -231,6 +237,57 @@ export const MessageBubble = React.memo(function MessageBubble({
         >
           <Copy className="w-3.5 h-3.5" />
         </button>
+
+        <button
+          type="button"
+          onClick={() => onSaveToPocket && onSaveToPocket(message)}
+          className="p-1 hover:text-[#F97316] hover:bg-orange-50 rounded-lg transition"
+          title="Save to Pocket"
+        >
+          <Bookmark className="w-3.5 h-3.5" />
+        </button>
+
+        {/* Translate Action */}
+        {message.text && (
+          <button
+            type="button"
+            onClick={async () => {
+              if (translatedText) {
+                setShowOriginal(!showOriginal);
+                return;
+              }
+              try {
+                setIsTranslating(true);
+                const res = await translateChatMessage({ messageId: message._id, text: message.text, targetLang: 'English' });
+                setTranslatedText(res?.translatedText || res);
+                setShowOriginal(false);
+              } catch (e) {
+                console.error('Translation error', e);
+              } finally {
+                setIsTranslating(false);
+              }
+            }}
+            disabled={isTranslating}
+            className={`p-1 rounded-lg transition ${
+              translatedText ? 'text-[#F97316] bg-orange-50' : 'hover:text-[#F97316] hover:bg-orange-50'
+            }`}
+            title="Translate message"
+          >
+            <Languages className="w-3.5 h-3.5" />
+          </button>
+        )}
+
+        {/* Ask AI about this message */}
+        {message.text && onAskAi && (
+          <button
+            type="button"
+            onClick={() => onAskAi(message)}
+            className="p-1 hover:text-[#EC4899] hover:bg-pink-50 rounded-lg transition"
+            title="Ask Flash AI about this"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+          </button>
+        )}
 
         {isOwn && (
           <>
@@ -550,11 +607,35 @@ export const MessageBubble = React.memo(function MessageBubble({
             </div>
           )}
 
-          {/* Message Text Content */}
-          {message.text && (
-            <p className="text-sm leading-relaxed whitespace-pre-wrap select-text">
-              {message.text}
-            </p>
+          {/* Message Text / AI Markdown Content */}
+          {message.type === 'ai' ? (
+            <div className="space-y-1.5 pt-0.5">
+              <div className="flex items-center gap-1.5 pb-1 border-b border-orange-200/50">
+                <AiBadge size="xs" />
+                <span className="text-[10px] font-bold text-[#F97316]">Flash AI</span>
+              </div>
+              <AiMarkdown content={message.text} />
+            </div>
+          ) : (
+            <>
+              {message.text && (
+                <p className="text-sm leading-relaxed whitespace-pre-wrap select-text">
+                  {showOriginal || !translatedText ? message.text : translatedText}
+                </p>
+              )}
+              {translatedText && (
+                <div className="mt-1.5 pt-1 border-t border-line/50 flex items-center justify-between text-[11px] text-[#F97316]">
+                  <span className="font-medium">{showOriginal ? '(Original)' : '⚡ Translated with Flash AI'}</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowOriginal(!showOriginal)}
+                    className="underline hover:opacity-80 font-bold"
+                  >
+                    {showOriginal ? 'Show Translation' : 'Show Original'}
+                  </button>
+                </div>
+              )}
+            </>
           )}
 
           {/* Footer Metadata: Timestamp, Star, Edited, Ticks */}
@@ -571,7 +652,7 @@ export const MessageBubble = React.memo(function MessageBubble({
             {isOwn && (
               <span>
                 {isRead ? (
-                  <CheckCheck className="w-3.5 h-3.5 text-cyan-200 stroke-[2.5px]" title="Read" />
+                  <CheckCheck className="w-3.5 h-3.5 text-white stroke-[2.5px]" title="Read" />
                 ) : isDelivered ? (
                   <CheckCheck className="w-3.5 h-3.5 text-white/90" title="Delivered" />
                 ) : (

@@ -28,7 +28,14 @@ const updateProfileSchema = z.object({
     .optional(),
   isPrivateAccount: z.boolean().optional(),
   isPrivate: z.boolean().optional(),
-  theme: z.enum(['light', 'dark', 'system']).optional()
+  theme: z.enum(['light', 'dark', 'system']).optional(),
+  aiSettings: z
+    .object({
+      aiEnabled: z.boolean().optional(),
+      aiInChats: z.boolean().optional(),
+      aiUsesPocket: z.boolean().optional()
+    })
+    .optional()
 });
 
 /**

@@ -1201,6 +1201,99 @@ const pocketController = {
     } catch (err) {
       next(err);
     }
+  },
+
+  /**
+   * GET /api/pocket/saved-refs - List saved item source refIds for UI bookmark indicators
+   */
+  async getSavedRefs(req, res, next) {
+    try {
+      const { kind = 'chat_message' } = req.query;
+      const items = await PocketItem.find({
+        owner: req.user._id,
+        'source.kind': kind,
+        deletedAt: null
+      }).select('source.refId').lean();
+
+      const refIds = items.map((i) => i.source?.refId).filter(Boolean);
+      return res.status(200).json({
+        success: true,
+        refIds
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  /**
+   * DELETE /api/pocket/trash/empty - Permanently empty all items in trash
+   */
+  async emptyTrash(req, res, next) {
+    try {
+      const trashItems = await PocketItem.find({
+        owner: req.user._id,
+        deletedAt: { $ne: null }
+      });
+
+      for (const item of trashItems) {
+        if (isCloudinaryConfigured && Array.isArray(item.media)) {
+          for (const m of item.media) {
+            if (m.publicId) {
+              try {
+                const resType = item.type === 'video' ? 'video' : 'image';
+                await cloudinary.uploader.destroy(m.publicId, { resource_type: resType });
+              } catch (cloudErr) {}
+            }
+          }
+        }
+      }
+
+      await PocketItem.deleteMany({
+        owner: req.user._id,
+        deletedAt: { $ne: null }
+      });
+
+      await pocketService.recalculateStorage(req.user._id);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Trash emptied permanently.'
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  /**
+   * DELETE /api/pocket/danger/purge-all - Danger zone: purge all pocket data for user
+   */
+  async purgeAll(req, res, next) {
+    try {
+      const items = await PocketItem.find({ owner: req.user._id });
+      for (const item of items) {
+        if (isCloudinaryConfigured && Array.isArray(item.media)) {
+          for (const m of item.media) {
+            if (m.publicId) {
+              try {
+                const resType = item.type === 'video' ? 'video' : 'image';
+                await cloudinary.uploader.destroy(m.publicId, { resource_type: resType });
+              } catch (cloudErr) {}
+            }
+          }
+        }
+      }
+
+      await PocketItem.deleteMany({ owner: req.user._id });
+      await PocketFolder.deleteMany({ owner: req.user._id });
+      await PocketSettings.deleteMany({ user: req.user._id });
+
+      return res.status(200).json({
+        success: true,
+        message: 'All Pocket data permanently wiped.'
+      });
+    } catch (err) {
+      next(err);
+    }
   }
 };
 

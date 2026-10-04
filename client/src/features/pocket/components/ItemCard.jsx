@@ -115,20 +115,20 @@ export const ItemCard = ({
                 {item.type === 'note' && <FileText className="w-3 h-3" />}
                 {item.type === 'link' && <LinkIcon className="w-3 h-3" />}
                 {item.type === 'image' && <ImageIcon className="w-3 h-3 text-[#EC4899]" />}
-                {item.type === 'video' && <Play className="w-3 h-3 text-purple-600" />}
-                {item.type === 'audio' && <Music className="w-3 h-3 text-rose-500" />}
-                {item.type === 'document' && <FileCheck className="w-3 h-3 text-amber-600" />}
-                {item.type === 'snippet' && <Code2 className="w-3 h-3 text-indigo-500" />}
-                {item.type === 'message' && <MessageSquare className="w-3 h-3 text-blue-500" />}
-                {item.type === 'post' && <ImageIcon className="w-3 h-3 text-pink-500" />}
-                {item.type === 'reel' && <Play className="w-3 h-3 text-pink-500" />}
-                {item.type === 'ai_answer' && <Sparkles className="w-3 h-3 text-amber-500" />}
+                {item.type === 'video' && <Play className="w-3 h-3 text-[#EC4899]" />}
+                {item.type === 'audio' && <Music className="w-3 h-3 text-[#F43F5E]" />}
+                {item.type === 'document' && <FileCheck className="w-3 h-3 text-[#F97316]" />}
+                {item.type === 'snippet' && <Code2 className="w-3 h-3 text-[#F97316]" />}
+                {item.type === 'message' && <MessageSquare className="w-3 h-3 text-[#F97316]" />}
+                {item.type === 'post' && <ImageIcon className="w-3 h-3 text-[#EC4899]" />}
+                {item.type === 'reel' && <Play className="w-3 h-3 text-[#EC4899]" />}
+                {item.type === 'ai_answer' && <Sparkles className="w-3 h-3 text-[#F97316]" />}
                 <span className="capitalize">{item.type.replace('_', ' ')}</span>
               </div>
             )}
 
             {item.isEncrypted && (
-              <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-purple-50 text-[10px] font-bold text-purple-700 border border-purple-200">
+              <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-primary/10 text-[10px] font-bold text-primary border border-primary/20">
                 <KeyRound className="w-3 h-3" />
                 <span>E2E</span>
               </span>
@@ -362,7 +362,7 @@ export const ItemCard = ({
           <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl border border-[#FED7AA]/60 space-y-1">
             <div className="flex items-center gap-1 text-[10px] font-bold text-[#F97316]">
               <Sparkles className="w-3 h-3" />
-              <span>Gemini AI Snapshot</span>
+              <span>Flash AI Snapshot</span>
             </div>
             <p className="text-[11px] text-[#1F2937] line-clamp-3">{item.content}</p>
           </div>
@@ -382,9 +382,27 @@ export const ItemCard = ({
           )}
 
           {item.tags?.length > 0 && (
-            <span className="text-[#F97316] font-medium ml-1 truncate">
-              #{item.tags[0]}
-            </span>
+            <div className="flex items-center gap-1 ml-1 truncate">
+              {item.tags.slice(0, 2).map((t) => {
+                const isAiTag = item.aiTags?.includes(t);
+                return (
+                  <span
+                    key={t}
+                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold ${
+                      isAiTag
+                        ? 'bg-amber-50 text-amber-600 border border-amber-200'
+                        : 'text-[#F97316]'
+                    }`}
+                  >
+                    {isAiTag && <Sparkles className="w-2.5 h-2.5 text-amber-500 fill-amber-400" />}
+                    <span>#{t}</span>
+                  </span>
+                );
+              })}
+              {item.tags.length > 2 && (
+                <span className="text-[9px] text-[#6B7280]">+{item.tags.length - 2}</span>
+              )}
+            </div>
           )}
         </div>
 

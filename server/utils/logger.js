@@ -9,12 +9,23 @@ const logger = pino({
     paths: [
       'req.headers.authorization',
       'req.headers.cookie',
+      'req.headers["x-pocket-token"]',
       'password',
       'passwordHash',
+      'pocketPinHash',
+      'pin',
+      'otp',
+      'passphrase',
       'refreshToken',
+      'accessToken',
       'clientSecret',
+      'GEMINI_API_KEY',
+      'CLOUDINARY_API_SECRET',
+      'VAPID_PRIVATE_KEY',
       'GMAIL_APP_PASSWORD',
-      'JWT_SECRET'
+      'JWT_SECRET',
+      'JWT_ACCESS_SECRET',
+      'JWT_REFRESH_SECRET'
     ],
     censor: '***REDACTED***'
   },

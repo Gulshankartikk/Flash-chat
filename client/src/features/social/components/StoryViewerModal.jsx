@@ -245,7 +245,7 @@ export const StoryViewerModal = () => {
               <div className="flex items-center gap-1 text-[10px] text-white/80">
                 <RelativeTime date={currentStory.createdAt} className="text-white/80" />
                 {currentStory.closeFriendsOnly && (
-                  <span className="px-1.5 py-0.2 rounded-full bg-emerald-500 text-white font-bold text-[9px]">
+                  <span className="px-1.5 py-0.2 rounded-full bg-secondary text-white font-bold text-[9px]">
                     Close Friends
                   </span>
                 )}
@@ -431,7 +431,7 @@ export const StoryViewerModal = () => {
               className="absolute top-16 inset-x-4 z-50 p-3 rounded-2xl bg-white text-[#1F2937] shadow-xl flex items-center justify-between gap-3 border border-[#FED7AA]"
             >
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                <div className="w-7 h-7 rounded-full bg-cream text-primary border border-line flex items-center justify-center flex-shrink-0">
                   <MessageCircle className="w-4 h-4" />
                 </div>
                 <span className="text-xs font-bold">{replyToast.message}</span>

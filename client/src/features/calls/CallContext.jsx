@@ -563,3 +563,5 @@ export const useCall = () => {
   }
   return context;
 };
+
+export const useCallContext = useCall;

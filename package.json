@@ -1,6 +1,6 @@
 {
   "name": "flash-chat",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Flash Chat - Realtime Messaging, Voice/Video & AI Assistant",
   "scripts": {
@@ -9,7 +9,10 @@
     "build": "npm --prefix client run build",
     "start": "npm --prefix server start",
     "lint": "npm --prefix server run lint && npm --prefix client run lint",
-    "format": "npm --prefix server run format"
+    "format": "npm --prefix server run format",
+    "docs:check": "node scripts/docsCheck.js",
+    "deps:check": "node scripts/depsCheck.js",
+    "test:self": "node scripts/liveProjectSelfTest.js"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

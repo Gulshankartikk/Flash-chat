@@ -1,0 +1,45 @@
+# Flash Chat - Staging Environment Compose Override
+# Usage: docker compose -f docker-compose.prod.yml -f docker-compose.staging.yml up -d
+version: '3.8'
+
+services:
+  server:
+    environment:
+      - NODE_ENV=production
+      - STAGING_SAFE_MODE=1
+      - STAGING_BANNER=1
+      - PORT=5001
+      - CLIENT_URL=https://staging.flash.localhost
+      - MONGO_URI=mongodb://mongo:27017/flashchat_staging
+      - REDIS_URL=redis://redis:6379/1
+      - SMTP_HOST=mailpit
+      - SMTP_PORT=1025
+      - SMTP_SECURE=false
+    networks:
+      - staging_net
+
+  client:
+    environment:
+      - VITE_STAGING_BANNER=1
+      - VITE_APP_ENV=staging
+    networks:
+      - staging_net
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: flashchat-staging-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025" # Web UI for test OTPs & emails
+    networks:
+      - staging_net
+
+networks:
+  staging_net:
+    name: flashchat_staging_network
+
+volumes:
+  mongo_staging_data:
+    name: flashchat_mongo_staging_data
+  redis_staging_data:
+    name: flashchat_redis_staging_data

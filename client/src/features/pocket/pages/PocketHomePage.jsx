@@ -30,6 +30,8 @@ import {
   bulkActionPocketItems
 } from '../api/pocketApi';
 import { usePocketStore } from '../store/usePocketStore';
+import { useAuthStore } from '../../../store/useAuthStore';
+import { autoTagPocketItem } from '../../ai';
 import { QuickAddBar } from '../components/QuickAddBar';
 import { ItemCard } from '../components/ItemCard';
 import { PinPadModal } from '../components/PinPadModal';
@@ -142,16 +144,53 @@ export const PocketHomePage = () => {
     loadMetadata();
   }, [loadMetadata]);
 
-  // Keyboard shortcut '/' to focus search
+  // Saved item highlighting from deep-link query param ?saved=<itemId>
+  const savedItemId = searchParams.get('saved');
+  const [highlightedId, setHighlightedId] = useState(savedItemId || null);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === '/' && document.activeElement !== searchInputRef.current && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-        e.preventDefault();
-        searchInputRef.current?.focus();
+    if (savedItemId) {
+      setHighlightedId(savedItemId);
+      const timer = setTimeout(() => setHighlightedId(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [savedItemId]);
+
+  // Online / Offline listener & auto-sync
+  useEffect(() => {
+    const handleOnline = async () => {
+      setIsOffline(false);
+      const { syncOfflineNotes } = await import('../utils/offlineQueue');
+      const synced = await syncOfflineNotes((tempId, newItem) => {
+        setItems((prev) => [newItem, ...prev.filter((i) => i._id !== tempId)]);
+      });
+      if (synced.length > 0) {
+        loadMetadata();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [loadMetadata]);
+
+  // Global Paste URL Listener
+  useEffect(() => {
+    const handlePaste = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      const pasted = e.clipboardData?.getData('text');
+      if (pasted && (pasted.startsWith('http://') || pasted.startsWith('https://'))) {
+        // Handled or focused
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
   }, []);
 
   // Item created callback
@@ -253,6 +292,42 @@ export const PocketHomePage = () => {
     }
   };
 
+  const { user } = useAuthStore();
+  const aiEnabled = user?.aiSettings?.aiEnabled ?? true;
+
+  const [isBulkAutoTagging, setIsBulkAutoTagging] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState('');
+
+  const handleBulkAutoTag = async () => {
+    const targets = selectedIds.slice(0, 10);
+    if (targets.length === 0) return;
+
+    setIsBulkAutoTagging(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < targets.length; i++) {
+      const id = targets[i];
+      setBulkProgress(`${i + 1}/${targets.length}`);
+      try {
+        const res = await autoTagPocketItem({ itemId: id });
+        if (res?.tags) {
+          setItems((prev) =>
+            prev.map((it) => (it._id === id ? { ...it, tags: res.tags, aiTags: res.aiTags } : it))
+          );
+          successCount++;
+        }
+      } catch (err) {
+        failCount++;
+      }
+    }
+
+    setIsBulkAutoTagging(false);
+    setBulkProgress('');
+    clearSelection();
+    alert(`Auto-tagging complete: ${successCount} items tagged${failCount > 0 ? `, ${failCount} skipped/failed` : ''}.`);
+  };
+
   // Format storage string
   const formatMB = (bytes = 0) => {
     const mb = bytes / (1024 * 1024);
@@ -266,6 +341,16 @@ export const PocketHomePage = () => {
 
   return (
     <div className="min-h-screen bg-[#FFF7ED] p-3 sm:p-6 max-w-5xl mx-auto space-y-5">
+      {/* Offline Alert Banner */}
+      {isOffline && (
+        <div className="p-3 bg-amber-50 border border-amber-300 rounded-2xl flex items-center justify-between text-xs text-amber-900 font-semibold shadow-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+            <span>You are currently offline. Notes will be saved locally and synced automatically when reconnected.</span>
+          </div>
+        </div>
+      )}
+
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-3xl border border-[#FED7AA] shadow-sm">
         <div className="flex items-center justify-between sm:justify-start gap-3">
@@ -290,8 +375,8 @@ export const PocketHomePage = () => {
             }}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs font-bold transition-all border ${
               isUnlocked
-                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                : 'bg-orange-50 text-[#F97316] border-[#FED7AA]'
+                ? 'bg-cream text-primary border-primary'
+                : 'bg-card text-muted border-line'
             }`}
           >
             {isUnlocked ? <Unlock className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
@@ -328,23 +413,35 @@ export const PocketHomePage = () => {
         )}
       </div>
 
-      {/* Search Input Bar */}
-      <div className="relative">
-        <Search className="w-4 h-4 text-[#6B7280] absolute left-4 top-1/2 -translate-y-1/2" />
-        <input
-          ref={searchInputRef}
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search notes, links, tags, text... (Press '/' to focus)"
-          className="w-full pl-11 pr-10 py-3 rounded-2xl bg-white border border-[#FED7AA] text-xs text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#F97316]/40 placeholder:text-[#6B7280] shadow-sm"
-        />
-        {searchQuery && (
+      {/* Search Input Bar & Ask AI Entry */}
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-[#6B7280] absolute left-4 top-1/2 -translate-y-1/2" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search notes, links, tags, text... (Press '/' to focus)"
+            className="w-full pl-11 pr-10 py-3 rounded-2xl bg-white border border-[#FED7AA] text-xs text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#F97316]/40 placeholder:text-[#6B7280] shadow-sm"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6B7280] hover:text-[#1F2937] cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {aiEnabled && (
           <button
-            onClick={() => setSearchQuery('')}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6B7280] hover:text-[#1F2937]"
+            onClick={() => navigate('/pocket/search?mode=ask')}
+            className="flex items-center gap-1.5 px-4 py-3 rounded-2xl bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-xs font-bold shadow-md shadow-orange-500/20 hover:opacity-95 transition-all flex-shrink-0 cursor-pointer"
           >
-            <X className="w-4 h-4" />
+            <Sparkles className="w-4 h-4" />
+            <span className="hidden sm:inline">Ask my Pocket</span>
           </button>
         )}
       </div>
@@ -547,15 +644,26 @@ export const PocketHomePage = () => {
 
             <button
               onClick={handleBulkFavorite}
-              className="flex items-center gap-1 text-xs font-semibold hover:text-amber-400 transition-colors"
+              className="flex items-center gap-1 text-xs font-semibold hover:text-amber-400 transition-colors cursor-pointer"
             >
               <Star className="w-3.5 h-3.5" />
               <span>Favorite</span>
             </button>
 
+            {aiEnabled && (
+              <button
+                onClick={handleBulkAutoTag}
+                disabled={isBulkAutoTagging}
+                className="flex items-center gap-1 text-xs font-semibold text-[#F97316] hover:text-[#EC4899] transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{isBulkAutoTagging ? `Tagging ${bulkProgress}...` : 'Auto-tag'}</span>
+              </button>
+            )}
+
             <button
               onClick={handleBulkDelete}
-              className="flex items-center gap-1 text-xs font-semibold text-rose-400 hover:text-rose-300 transition-colors"
+              className="flex items-center gap-1 text-xs font-semibold text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Delete</span>

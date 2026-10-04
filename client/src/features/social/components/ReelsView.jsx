@@ -23,6 +23,7 @@ import {
 } from '../api/api';
 import api from '../../../services/api';
 import { SocialAvatar } from './SocialAvatar';
+import { useSaveToPocket } from '../../pocket';
 
 export const ReelsView = () => {
   const navigate = useNavigate();
@@ -179,9 +180,8 @@ const ReelCard = ({
   const [likesCount, setLikesCount] = useState(reel.likesCount || 0);
   const [isSaved, setIsSaved] = useState(Boolean(reel.isSaved));
   const [isFollowing, setIsFollowing] = useState(Boolean(reel.author?.isFollowing));
-  const [isCaptionExpanded, setIsCaptionExpanded] = useState(false);
-
   const isMe = String(reel.author?._id) === String(currentUserId);
+  const { saveToPocket } = useSaveToPocket();
 
   // Play / pause active reel
   useEffect(() => {
@@ -361,7 +361,7 @@ const ReelCard = ({
           <span className="text-[10px] font-semibold drop-shadow-md">Share</span>
         </button>
 
-        {/* Save */}
+        {/* Save to Social Bookmarks */}
         <button
           type="button"
           onClick={(e) => {
@@ -377,6 +377,23 @@ const ReelCard = ({
               }`}
             />
           </div>
+        </button>
+
+        {/* Save to Pocket Vault */}
+        <button
+          type="button"
+          title="Save Reel to Pocket"
+          onClick={async (e) => {
+            e.stopPropagation();
+            await saveToPocket({
+              from: 'social_reel',
+              refId: reel._id,
+              text: reel.caption || ''
+            });
+          }}
+          className="p-2 rounded-full bg-black/40 backdrop-blur-md hover:bg-orange-500/80 transition cursor-pointer text-white"
+        >
+          <Bookmark className="w-4 h-4 fill-orange-400 text-orange-400" />
         </button>
 
         {/* More / Copy link */}

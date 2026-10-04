@@ -119,10 +119,10 @@ export const CallScreen = () => {
           <div
             className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border backdrop-blur-md ${
               connectionQuality === 'reconnecting'
-                ? 'bg-rose-500/20 border-rose-500/40 text-rose-300 animate-pulse'
+                ? 'bg-accent/20 border-accent/40 text-accent animate-pulse'
                 : connectionQuality === 'poor'
-                ? 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                ? 'bg-primary/20 border-primary/40 text-primary'
+                : 'bg-primary/20 border-primary/40 text-primary'
             }`}
           >
             <Wifi className="w-3.5 h-3.5" />

@@ -21,6 +21,8 @@ import { EmptyState } from '../EmptyState';
 import { useChatStore } from '../../store/useChatStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useCall } from '../../features/calls';
+import { SaveToPocketSheet } from '../../features/pocket';
+import { AiSheet, AiConsentDialog, fetchChatSummary, useAiTask } from '../../features/ai';
 
 export const ChatWindow = ({ conversationId, onBack }) => {
   const navigate = useNavigate();
@@ -51,6 +53,50 @@ export const ChatWindow = ({ conversationId, onBack }) => {
   const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [inChatSearch, setInChatSearch] = useState('');
   const [showInChatSearch, setShowInChatSearch] = useState(false);
+  const [saveTarget, setSaveTarget] = useState(null);
+
+  // AI Sheet & Summarize states
+  const [showAiSheet, setShowAiSheet] = useState(false);
+  const [aiSheetTitle, setAiSheetTitle] = useState('Flash AI Summary');
+  const [aiSheetContent, setAiSheetContent] = useState('');
+  const [aiSheetLoading, setAiSheetLoading] = useState(false);
+  const [aiSheetError, setAiSheetError] = useState(null);
+  const [showSummarizeMenu, setShowSummarizeMenu] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
+  const { executeTask } = useAiTask();
+
+  const handleSummarize = async (range) => {
+    setShowSummarizeMenu(false);
+    const consent = localStorage.getItem('flash_ai_consent');
+    if (!consent) {
+      setShowConsent(true);
+      return;
+    }
+
+    setShowAiSheet(true);
+    setAiSheetTitle(`Chat Summary (${range})`);
+    setAiSheetLoading(true);
+    setAiSheetError(null);
+    setAiSheetContent('');
+
+    try {
+      const summary = await fetchChatSummary({
+        conversationId: activeConversation._id,
+        range
+      });
+      setAiSheetContent(summary);
+    } catch (err) {
+      setAiSheetError(err);
+    } finally {
+      setAiSheetLoading(false);
+    }
+  };
+
+  const handleAskAiAboutMessage = (msg) => {
+    setShowAiSheet(true);
+    setAiSheetTitle('Ask Flash AI');
+    setAiSheetContent(`### Message Context:\n> "${msg.text}"\n\n*Tap "Use this" or continue in the dedicated AI tab to discuss this topic in detail.*`);
+  };
 
   const scrollRef = useRef(null);
   const isAutoScrollLocked = useRef(false);
@@ -166,10 +212,10 @@ export const ChatWindow = ({ conversationId, onBack }) => {
             <p
               className={`text-[11px] truncate font-medium ${
                 isTyping
-                  ? 'text-[#F97316] animate-pulse font-bold'
+                  ? 'text-primary animate-pulse font-bold'
                   : otherUser?.isOnline
-                  ? 'text-emerald-600'
-                  : 'text-[#6B7280]'
+                  ? 'text-primary font-medium'
+                  : 'text-muted'
               }`}
             >
               {getSubheader()}
@@ -188,6 +234,49 @@ export const ChatWindow = ({ conversationId, onBack }) => {
           >
             <Search className="w-4 h-4" />
           </button>
+
+          {/* AI Summarize Chat Dropdown Toggle */}
+          {activeConversation.allowAi !== false && user?.aiSettings?.aiInChats !== false && (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowSummarizeMenu(!showSummarizeMenu)}
+                className="p-2 rounded-xl text-[#F97316] hover:bg-orange-50 transition cursor-pointer"
+                title="Summarize conversation with AI"
+              >
+                <Sparkles className="w-4 h-4" />
+              </button>
+
+              {showSummarizeMenu && (
+                <div className="absolute right-0 top-11 z-30 p-2 rounded-2xl bg-white border border-[#FED7AA] shadow-xl text-xs space-y-1 w-44 animate-scaleUp">
+                  <p className="px-2 py-1 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
+                    Summarize with AI
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleSummarize('unread')}
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[#FFF7ED] text-[#1F2937] transition font-medium cursor-pointer"
+                  >
+                    Unread Messages
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSummarize('today')}
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[#FFF7ED] text-[#1F2937] transition font-medium cursor-pointer"
+                  >
+                    Today's Discussion
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSummarize('last50')}
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[#FFF7ED] text-[#1F2937] transition font-medium cursor-pointer"
+                  >
+                    Last 50 Messages
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Voice & Video Call Buttons */}
           <button
@@ -342,14 +431,60 @@ export const ChatWindow = ({ conversationId, onBack }) => {
                   const targetId = window.prompt('Enter target conversation ID to forward:');
                   if (targetId) forwardMessage(m._id, [targetId]);
                 }}
+                onSaveToPocket={(m) => {
+                  setSaveTarget({
+                    from: 'chat_message',
+                    refId: m._id,
+                    text: m.text || '',
+                    title: m.text ? `${m.text.slice(0, 30)}...` : 'Saved Message'
+                  });
+                }}
+                onAskAi={handleAskAiAboutMessage}
               />
             </React.Fragment>
           );
         })}
       </div>
 
+      {/* Save to Pocket Modal Sheet */}
+      <SaveToPocketSheet
+        isOpen={!!saveTarget}
+        onClose={() => setSaveTarget(null)}
+        target={saveTarget}
+      />
+
+      {/* AI Assistant Sheet for Summaries & Message Explanations */}
+      <AiSheet
+        isOpen={showAiSheet}
+        onClose={() => setShowAiSheet(false)}
+        title={aiSheetTitle}
+        content={aiSheetContent}
+        loading={aiSheetLoading}
+        error={aiSheetError}
+        onRegenerate={() => handleSummarize('last50')}
+        onUse={() => {
+          if (aiSheetContent && typeof aiSheetContent === 'string') {
+            sendMessage({
+              text: aiSheetContent,
+              type: 'text'
+            });
+            setShowAiSheet(false);
+          }
+        }}
+        useButtonLabel="Send to Chat"
+      />
+
+      {/* AI Privacy Consent Dialog */}
+      <AiConsentDialog
+        isOpen={showConsent}
+        onClose={() => setShowConsent(false)}
+        onAccept={() => handleSummarize('last50')}
+      />
+
       {/* Bottom Message Input Bar */}
       <MessageInput
+        conversationId={activeConversation._id}
+        allowAi={activeConversation.allowAi !== false && user?.aiSettings?.aiInChats !== false}
         onSend={(payload) => sendMessage(payload)}
         onTypingStart={startTyping}
         onTypingStop={stopTyping}

@@ -12,9 +12,14 @@ import {
   X,
   StopCircle,
   Sparkles,
-  Phone
+  Phone,
+  RefreshCw,
+  Wand2,
+  Undo
 } from 'lucide-react';
 import api from '../../services/api';
+import { fetchSmartReplies, rewriteChatMessage, AiBadge, AiThinking } from '../../features/ai';
+import { FlashAiLogo } from '../common/FlashAiLogo';
 
 const EMOJI_LIST = [
   '😀', '😂', '😍', '🔥', '👍', '🙏', '🎉', '❤️',
@@ -23,6 +28,8 @@ const EMOJI_LIST = [
 ];
 
 export const MessageInput = ({
+  conversationId,
+  allowAi = true,
   onSend,
   onTypingStart,
   onTypingStop,
@@ -35,6 +42,44 @@ export const MessageInput = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+
+  // AI states
+  const [smartReplies, setSmartReplies] = useState([]);
+  const [showSmartReplies, setShowSmartReplies] = useState(true);
+  const [isFetchingReplies, setIsFetchingReplies] = useState(false);
+  const [showRewriteMenu, setShowRewriteMenu] = useState(false);
+  const [isRewriting, setIsRewriting] = useState(false);
+  const [undoText, setUndoText] = useState(null);
+  const [showAiAutocomplete, setShowAiAutocomplete] = useState(false);
+
+  // Load smart replies when conversation opens
+  useEffect(() => {
+    let mounted = true;
+    if (!conversationId || !allowAi) {
+      setSmartReplies([]);
+      return;
+    }
+
+    const loadReplies = async () => {
+      try {
+        setIsFetchingReplies(true);
+        const replies = await fetchSmartReplies({ conversationId, lastN: 8 });
+        if (mounted && Array.isArray(replies) && replies.length > 0) {
+          setSmartReplies(replies);
+          setShowSmartReplies(true);
+        }
+      } catch (_) {
+      } finally {
+        if (mounted) setIsFetchingReplies(false);
+      }
+    };
+
+    const timer = setTimeout(loadReplies, 600);
+    return () => {
+      mounted = false;
+      clearTimeout(timer);
+    };
+  }, [conversationId, allowAi]);
 
   const fileInputRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -59,7 +104,14 @@ export const MessageInput = ({
   }, [isRecording]);
 
   const handleTextChange = (e) => {
-    setText(e.target.value);
+    const val = e.target.value;
+    setText(val);
+
+    if (allowAi && (val.endsWith('@') || val.endsWith('@ai') || val.endsWith('@AI'))) {
+      setShowAiAutocomplete(true);
+    } else {
+      setShowAiAutocomplete(false);
+    }
 
     // Trigger typing event
     if (onTypingStart) onTypingStart();
@@ -67,6 +119,11 @@ export const MessageInput = ({
     typingTimerRef.current = setTimeout(() => {
       if (onTypingStop) onTypingStop();
     }, 1500);
+  };
+
+  const handleSelectAiMention = () => {
+    setText((prev) => prev.replace(/@ai?$/i, '@ai '));
+    setShowAiAutocomplete(false);
   };
 
   const handleSend = () => {
@@ -288,7 +345,7 @@ export const MessageInput = ({
           </label>
 
           <label className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#FFF7ED] cursor-pointer text-[#1F2937] transition">
-            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-primary/15 text-primary flex items-center justify-center shadow-xs">
               <FileText className="w-5 h-5" />
             </div>
             <span className="text-[10px] font-semibold">Document</span>
@@ -303,13 +360,104 @@ export const MessageInput = ({
           <button
             type="button"
             onClick={handleShareLocation}
-            className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#FFF7ED] text-[#1F2937] transition"
+            className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-cream text-ink transition"
           >
-            <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-cream text-primary border border-line flex items-center justify-center shadow-sm">
               <MapPin className="w-5 h-5" />
             </div>
             <span className="text-[10px] font-semibold">Location</span>
           </button>
+        </div>
+      )}
+
+      {/* Smart Reply Chips Bar */}
+      {allowAi && showSmartReplies && smartReplies.length > 0 && !text && (
+        <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-1 animate-fadeIn">
+          <div className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold text-[#F97316]">
+            <Sparkles className="w-3 h-3" />
+            <span>AI:</span>
+          </div>
+          {smartReplies.map((reply, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => setText(reply)}
+              className="shrink-0 px-3 py-1 rounded-full bg-[#FFF7ED] hover:bg-orange-100 border border-[#FED7AA] text-xs text-[#1F2937] hover:text-[#F97316] transition shadow-xs cursor-pointer font-medium"
+            >
+              {reply}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setShowSmartReplies(false)}
+            className="p-1 rounded-full text-[#6B7280] hover:text-[#1F2937]"
+            title="Dismiss suggestions"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* @ai Autocomplete Suggestion Chip */}
+      {allowAi && (text === '@' || text.toLowerCase() === '@a' || text.toLowerCase() === '@ai') && (
+        <div className="mb-2 flex items-center gap-2 animate-fadeIn">
+          <button
+            type="button"
+            onClick={() => setText('@ai ')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-xs font-bold shadow-md shadow-orange-500/20 hover:brightness-105 transition"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Ask Flash AI (@ai)</span>
+          </button>
+          <span className="text-[11px] text-[#6B7280]">Type your question after @ai</span>
+        </div>
+      )}
+
+      {/* Undo Rewrite Notification */}
+      {undoText && (
+        <div className="mb-2 flex items-center justify-between p-2 rounded-xl bg-orange-50 border border-[#FED7AA] text-xs text-[#1F2937]">
+          <span>✨ Message rewritten by Flash AI</span>
+          <button
+            type="button"
+            onClick={() => {
+              setText(undoText);
+              setUndoText(null);
+            }}
+            className="flex items-center gap-1 font-bold text-[#F97316] hover:underline"
+          >
+            <Undo className="w-3 h-3" />
+            <span>Undo</span>
+          </button>
+        </div>
+      )}
+
+      {/* Rewrite Tone Dropdown Popup */}
+      {showRewriteMenu && (
+        <div className="absolute bottom-20 right-16 z-30 p-2 rounded-2xl bg-white border border-[#FED7AA] shadow-xl text-xs space-y-1 w-36 animate-scaleUp">
+          <p className="px-2 py-1 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Rewrite tone</p>
+          {['friendly', 'formal', 'short'].map((tone) => (
+            <button
+              key={tone}
+              type="button"
+              onClick={async () => {
+                setShowRewriteMenu(false);
+                if (!text.trim()) return;
+                try {
+                  setIsRewriting(true);
+                  const res = await rewriteChatMessage({ text: text.trim(), tone });
+                  setUndoText(text);
+                  setText(res?.rewritten || res);
+                } catch (e) {
+                  console.error(e);
+                } finally {
+                  setIsRewriting(false);
+                }
+              }}
+              className="w-full text-left px-2 py-1.5 rounded-xl hover:bg-[#FFF7ED] text-[#1F2937] capitalize font-medium transition"
+            >
+              {tone}
+            </button>
+          ))}
         </div>
       )}
 
@@ -385,15 +533,45 @@ export const MessageInput = ({
 
           {/* Message Text Input */}
           <div className="flex-1 relative">
+            {showAiAutocomplete && (
+              <div className="absolute bottom-full left-0 mb-2 p-1.5 bg-card border border-line rounded-2xl shadow-xl z-30 min-w-56 animate-in fade-in slide-in-from-bottom-2">
+                <button
+                  type="button"
+                  onClick={handleSelectAiMention}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-orange-50/70 text-xs font-bold text-ink w-full text-left transition cursor-pointer"
+                >
+                  <FlashAiLogo size="sm" showText={false} />
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-primary font-bold">@ai</span>
+                      <span>Flash AI</span>
+                    </div>
+                    <p className="text-[10px] text-muted font-normal">Ask questions or generate assistance</p>
+                  </div>
+                </button>
+              </div>
+            )}
+
             <input
               type="text"
               disabled={disabled}
-              placeholder="Type a message or use @ai to ask Gemini..."
+              placeholder="Type a message or use @ai to ask Flash AI..."
               value={text}
               onChange={handleTextChange}
               onKeyDown={handleKeyDown}
-              className="w-full py-2.5 pl-4 pr-10 rounded-2xl border border-[#FED7AA] bg-[#FFF7ED]/30 text-[#1F2937] text-sm focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:bg-white transition"
+              className="w-full py-2.5 pl-4 pr-10 rounded-2xl border border-line bg-cream/40 text-ink text-sm placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card transition"
             />
+            {allowAi && text.trim().length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowRewriteMenu(!showRewriteMenu)}
+                disabled={isRewriting}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 text-primary hover:text-secondary rounded-full hover:bg-orange-100/50 transition"
+                title="Rewrite with Flash AI (Formal, Friendly, Short)"
+              >
+                <Sparkles className={`w-4 h-4 ${isRewriting ? 'animate-spin' : ''}`} />
+              </button>
+            )}
           </div>
 
           {/* Send or Voice Record Button */}

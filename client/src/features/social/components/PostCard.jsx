@@ -18,11 +18,13 @@ import { toggleLikePostApi, toggleSavePostApi, deletePostApi } from '../api/api'
 import { SocialAvatar } from './SocialAvatar';
 import { MediaCarousel } from './MediaCarousel';
 import { RelativeTime } from './RelativeTime';
+import { useSaveToPocket } from '../../pocket';
 
 export const PostCard = ({ post, onPostDeleted }) => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuthStore();
   const { openCommentsSheet, openShareSheet } = useSocialStore();
+  const { saveToPocket } = useSaveToPocket();
 
   const [isLiked, setIsLiked] = useState(Boolean(post.isLiked));
   const [likesCount, setLikesCount] = useState(post.likesCount || 0);
@@ -197,6 +199,21 @@ export const PostCard = ({ post, onPostDeleted }) => {
               >
                 <Link2 className="w-3.5 h-3.5 text-[#6B7280]" />
                 <span>Copy Link</span>
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await saveToPocket({
+                    from: 'social_post',
+                    refId: post._id,
+                    text: post.caption || ''
+                  });
+                  setShowMenu(false);
+                }}
+                className="w-full px-2.5 py-1.5 rounded-xl hover:bg-orange-50 flex items-center gap-2 text-left cursor-pointer text-[#F97316]"
+              >
+                <Bookmark className="w-3.5 h-3.5 text-[#F97316]" />
+                <span>Save to Pocket</span>
               </button>
               {isOwner ? (
                 <button

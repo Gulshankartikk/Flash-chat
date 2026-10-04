@@ -92,9 +92,21 @@ const visibleAuthorsFilter = async (viewerId) => {
   };
 };
 
+const evaluateVisibilityMatrix = ({ viewerId, targetUser, isFollowing = false, isBlocked = false }) => {
+  if (!viewerId || !targetUser) return { canView: false, reason: 'invalid_params' };
+  const targetId = String(targetUser._id || targetUser.id);
+  if (String(viewerId) === targetId) return { canView: true };
+  if (isBlocked) return { canView: false, reason: 'blocked' };
+  const isPrivate = targetUser.isPrivateAccount || targetUser.isPrivate;
+  if (!isPrivate) return { canView: true };
+  if (isFollowing) return { canView: true };
+  return { canView: false, reason: 'private_account' };
+};
+
 module.exports = {
   canViewUser,
   canViewUserContent,
+  evaluateVisibilityMatrix,
   getBlockedUserIds,
   visibleAuthorsFilter
 };

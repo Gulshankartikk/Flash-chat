@@ -20,7 +20,8 @@ const updateChatSchema = z.object({
   name: z.string().min(2).max(100).optional(),
   avatar: z.string().url().optional().or(z.literal('')),
   description: z.string().max(500).optional(),
-  disappearAfter: z.number().nullable().optional()
+  disappearAfter: z.number().nullable().optional(),
+  allowAi: z.boolean().optional()
 });
 
 const chatSettingsSchema = z.object({
