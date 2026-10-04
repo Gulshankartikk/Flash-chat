@@ -140,7 +140,7 @@ jobs:
           npm run perf:lhci
 
       - name: Upload Test Reports & QA Summary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: flash-chat-test-reports
           path: reports/final/
