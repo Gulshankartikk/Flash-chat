@@ -19,7 +19,7 @@
     "@google/generative-ai": "^0.24.1",
     "@socket.io/redis-adapter": "^8.3.0",
     "archiver": "^8.0.0",
-    "bcryptjs": "^2.4.3",
+    "bcryptjs": "^3.0.3",
     "cloudinary": "^2.11.0",
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.6",
