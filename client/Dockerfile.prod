@@ -1,5 +1,5 @@
 # Production Multi-Stage Dockerfile for Flash Chat Client (PWA)
-FROM node:18-alpine AS builder
+FROM node:26-alpine AS builder
 
 WORKDIR /app
 COPY package*.json ./
