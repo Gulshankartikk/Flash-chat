@@ -6,13 +6,13 @@ import {
   Trash2,
   Eye,
   Send,
-  Heart,
-  ChevronLeft,
-  ChevronRight,
-  MessageCircle
+  Volume2,
+  VolumeX,
+  MessageCircle,
+  Smile
 } from 'lucide-react';
 import { useSocialStore } from '../store/useSocialStore';
-import { markStoryViewedApi, replyToStoryApi, deleteStoryApi } from '../api/api';
+import { markStoryViewedApi, replyToStoryApi, reactToStoryApi, deleteStoryApi } from '../api/api';
 import { RelativeTime } from './RelativeTime';
 import { SocialAvatar } from './SocialAvatar';
 
@@ -38,12 +38,14 @@ export const StoryViewerModal = () => {
   const [isSendingReply, setIsSendingReply] = useState(false);
   const [replyToast, setReplyToast] = useState(null); // { message, conversationId }
   const [showViewersSheet, setShowViewersSheet] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [floatingEmojis, setFloatingEmojis] = useState([]); // Array of { id, emoji, x, y }
 
   const videoRef = useRef(null);
   const touchStartY = useRef(null);
   const animationFrameRef = useRef(null);
   const progressStartTimeRef = useRef(null);
-  const durationRef = useRef(5000); // 5000ms default for images
+  const durationRef = useRef(5000); // 5000ms default
 
   const currentCluster = storyTrayUsers[activeUserIndex];
   const currentStory = currentCluster?.stories?.[activeStoryIndex];
@@ -55,6 +57,19 @@ export const StoryViewerModal = () => {
     markStoryViewedApi(currentStory._id).catch(() => {});
   }, [isStoryViewerOpen, currentStory?._id, isOwnStory]);
 
+  // Pause story when tab becomes invisible/hidden
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setStoryPaused(true);
+      } else {
+        setStoryPaused(false);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [setStoryPaused]);
+
   // Handle story progress timer
   useEffect(() => {
     if (!isStoryViewerOpen || !currentStory) return;
@@ -63,8 +78,7 @@ export const StoryViewerModal = () => {
     progressStartTimeRef.current = Date.now();
 
     const isVideo = currentStory.media?.type === 'video';
-    // If video, wait for metadata to know exact duration, otherwise 5000ms
-    durationRef.current = isVideo ? 10000 : 5000;
+    durationRef.current = isVideo ? (currentStory.media?.duration ? currentStory.media.duration * 1000 : 10000) : 5000;
 
     let elapsed = 0;
     let lastTick = Date.now();
@@ -98,14 +112,14 @@ export const StoryViewerModal = () => {
     };
   }, [isStoryViewerOpen, currentStory?._id, activeStoryIndex, activeUserIndex, isStoryPaused, showViewersSheet, nextStory]);
 
-  // Video loadedmetadata listener to set accurate duration
+  // Video loadedmetadata listener
   const handleVideoLoadedMetadata = () => {
     if (videoRef.current && videoRef.current.duration) {
       durationRef.current = videoRef.current.duration * 1000;
     }
   };
 
-  // Keyboard navigation & gestures
+  // Keyboard navigation
   useEffect(() => {
     if (!isStoryViewerOpen) return;
     const handleKeyDown = (e) => {
@@ -115,6 +129,9 @@ export const StoryViewerModal = () => {
       if (e.key === ' ') {
         e.preventDefault();
         setStoryPaused(!isStoryPaused);
+      }
+      if (e.key.toLowerCase() === 'm') {
+        setIsMuted((prev) => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -127,8 +144,7 @@ export const StoryViewerModal = () => {
 
   // Tap handler (left 30% -> prev, right 70% -> next)
   const handleContentClick = (e) => {
-    // If clicking on interactive elements, don't advance
-    if (e.target.closest('button') || e.target.closest('input')) return;
+    if (e.target.closest('button') || e.target.closest('input') || e.target.closest('textarea')) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
@@ -150,10 +166,25 @@ export const StoryViewerModal = () => {
     if (!touchStartY.current) return;
     const deltaY = e.changedTouches[0].clientY - touchStartY.current;
     if (deltaY > 80) {
-      // Swiped down
       closeStoryViewer();
     }
     touchStartY.current = null;
+  };
+
+  // Emoji reaction handler
+  const handleEmojiReaction = async (emoji) => {
+    // Trigger floating burst
+    const id = Date.now() + Math.random();
+    setFloatingEmojis((prev) => [...prev, { id, emoji }]);
+    setTimeout(() => {
+      setFloatingEmojis((prev) => prev.filter((item) => item.id !== id));
+    }, 1500);
+
+    try {
+      await reactToStoryApi(currentStory._id, emoji);
+    } catch (err) {
+      console.error('Failed to react to story:', err);
+    }
   };
 
   // Send reply handler
@@ -184,7 +215,6 @@ export const StoryViewerModal = () => {
     if (!window.confirm('Delete this story?')) return;
     try {
       await deleteStoryApi(currentStory._id);
-      // Remove story from local tray state
       const updatedTray = storyTrayUsers.map((cluster) => {
         if (!cluster.isMe) return cluster;
         return {
@@ -204,11 +234,13 @@ export const StoryViewerModal = () => {
     }
   };
 
+  const isTextStory = currentStory.media?.type === 'text' || (!currentStory.media?.url && currentStory.text);
+
   return (
     <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center select-none">
       {/* Background blur desktop wrapper */}
       <div className="relative w-full h-full max-w-md sm:h-[94vh] sm:rounded-3xl overflow-hidden bg-neutral-900 flex flex-col shadow-2xl">
-        {/* Top Progress Bars (1 segment per story of current user) */}
+        {/* Top Progress Bars */}
         <div className="absolute top-3 left-3 right-3 z-30 flex items-center gap-1.5">
           {currentCluster.stories.map((st, idx) => {
             let fillPct = 0;
@@ -254,6 +286,17 @@ export const StoryViewerModal = () => {
           </div>
 
           <div className="flex items-center gap-1">
+            {currentStory.media?.type === 'video' && (
+              <button
+                type="button"
+                onClick={() => setIsMuted(!isMuted)}
+                className="p-2 rounded-full hover:bg-white/20 transition cursor-pointer"
+                title={isMuted ? 'Unmute' : 'Mute'}
+              >
+                {isMuted ? <VolumeX className="w-4 h-4 text-white" /> : <Volume2 className="w-4 h-4 text-white" />}
+              </button>
+            )}
+
             {isOwnStory && (
               <button
                 type="button"
@@ -264,6 +307,7 @@ export const StoryViewerModal = () => {
                 <Trash2 className="w-4 h-4 text-white" />
               </button>
             )}
+
             <button
               type="button"
               onClick={closeStoryViewer}
@@ -275,7 +319,7 @@ export const StoryViewerModal = () => {
           </div>
         </div>
 
-        {/* Story Media Viewer Canvas */}
+        {/* Story Media / Text Viewer Canvas */}
         <div
           onClick={handleContentClick}
           onMouseDown={() => setStoryPaused(true)}
@@ -284,13 +328,35 @@ export const StoryViewerModal = () => {
           onTouchEnd={handleTouchEnd}
           className="relative flex-1 w-full bg-black flex items-center justify-center overflow-hidden cursor-pointer"
         >
-          {currentStory.media?.type === 'video' ? (
+          {isTextStory ? (
+            <div
+              style={{ backgroundColor: currentStory.backgroundColor || '#10B981' }}
+              className="w-full h-full flex items-center justify-center p-8 text-white transition-colors"
+            >
+              <p
+                style={{
+                  fontFamily:
+                    currentStory.fontStyle === 'serif'
+                      ? 'Georgia, serif'
+                      : currentStory.fontStyle === 'mono'
+                      ? 'monospace'
+                      : currentStory.fontStyle === 'cursive'
+                      ? 'cursive'
+                      : 'sans-serif',
+                  textAlign: currentStory.textAlign || 'center'
+                }}
+                className="text-xl sm:text-2xl font-bold leading-relaxed break-words max-w-full drop-shadow-md"
+              >
+                {currentStory.text}
+              </p>
+            </div>
+          ) : currentStory.media?.type === 'video' ? (
             <video
               ref={videoRef}
               src={currentStory.media?.url}
               playsInline
               autoPlay
-              muted={false}
+              muted={isMuted}
               onLoadedMetadata={handleVideoLoadedMetadata}
               className="w-full h-full object-cover"
             />
@@ -302,15 +368,31 @@ export const StoryViewerModal = () => {
             />
           )}
 
-          {/* Optional Overlay Text */}
-          {currentStory.text && (
+          {/* Optional Overlay Text on Photo/Video */}
+          {!isTextStory && currentStory.text && (
             <div className="absolute inset-x-4 bottom-24 p-3 rounded-2xl bg-black/50 backdrop-blur-md text-white text-center text-sm font-medium">
               {currentStory.text}
             </div>
           )}
+
+          {/* Floating Emoji Bursts */}
+          <AnimatePresence>
+            {floatingEmojis.map((item) => (
+              <motion.div
+                key={item.id}
+                initial={{ opacity: 1, scale: 0.5, y: 100 }}
+                animate={{ opacity: 0, scale: 2, y: -200 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 1.2, ease: 'easeOut' }}
+                className="absolute text-5xl pointer-events-none drop-shadow-lg"
+              >
+                {item.emoji}
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
 
-        {/* Bottom Bar: Viewers for own story OR Reply bar for others */}
+        {/* Bottom Bar */}
         <div className="relative z-30 p-3 bg-gradient-to-t from-black via-black/80 to-transparent">
           {isOwnStory ? (
             <div className="flex items-center justify-between text-white">
@@ -321,17 +403,22 @@ export const StoryViewerModal = () => {
               >
                 <Eye className="w-3.5 h-3.5" />
                 <span>{currentStory.viewers?.length || 0} Viewers</span>
+                {currentStory.reactions?.length > 0 && (
+                  <span className="ml-1 text-[11px] text-amber-400">
+                    • {currentStory.reactions.length} Reactions
+                  </span>
+                )}
               </button>
             </div>
           ) : (
             <div className="space-y-2">
-              {/* Quick Emojis */}
+              {/* Quick Emojis (Reactions) */}
               <div className="flex items-center justify-around py-1">
                 {QUICK_EMOJIS.map((emoji) => (
                   <button
                     key={emoji}
                     type="button"
-                    onClick={() => handleSendReply(emoji)}
+                    onClick={() => handleEmojiReaction(emoji)}
                     className="text-xl hover:scale-125 active:scale-95 transition-transform cursor-pointer"
                   >
                     {emoji}
@@ -351,7 +438,7 @@ export const StoryViewerModal = () => {
                     if (e.key === 'Enter') handleSendReply();
                   }}
                   placeholder={`Reply to ${currentCluster.user?.username || 'user'}...`}
-                  className="flex-1 px-4 py-2 rounded-full bg-white/20 backdrop-blur-md text-white placeholder-white/60 text-xs border border-white/20 focus:outline-hidden focus:border-white"
+                  className="flex-1 px-4 py-2 rounded-full bg-white/20 backdrop-blur-md text-white placeholder-white/60 text-xs border border-white/20 focus:outline-none focus:border-white"
                 />
                 <button
                   type="button"
@@ -396,26 +483,36 @@ export const StoryViewerModal = () => {
                 {(!currentStory.viewers || currentStory.viewers.length === 0) && (
                   <p className="text-xs text-white/50 text-center py-6">No views yet.</p>
                 )}
-                {currentStory.viewers?.map((viewer, i) => (
-                  <div key={viewer.user?._id || i} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <SocialAvatar
-                        src={viewer.user?.avatar}
-                        alt={viewer.user?.name || viewer.user?.username}
-                        size="sm"
-                      />
-                      <div className="flex flex-col">
-                        <span className="text-xs font-semibold">
-                          {viewer.user?.name || viewer.user?.username || 'User'}
-                        </span>
-                        <span className="text-[10px] text-white/60">
-                          @{viewer.user?.username || 'user'}
-                        </span>
+                {currentStory.viewers?.map((viewer, i) => {
+                  const userReaction = currentStory.reactions?.find(
+                    (r) => String(r.user?._id || r.user) === String(viewer.user?._id || viewer.user)
+                  );
+                  return (
+                    <div key={viewer.user?._id || i} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <SocialAvatar
+                          src={viewer.user?.avatar}
+                          alt={viewer.user?.name || viewer.user?.username}
+                          size="sm"
+                        />
+                        <div className="flex flex-col">
+                          <span className="text-xs font-semibold">
+                            {viewer.user?.name || viewer.user?.username || 'User'}
+                          </span>
+                          <span className="text-[10px] text-white/60">
+                            @{viewer.user?.username || 'user'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {userReaction && (
+                          <span className="text-base">{userReaction.emoji}</span>
+                        )}
+                        <RelativeTime date={viewer.at} className="text-white/50 text-[10px]" />
                       </div>
                     </div>
-                    <RelativeTime date={viewer.at} className="text-white/50 text-[10px]" />
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </motion.div>
           )}

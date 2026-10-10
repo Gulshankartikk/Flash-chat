@@ -10,8 +10,10 @@ router.get('/tray', storyController.getStoriesTray);
 
 // Story CRUD & Interactions
 router.post('/', storyController.createStory);
+router.get('/:id', storyController.getStoryById);
 router.post('/:id/view', storyController.viewStory);
 router.get('/:id/viewers', storyController.getStoryViewers);
+router.post('/:id/react', storyController.reactToStory);
 router.delete('/:id', storyController.deleteStory);
 
 // Cross-linking reply to direct chat

@@ -38,6 +38,10 @@ export const CreateSocialModal = () => {
   const { isCreateModalOpen, closeCreateModal, createType: initialType } = useSocialStore();
 
   const [activeType, setActiveType] = useState('post'); // 'post' | 'reel' | 'story'
+  const [storyTab, setStoryTab] = useState('media'); // 'media' | 'text'
+  const [statusBgColor, setStatusBgColor] = useState('#10B981'); // WhatsApp green default
+  const [statusFontStyle, setStatusFontStyle] = useState('sans'); // 'sans' | 'serif' | 'mono' | 'cursive'
+  const [statusTextAlign, setStatusTextAlign] = useState('center'); // 'left' | 'center' | 'right'
   const [selectedFiles, setSelectedFiles] = useState([]); // Array of { file, previewUrl, type, width, height, duration }
   const [cropAspect, setCropAspect] = useState('square'); // 'square' (1:1) | 'portrait' (4:5) | 'original'
   const [caption, setCaption] = useState('');
@@ -299,6 +303,37 @@ export const CreateSocialModal = () => {
 
   // Final Publish Handler
   const handlePublish = async (skipModeration = false) => {
+    // Text Status direct flow
+    if (activeType === 'story' && storyTab === 'text') {
+      if (!caption.trim()) {
+        setUploadError('Please write some text for your status.');
+        return;
+      }
+      setIsUploading(true);
+      setUploadProgress(50);
+      setUploadError(null);
+      try {
+        await createStoryApi({
+          media: { type: 'text' },
+          text: caption.trim(),
+          backgroundColor: statusBgColor,
+          fontStyle: statusFontStyle,
+          textAlign: statusTextAlign,
+          closeFriendsOnly
+        });
+        setUploadProgress(100);
+        setTimeout(() => {
+          closeCreateModal();
+          window.location.reload();
+        }, 400);
+      } catch (err) {
+        setUploadError(err.response?.data?.message || 'Failed to publish status');
+      } finally {
+        setIsUploading(false);
+      }
+      return;
+    }
+
     if (selectedFiles.length === 0) {
       setUploadError('Please choose media to upload.');
       return;
@@ -493,8 +528,115 @@ export const CreateSocialModal = () => {
             </div>
           )}
 
-          {/* Media Picker / Preview Canvas */}
-          {selectedFiles.length === 0 ? (
+          {/* Story Sub-type Toggle (Media vs Text Status) */}
+          {activeType === 'story' && (
+            <div className="flex items-center gap-2 p-1 bg-[#FFF7ED] rounded-2xl border border-[#FED7AA]/60">
+              <button
+                type="button"
+                onClick={() => setStoryTab('media')}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  storyTab === 'media'
+                    ? 'bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white shadow-xs'
+                    : 'text-[#6B7280]'
+                }`}
+              >
+                Photo / Video Story
+              </button>
+              <button
+                type="button"
+                onClick={() => setStoryTab('text')}
+                className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                  storyTab === 'text'
+                    ? 'bg-gradient-to-r from-[#10B981] to-[#059669] text-white shadow-xs'
+                    : 'text-[#6B7280]'
+                }`}
+              >
+                WhatsApp Text Status
+              </button>
+            </div>
+          )}
+
+          {/* Media Picker OR Text Status Editor Canvas */}
+          {activeType === 'story' && storyTab === 'text' ? (
+            <div className="space-y-3">
+              {/* Live Status Canvas Preview */}
+              <div
+                style={{ backgroundColor: statusBgColor }}
+                className="relative w-full aspect-square rounded-2xl p-6 flex flex-col items-center justify-center text-white shadow-md transition-colors"
+              >
+                <textarea
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                  placeholder="Type a status..."
+                  style={{
+                    fontFamily:
+                      statusFontStyle === 'serif'
+                        ? 'Georgia, serif'
+                        : statusFontStyle === 'mono'
+                        ? 'monospace'
+                        : statusFontStyle === 'cursive'
+                        ? 'cursive'
+                        : 'sans-serif',
+                    textAlign: statusTextAlign
+                  }}
+                  className="w-full bg-transparent text-white placeholder-white/60 text-lg font-bold border-none focus:outline-none resize-none"
+                  rows={4}
+                />
+              </div>
+
+              {/* Background Colors Palette */}
+              <div className="space-y-1.5">
+                <span className="text-xs font-bold text-[#6B7280]">Background Color:</span>
+                <div className="flex items-center gap-2 overflow-x-auto py-1">
+                  {['#10B981', '#059669', '#6366F1', '#EC4899', '#F59E0B', '#8B5CF6', '#3B82F6', '#EF4444', '#1F2937'].map((c) => (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setStatusBgColor(c)}
+                      style={{ backgroundColor: c }}
+                      className={`w-7 h-7 rounded-full transition-transform cursor-pointer shrink-0 ${
+                        statusBgColor === c ? 'ring-2 ring-offset-2 ring-primary scale-110' : 'hover:scale-105'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Font Style & Text Align */}
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-[#6B7280]">Font:</span>
+                  {['sans', 'serif', 'mono', 'cursive'].map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setStatusFontStyle(f)}
+                      className={`px-2 py-1 rounded-lg text-xs font-bold capitalize transition cursor-pointer ${
+                        statusFontStyle === f ? 'bg-primary text-white shadow-xs' : 'bg-cream text-muted hover:text-ink'
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-1">
+                  {['left', 'center', 'right'].map((align) => (
+                    <button
+                      key={align}
+                      type="button"
+                      onClick={() => setStatusTextAlign(align)}
+                      className={`px-2 py-1 rounded-lg text-xs font-bold capitalize transition cursor-pointer ${
+                        statusTextAlign === align ? 'bg-primary text-white shadow-xs' : 'bg-cream text-muted hover:text-ink'
+                      }`}
+                    >
+                      {align}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : selectedFiles.length === 0 ? (
             <div
               onClick={() => fileInputRef.current?.click()}
               className="w-full aspect-video rounded-2xl border-2 border-dashed border-[#FED7AA] bg-[#FFF7ED]/50 hover:bg-[#FFF7ED] transition flex flex-col items-center justify-center p-6 text-center cursor-pointer group"

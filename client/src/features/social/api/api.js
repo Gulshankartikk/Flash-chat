@@ -103,6 +103,16 @@ export const markStoryViewedApi = async (storyId) => {
   return res.data;
 };
 
+export const reactToStoryApi = async (storyId, emoji) => {
+  const res = await api.post(`/stories/${storyId}/react`, { emoji });
+  return res.data;
+};
+
+export const fetchStoryViewersApi = async (storyId) => {
+  const res = await api.get(`/stories/${storyId}/viewers`);
+  return res.data;
+};
+
 export const replyToStoryApi = async (storyId, text) => {
   const res = await api.post(`/stories/${storyId}/reply`, { text });
   return res.data;
