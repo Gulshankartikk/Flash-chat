@@ -585,10 +585,14 @@ export const MessageBubble = React.memo(function MessageBubble({
           {/* Location Card */}
           {message.location && (
             <div className={`p-3 rounded-2xl mb-2 flex items-start gap-2.5 ${isOwn ? 'bg-white/20' : 'bg-orange-50'}`}>
-              <MapPin className="w-5 h-5 text-[#F97316] flex-shrink-0 mt-0.5" />
+              <MapPin className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
               <div className="text-xs">
                 <p className="font-bold">{message.location.label || 'Shared Location'}</p>
-                <p className="text-[10px] opacity-80">Lat: {message.location.lat.toFixed(4)}, Lng: {message.location.lng.toFixed(4)}</p>
+                {(message.location.lat != null || message.location.latitude != null || message.location.lng != null || message.location.longitude != null) && (
+                  <p className="text-[10px] opacity-80">
+                    Lat: {Number(message.location.lat ?? message.location.latitude ?? 0).toFixed(4)}, Lng: {Number(message.location.lng ?? message.location.longitude ?? 0).toFixed(4)}
+                  </p>
+                )}
               </div>
             </div>
           )}
