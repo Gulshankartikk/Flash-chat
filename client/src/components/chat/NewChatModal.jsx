@@ -154,63 +154,58 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
             <div className="space-y-3">
               {/* Search Box */}
               <div className="relative flex items-center">
-                <Search className="w-4 h-4 absolute left-3.5 text-primary pointer-events-none" />
+                <Search className="w-4 h-4 absolute left-3.5 text-muted pointer-events-none" />
                 <input
                   type="text"
                   autoFocus
-                  placeholder="Search name, @username, or phone number..."
+                  placeholder="Search name, number or @username"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={handleSearchKeyDown}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-line bg-cream/40 text-xs font-semibold text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card transition"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-full border border-line bg-cream/30 text-xs font-medium text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card transition"
                 />
               </div>
 
-              {/* Action Buttons: New Contact & New Group */}
+              {/* Action Buttons: New Group & New Contact (Matches Screenshot) */}
               {!searchQuery.trim() && (
-                <div className="space-y-1 pt-0.5">
+                <div className="space-y-1.5 pt-1">
+                  {/* New Group */}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('group')}
+                    className="w-full flex items-center gap-3.5 p-2 rounded-xl hover:bg-orange-50/60 transition cursor-pointer group"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-[#22C55E] text-white flex items-center justify-center shadow-xs shrink-0 group-hover:scale-105 transition-transform">
+                      <Users className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-ink group-hover:text-primary transition-colors">
+                        New group
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* New Contact */}
                   <button
                     type="button"
                     onClick={() => {
                       setPrefilledPhone('');
                       setIsAddContactOpen(true);
                     }}
-                    className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-orange-50/60 border border-line/60 transition cursor-pointer group"
+                    className="w-full flex items-center gap-3.5 p-2 rounded-xl hover:bg-orange-50/60 transition cursor-pointer group"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center shadow-xs">
-                        <UserPlus className="w-4 h-4" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-xs font-bold text-ink group-hover:text-primary transition-colors">
-                          New contact
-                        </p>
-                        <p className="text-[10px] text-muted">Add by name and phone number</p>
-                      </div>
+                    <div className="w-10 h-10 rounded-full bg-[#22C55E] text-white flex items-center justify-center shadow-xs shrink-0 group-hover:scale-105 transition-transform">
+                      <UserPlus className="w-5 h-5 text-white" />
                     </div>
-                    <ChevronRight className="w-4 h-4 text-muted group-hover:text-primary transition-colors" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('group')}
-                    className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-orange-50/60 border border-line/60 transition cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-secondary/15 text-secondary flex items-center justify-center">
-                        <Users className="w-4 h-4" />
-                      </div>
-                      <div className="text-left">
-                        <p className="text-xs font-bold text-ink group-hover:text-secondary transition-colors">
-                          New group
-                        </p>
-                        <p className="text-[10px] text-muted">Group room with multiple members</p>
-                      </div>
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-ink group-hover:text-primary transition-colors">
+                        New contact
+                      </p>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-muted group-hover:text-secondary transition-colors" />
                   </button>
                 </div>
               )}
+
 
               {/* Dynamic Phone Number Result Row */}
               {formattedPhoneSuggestion && (
