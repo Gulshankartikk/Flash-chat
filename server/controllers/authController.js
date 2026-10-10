@@ -8,6 +8,8 @@ const contactService = require('../services/contactService');
 const config = require('../config/env');
 const logger = require('../utils/logger');
 
+const redis = require('../services/redisService');
+
 // Validation schemas
 const sendOtpSchema = z.object({
   identifier: z.string().min(3, 'Phone or email is required').trim(),
@@ -35,14 +37,33 @@ const onboardingSchema = z.object({
 });
 
 const signupSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters').max(60),
-  email: z.string().email('Invalid email address').toLowerCase(),
+  name: z.string().min(2, 'Name must be at least 2 characters').max(60).trim(),
+  username: z
+    .string()
+    .min(3, 'Username must be at least 3 characters')
+    .max(30)
+    .regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores')
+    .toLowerCase()
+    .trim()
+    .optional(),
+  email: z.string().email('Invalid email address').toLowerCase().trim(),
+  phoneNumber: z.string().trim().optional(),
   password: z.string().min(6, 'Password must be at least 6 characters')
 });
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address').toLowerCase(),
+  identifier: z.string().min(1, 'Email, username, or phone is required').trim().optional(),
+  email: z.string().trim().optional(),
   password: z.string().min(1, 'Password is required')
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email('Invalid email address').toLowerCase().trim()
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(1, 'Reset token is required'),
+  newPassword: z.string().min(6, 'Password must be at least 6 characters')
 });
 
 const googleAuthSchema = z.object({
@@ -468,7 +489,7 @@ const getMe = async (req, res, next) => {
 };
 
 /**
- * Legacy Signup (Email & Password)
+ * Signup (Email, Name, Password + Optional Username & Phone)
  */
 const signup = async (req, res, next) => {
   try {
@@ -480,30 +501,70 @@ const signup = async (req, res, next) => {
       });
     }
 
-    const { name, email, password } = parsed.data;
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
+    const { name, email, password, username, phoneNumber } = parsed.data;
+
+    // Check duplicate email
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) {
       return res.status(400).json({
         success: false,
         message: 'An account with this email already exists.'
       });
     }
 
+    // Check duplicate username if provided
+    let finalUsername = username;
+    if (username) {
+      const existingUsername = await User.findOne({ username });
+      if (existingUsername) {
+        return res.status(400).json({
+          success: false,
+          message: 'This username is already taken. Please choose another.'
+        });
+      }
+    } else {
+      const provisionalSeed = crypto.randomBytes(3).toString('hex');
+      finalUsername = `user_${provisionalSeed}`;
+    }
+
+    // Check duplicate phone if provided
+    if (phoneNumber) {
+      const existingPhone = await User.findOne({ phoneNumber });
+      if (existingPhone) {
+        return res.status(400).json({
+          success: false,
+          message: 'An account with this phone number already exists.'
+        });
+      }
+    }
+
     const passwordHash = await authService.hashPassword(password);
     const user = await User.create({
       name,
+      username: finalUsername,
       email,
+      ...(phoneNumber ? { phoneNumber } : {}),
       passwordHash,
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
       isVerified: true,
-      isOnboarded: true
+      isOnboarded: Boolean(username)
     });
 
     mailer.sendWelcome(user.email, user.name);
 
+    contactService.linkContactsForNewUser(user).catch((e) =>
+      logger.warn({ err: e.message }, 'Failed background contact matching on new user signup')
+    );
+
     const accessToken = authService.generateAccessToken(user._id);
     const refreshToken = authService.generateRefreshToken(user._id);
-    user.refreshTokens = [{ token: refreshToken, deviceInfo: req.headers['user-agent'] || 'Web Browser' }];
+    user.refreshTokens = [
+      {
+        token: refreshToken,
+        deviceInfo: req.headers['user-agent'] || 'Web Browser',
+        createdAt: new Date()
+      }
+    ];
     await user.save();
 
     res.cookie('refreshToken', refreshToken, authService.getRefreshCookieOptions());
@@ -511,13 +572,15 @@ const signup = async (req, res, next) => {
     const safeUser = user.toObject();
     delete safeUser.passwordHash;
     delete safeUser.refreshTokens;
+    delete safeUser.pocketPinHash;
 
     res.status(201).json({
       success: true,
       message: 'Account created successfully',
       user: safeUser,
       token: accessToken,
-      accessToken
+      accessToken,
+      isOnboarded: user.isOnboarded
     });
   } catch (error) {
     next(error);
@@ -525,7 +588,7 @@ const signup = async (req, res, next) => {
 };
 
 /**
- * Legacy Login (Email & Password)
+ * Login (Email / Username / Phone + Password)
  */
 const login = async (req, res, next) => {
   try {
@@ -537,12 +600,31 @@ const login = async (req, res, next) => {
       });
     }
 
-    const { email, password } = parsed.data;
-    const user = await User.findOne({ email }).select('+passwordHash');
+    const { identifier, email, password } = parsed.data;
+    const rawTarget = (identifier || email || '').trim();
+
+    if (!rawTarget) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email, username, or phone number is required.'
+      });
+    }
+
+    let query = {};
+    if (rawTarget.includes('@')) {
+      query = { email: rawTarget.toLowerCase() };
+    } else if (/^\+?\d{7,15}$/.test(rawTarget.replace(/[\s-()]/g, ''))) {
+      const cleanPhone = rawTarget.replace(/[\s-()]/g, '');
+      query = { phoneNumber: cleanPhone };
+    } else {
+      query = { username: rawTarget.toLowerCase() };
+    }
+
+    const user = await User.findOne(query).select('+passwordHash');
     if (!user || !user.passwordHash) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password.'
+        message: 'Invalid credentials. Please check your username/email and password.'
       });
     }
 
@@ -550,7 +632,7 @@ const login = async (req, res, next) => {
     if (!isMatch) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password.'
+        message: 'Invalid credentials. Please check your username/email and password.'
       });
     }
 
@@ -561,7 +643,16 @@ const login = async (req, res, next) => {
     const refreshToken = authService.generateRefreshToken(user._id);
 
     if (!user.refreshTokens) user.refreshTokens = [];
-    user.refreshTokens.push({ token: refreshToken, deviceInfo: req.headers['user-agent'] || 'Web Browser' });
+    user.refreshTokens.push({
+      token: refreshToken,
+      deviceInfo: req.headers['user-agent'] || 'Web Browser',
+      createdAt: new Date()
+    });
+
+    if (user.refreshTokens.length > 10) {
+      user.refreshTokens = user.refreshTokens.slice(-10);
+    }
+
     await user.save();
 
     res.cookie('refreshToken', refreshToken, authService.getRefreshCookieOptions());
@@ -569,13 +660,116 @@ const login = async (req, res, next) => {
     const safeUser = user.toObject();
     delete safeUser.passwordHash;
     delete safeUser.refreshTokens;
+    delete safeUser.pocketPinHash;
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
       user: safeUser,
       token: accessToken,
-      accessToken
+      accessToken,
+      isOnboarded: user.isOnboarded
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Forgot Password - Send recovery link with secure token
+ */
+const forgotPassword = async (req, res, next) => {
+  try {
+    const parsed = forgotPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        message: parsed.error.issues[0].message
+      });
+    }
+
+    const { email } = parsed.data;
+    const user = await User.findOne({ email });
+
+    if (user) {
+      const resetToken = authService.generateResetToken();
+      const resetKey = `password_reset:${resetToken}`;
+      // Store in redis with 1 hour TTL
+      await redis.set(
+        resetKey,
+        JSON.stringify({ userId: String(user._id), email: user.email }),
+        'EX',
+        3600
+      );
+
+      const clientUrl = config.CLIENT_URL || 'http://localhost:5173';
+      const resetUrl = `${clientUrl}/reset-password?token=${resetToken}`;
+
+      logger.info(
+        {
+          event: 'password_reset_dispatched',
+          recipient: logger.maskEmail(user.email)
+        },
+        'Password recovery instructions enqueued'
+      );
+    }
+
+    // Always return generic success to prevent email enumeration
+    return res.status(200).json({
+      success: true,
+      message: "If an account with that email exists, we've dispatched password recovery instructions."
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Reset Password - Validate token and hash new password
+ */
+const resetPassword = async (req, res, next) => {
+  try {
+    const parsed = resetPasswordSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({
+        success: false,
+        message: parsed.error.issues[0].message
+      });
+    }
+
+    const { token, newPassword } = parsed.data;
+    const resetKey = `password_reset:${token}`;
+    const recordStr = await redis.get(resetKey);
+
+    if (!recordStr) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password reset link is invalid or has expired. Please request a new one.'
+      });
+    }
+
+    const record = typeof recordStr === 'object' ? recordStr : JSON.parse(recordStr);
+    const user = await User.findById(record.userId);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User account not found.'
+      });
+    }
+
+    const passwordHash = await authService.hashPassword(newPassword);
+    user.passwordHash = passwordHash;
+    // Revoke all sessions on password change for high security
+    user.refreshTokens = [];
+    await user.save();
+
+    // Consume reset token
+    await redis.del(resetKey);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Password has been reset successfully. Please log in with your new password.'
     });
   } catch (error) {
     next(error);
@@ -658,5 +852,7 @@ module.exports = {
   getMe,
   signup,
   login,
+  forgotPassword,
+  resetPassword,
   googleAuth
 };

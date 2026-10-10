@@ -6,7 +6,6 @@ import { GoogleButton } from '../components/auth/GoogleButton';
 import { OtpInput } from '../components/auth/OtpInput';
 import { Button } from '../components/Button';
 import { Input } from '../components/Input';
-import { Card } from '../components/Card';
 import {
   Phone,
   Mail,
@@ -15,6 +14,9 @@ import {
   RotateCcw,
   Sparkles,
   Lock,
+  Eye,
+  EyeOff,
+  User,
   ChevronLeft
 } from 'lucide-react';
 
@@ -38,13 +40,14 @@ export const LoginPage = () => {
   const [authMode, setAuthMode] = useState('otp'); // 'otp' | 'password'
   const [method, setMethod] = useState('phone'); // 'phone' | 'email'
 
-  // Phone inputs
-  const [countryCode, setCountryCode] = useState('+1');
+  // Phone inputs (Default +91 for primary audience, selectable worldwide)
+  const [countryCode, setCountryCode] = useState('+91');
   const [phoneNumber, setPhoneNumber] = useState('');
 
-  // Email inputs
-  const [email, setEmail] = useState('');
+  // Identifier & Password inputs
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // 6-digit OTP string
   const [otpValue, setOtpValue] = useState('');
@@ -71,18 +74,18 @@ export const LoginPage = () => {
       const cleanPhone = phoneNumber.replace(/\D/g, '');
       return `${countryCode}${cleanPhone}`;
     }
-    return email.toLowerCase().trim();
+    return identifier.toLowerCase().trim();
   };
 
   const handleSendOtp = async (e) => {
     e?.preventDefault();
     clearError();
 
-    const identifier = getFullIdentifier();
-    if (!identifier) return;
+    const idVal = getFullIdentifier();
+    if (!idVal) return;
 
     try {
-      await sendOtp(identifier, method);
+      await sendOtp(idVal, method);
     } catch {
       // Error handled by store
     }
@@ -93,10 +96,10 @@ export const LoginPage = () => {
     clearError();
 
     if (otpValue.length !== 6) return;
-    const identifier = getFullIdentifier();
+    const idVal = getFullIdentifier();
 
     try {
-      const { isOnboarded } = await verifyOtp(identifier, otpValue);
+      const { isOnboarded } = await verifyOtp(idVal, otpValue);
       if (!isOnboarded) {
         navigate('/onboarding', { replace: true });
       } else {
@@ -111,7 +114,7 @@ export const LoginPage = () => {
     e.preventDefault();
     clearError();
     try {
-      const user = await login({ email: email.trim(), password });
+      const user = await login({ identifier: identifier.trim(), password });
       if (!user.isOnboarded) {
         navigate('/onboarding', { replace: true });
       } else {
@@ -134,7 +137,7 @@ export const LoginPage = () => {
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.2 }}
-        className="relative w-full max-w-md bg-card rounded-2xl p-8 shadow-soft border border-line"
+        className="relative w-full max-w-md bg-card rounded-2xl p-6 sm:p-8 shadow-soft border border-line"
       >
         {/* Brand Header */}
         <div className="text-center mb-6">
@@ -212,8 +215,8 @@ export const LoginPage = () => {
                         className="py-2.5 px-3 rounded-xl border border-line bg-card text-xs text-ink font-semibold focus:outline-none focus:ring-2 focus:ring-primary"
                         aria-label="Country Calling Code"
                       >
-                        <option value="+1">🇺🇸 +1</option>
                         <option value="+91">🇮🇳 +91</option>
+                        <option value="+1">🇺🇸 +1</option>
                         <option value="+44">🇬🇧 +44</option>
                         <option value="+61">🇦🇺 +61</option>
                         <option value="+81">🇯🇵 +81</option>
@@ -224,7 +227,7 @@ export const LoginPage = () => {
                         <input
                           type="tel"
                           required
-                          placeholder="e.g. 5550192834"
+                          placeholder="e.g. 9876543210"
                           value={phoneNumber}
                           onChange={(e) => setPhoneNumber(e.target.value)}
                           className="w-full pl-3.5 pr-4 py-2.5 rounded-xl border border-line bg-card text-sm text-ink placeholder-muted/70 focus:outline-none focus:ring-2 focus:ring-primary"
@@ -240,8 +243,8 @@ export const LoginPage = () => {
                       type="email"
                       required
                       placeholder="you@domain.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
+                      value={identifier}
+                      onChange={(e) => setIdentifier(e.target.value)}
                       icon={Mail}
                     />
                   </div>
@@ -259,7 +262,7 @@ export const LoginPage = () => {
 
                 {/* Friendly dev / fallback note */}
                 <div className="p-2.5 rounded-xl bg-cream border border-line text-center text-[11px] text-muted">
-                  <span>Fast verification: check terminal or use test OTP <b>123456</b> in mock mode.</span>
+                  <span>Fast verification: check terminal or use universal test OTP <b>123456</b> in development.</span>
                 </div>
               </form>
             ) : (
@@ -334,11 +337,14 @@ export const LoginPage = () => {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => setAuthMode('password')}
+                onClick={() => {
+                  setAuthMode('password');
+                  clearError();
+                }}
                 icon={Lock}
                 className="w-full"
               >
-                Use Email & Password
+                Use Password Login
               </Button>
             </div>
           </div>
@@ -346,13 +352,13 @@ export const LoginPage = () => {
           /* Password Login Mode */
           <form onSubmit={handlePasswordLogin} className="space-y-4">
             <Input
-              label="Email Address"
-              type="email"
+              label="Email, Username, or Phone"
+              type="text"
               required
-              placeholder="name@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              icon={Mail}
+              placeholder="name@example.com or username"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              icon={User}
             />
 
             <div>
@@ -362,18 +368,29 @@ export const LoginPage = () => {
                 </label>
                 <Link
                   to="/forgot-password"
-                  className="text-xs text-primary hover:underline font-medium"
+                  className="text-xs text-primary hover:underline font-medium cursor-pointer"
                 >
                   Forgot?
                 </Link>
               </div>
               <Input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 icon={Lock}
+                rightElement={
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="hover:text-ink transition cursor-pointer p-0.5"
+                    tabIndex={-1}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                }
               />
             </div>
 
@@ -389,16 +406,31 @@ export const LoginPage = () => {
 
             <button
               type="button"
-              onClick={() => setAuthMode('otp')}
-              className="w-full py-2.5 text-xs text-primary font-semibold hover:underline cursor-pointer"
+              onClick={() => {
+                setAuthMode('otp');
+                clearError();
+              }}
+              className="w-full py-2 text-xs text-primary font-semibold hover:underline cursor-pointer"
             >
               ← Back to One-Time Password (OTP) Login
             </button>
           </form>
         )}
+
+        {/* Global Footer Link to Signup */}
+        <div className="mt-6 text-center text-xs text-muted border-t border-line/60 pt-4">
+          Don't have an account?{' '}
+          <Link
+            to="/signup"
+            className="font-bold text-primary hover:underline cursor-pointer"
+          >
+            Create Account
+          </Link>
+        </div>
       </motion.div>
     </div>
   );
 };
 
 export default LoginPage;
+

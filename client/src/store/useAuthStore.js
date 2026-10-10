@@ -155,35 +155,20 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // Legacy signup
-  signup: async ({ name, email, password }) => {
-    set({ error: null });
-    try {
-      const res = await api.post('/auth/signup', { name, email, password });
-      const { user, token } = res.data;
-      if (token) {
-        localStorage.setItem('flash_chat_token', token);
-      }
-      set({ user, token });
-      connectSocket(token);
-      return user;
-    } catch (err) {
-      set({ error: err.message });
-      throw err;
-    }
-  },
-
-  // Legacy login
-  login: async ({ email, password }) => {
+  // Signup
+  signup: async ({ name, email, password, username, phoneNumber }) => {
     set({ isLoggingIn: true, error: null });
     try {
-      const res = await api.post('/auth/login', { email, password });
-      const { user, token } = res.data;
-      if (token) {
-        localStorage.setItem('flash_chat_token', token);
+      const res = await api.post('/auth/signup', { name, email, password, username, phoneNumber });
+      const { user, token, accessToken } = res.data;
+      const activeToken = token || accessToken;
+      if (activeToken) {
+        localStorage.setItem('flash_chat_token', activeToken);
       }
-      set({ user, token, isLoggingIn: false });
-      connectSocket(token);
+      set({ user, token: activeToken, isLoggingIn: false });
+      if (activeToken) {
+        connectSocket(activeToken);
+      }
       return user;
     } catch (err) {
       set({ error: err.message, isLoggingIn: false });
@@ -191,17 +176,66 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // Legacy Google Auth
+  // Login (Email, Username, or Phone + Password)
+  login: async ({ identifier, email, password }) => {
+    set({ isLoggingIn: true, error: null });
+    try {
+      const targetIdentifier = identifier || email;
+      const res = await api.post('/auth/login', { identifier: targetIdentifier, password });
+      const { user, token, accessToken } = res.data;
+      const activeToken = token || accessToken;
+      if (activeToken) {
+        localStorage.setItem('flash_chat_token', activeToken);
+      }
+      set({ user, token: activeToken, isLoggingIn: false });
+      if (activeToken) {
+        connectSocket(activeToken);
+      }
+      return user;
+    } catch (err) {
+      set({ error: err.message, isLoggingIn: false });
+      throw err;
+    }
+  },
+
+  // Forgot password
+  forgotPassword: async (email) => {
+    set({ error: null });
+    try {
+      const res = await api.post('/auth/forgot-password', { email });
+      return res.data;
+    } catch (err) {
+      set({ error: err.message });
+      throw err;
+    }
+  },
+
+  // Reset password
+  resetPassword: async (token, newPassword) => {
+    set({ error: null });
+    try {
+      const res = await api.post('/auth/reset-password', { token, newPassword });
+      return res.data;
+    } catch (err) {
+      set({ error: err.message });
+      throw err;
+    }
+  },
+
+  // Google Auth
   googleAuth: async (credential) => {
     set({ isLoggingIn: true, error: null });
     try {
       const res = await api.post('/auth/google', { credential });
-      const { user, token } = res.data;
-      if (token) {
-        localStorage.setItem('flash_chat_token', token);
+      const { user, token, accessToken } = res.data;
+      const activeToken = token || accessToken;
+      if (activeToken) {
+        localStorage.setItem('flash_chat_token', activeToken);
       }
-      set({ user, token, isLoggingIn: false });
-      connectSocket(token);
+      set({ user, token: activeToken, isLoggingIn: false });
+      if (activeToken) {
+        connectSocket(activeToken);
+      }
       return user;
     } catch (err) {
       set({ error: err.message, isLoggingIn: false });

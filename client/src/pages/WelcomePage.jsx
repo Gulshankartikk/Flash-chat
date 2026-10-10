@@ -37,9 +37,9 @@ export const WelcomePage = () => {
           >
             Sign In
           </Link>
-          <Link to="/login">
+          <Link to="/signup">
             <Button size="sm" variant="primary">
-              Get Started
+              Create Account
             </Button>
           </Link>
         </div>
@@ -66,6 +66,11 @@ export const WelcomePage = () => {
             <Button size="lg" variant="primary" className="w-full sm:w-auto gap-2 text-base px-8 py-3.5">
               <span>Launch with Phone or Email OTP</span>
               <ArrowRight className="w-4 h-4" />
+            </Button>
+          </Link>
+          <Link to="/signup" className="w-full sm:w-auto">
+            <Button size="lg" variant="secondary" className="w-full sm:w-auto gap-2 text-base px-6 py-3.5">
+              <span>Create Account</span>
             </Button>
           </Link>
         </div>

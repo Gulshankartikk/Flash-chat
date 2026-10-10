@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import api from '../services/api';
-import { Lock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 
@@ -12,6 +12,8 @@ export const ResetPasswordPage = () => {
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
@@ -85,22 +87,46 @@ export const ResetPasswordPage = () => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
               label="New Password"
-              type="password"
+              type={showPassword ? 'text' : 'password'}
               required
               minLength={6}
               placeholder="At least 6 characters"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              icon={Lock}
+              rightElement={
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="hover:text-ink transition cursor-pointer p-0.5"
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              }
             />
 
             <Input
               label="Confirm New Password"
-              type="password"
+              type={showConfirmPassword ? 'text' : 'password'}
               required
               minLength={6}
               placeholder="Confirm password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
+              icon={Lock}
+              rightElement={
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="hover:text-ink transition cursor-pointer p-0.5"
+                  tabIndex={-1}
+                  aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              }
             />
 
             <Button
