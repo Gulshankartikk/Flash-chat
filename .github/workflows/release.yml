@@ -159,8 +159,7 @@ jobs:
     needs: [prepare, build-and-push]
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment:
-      name: staging
+    environment: staging
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -175,9 +174,9 @@ jobs:
     needs: [prepare, build-and-push, deploy-staging]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment:
-      name: production
+    environment: production
     steps:
+
       - name: Checkout Code
         uses: actions/checkout@v4
 
