@@ -70,7 +70,7 @@ export const AppLayout = () => {
           />
 
           {/* Subview Outlet */}
-          <main className="flex-1 overflow-hidden relative">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden relative scrollbar-thin">
             <Outlet />
           </main>
 

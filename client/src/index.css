@@ -35,20 +35,29 @@
   }
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: var(--line) transparent;
+    scrollbar-color: rgba(249, 115, 22, 0.45) transparent;
   }
   .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 7px;
+    height: 7px;
   }
   .scrollbar-thin::-webkit-scrollbar-track {
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: var(--line);
+    background-color: rgba(249, 115, 22, 0.4);
     border-radius: 9999px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: var(--muted);
+    background-color: rgba(249, 115, 22, 0.75);
+  }
+  .dark .scrollbar-thin {
+    scrollbar-color: rgba(254, 215, 170, 0.35) transparent;
+  }
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(254, 215, 170, 0.3);
+  }
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(254, 215, 170, 0.6);
   }
 }
