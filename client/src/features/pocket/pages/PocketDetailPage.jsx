@@ -499,11 +499,12 @@ export const PocketDetailPage = () => {
           </div>
 
           <span className="text-[#6B7280] text-[11px]">
-            Created on {new Date(item.createdAt).toLocaleDateString(undefined, {
+            Created on {new Date(item.createdAt).toLocaleString(undefined, {
               dateStyle: 'medium',
               timeStyle: 'short'
             })}
           </span>
+
 
           {/* Deep link button if saved from chat or social */}
           {item.source?.snapshot?.conversationId && (
