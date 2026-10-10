@@ -6,6 +6,7 @@ const { PROMPT_TEMPLATES, SYSTEM_INJECTION_DEFENSE } = require('../services/ai/p
 const aiService = require('../services/ai.service');
 
 async function runTests() {
+  aiService.isConfigured = false;
   console.log('🧪 Starting Flash AI Integration & Security Verification Suite...\n');
 
   // 1. Prompt-Injection Defenses

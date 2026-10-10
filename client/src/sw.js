@@ -9,38 +9,8 @@ import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST || []);
 
-// 2. Denylist helper: explicitly forbid caching private, auth, pocket, AI, push, or locked items
-export const isDenylisted = (url, request) => {
-  const pathname = typeof url === 'string' ? new URL(url, self.location.origin).pathname : url.pathname;
-  
-  // Explicit forbidden API endpoints
-  const denylistPrefixes = [
-    '/api/auth',
-    '/api/pocket',
-    '/api/ai',
-    '/api/contacts',
-    '/api/support',
-    '/api/push',
-    '/api/upload',
-    '/socket.io'
-  ];
-
-  if (denylistPrefixes.some((prefix) => pathname.startsWith(prefix))) {
-    return true;
-  }
-
-  // Never cache non-GET requests
-  if (request && request.method && request.method !== 'GET') {
-    return true;
-  }
-
-  // Never cache requests bearing the scoped private vault token
-  if (request && request.headers && request.headers.has('x-pocket-token')) {
-    return true;
-  }
-
-  return false;
-};
+import { isDenylisted } from './utils/swDenylist.js';
+export { isDenylisted };
 
 // 3. Cache Google Fonts and Static Stylesheets
 registerRoute(

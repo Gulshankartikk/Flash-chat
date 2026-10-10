@@ -138,6 +138,13 @@ export const useContactsStore = create((set, get) => ({
     return res.data;
   },
 
+  clearOfflineQueue: () => {
+    try {
+      localStorage.removeItem(OFFLINE_CONTACTS_KEY);
+    } catch (_) {}
+    set({ offlineQueue: [], contacts: [] });
+  },
+
   syncOfflineContacts: async () => {
     const queue = get().offlineQueue;
     if (!queue || queue.length === 0) return;

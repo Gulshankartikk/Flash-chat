@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const chatController = require('../controllers/chatController');
 const authMiddleware = require('../middleware/authMiddleware');
+const { chatByPhoneLimiter, dailyLookupLimiter } = require('../middleware/rateLimiter');
 
 router.use(authMiddleware);
 
@@ -10,6 +11,16 @@ router.get('/', chatController.getUserChats);
 router.post('/direct', chatController.createOrGetDirectChat);
 router.post('/group', chatController.createGroupChat);
 router.get('/search/messages', chatController.searchMessages);
+
+// Start chat by phone & Pending conversation routes
+router.post('/by-phone', chatByPhoneLimiter, dailyLookupLimiter, chatController.startChatByPhone);
+router.get('/pending', chatController.getPendingConversations);
+router.post('/pending/:id/messages', chatController.queuePendingMessage);
+router.delete('/pending/:id', chatController.deletePendingConversation);
+
+// Message request actions
+router.post('/:id/accept', chatController.acceptMessageRequest);
+router.post('/:id/reject', chatController.rejectMessageRequest);
 
 // Invite routes
 router.get('/join/:inviteCode', chatController.joinByInvite);

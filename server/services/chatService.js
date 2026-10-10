@@ -592,6 +592,353 @@ class ChatService {
     }
     return forwardedMessages;
   }
+
+  /**
+   * Helper: Hash phone number with HMAC secret for secure privacy-preserving pending matching
+   */
+  getPhoneHash(phone) {
+    const secret = process.env.PHONE_HASH_SECRET || 'flash_chat_super_secure_phone_hmac_secret_32_chars_min';
+    return crypto.createHmac('sha256', secret).update(phone.trim()).digest('hex');
+  }
+
+  /**
+   * Helper: Mask phone number for UI display (e.g. +91 ••••• •43210)
+   */
+  maskPhone(phone) {
+    if (!phone || phone.length < 6) return phone || '';
+    const clean = phone.trim();
+    const prefix = clean.slice(0, 3);
+    const suffix = clean.slice(-4);
+    return `${prefix} ••••• •${suffix}`;
+  }
+
+  /**
+   * Start chat by phone number: direct resolution or pending queue
+   */
+  async startChatByPhone(userId, { phone, name = '', saveContact = true }) {
+    if (!phone || typeof phone !== 'string') {
+      const err = new Error('Phone number is required');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const cleanPhone = phone.trim();
+    // Validate E.164: + followed by 8-15 digits
+    if (!/^\+[1-9]\d{7,14}$/.test(cleanPhone)) {
+      const err = new Error('Please enter a valid international phone number in E.164 format (e.g. +1234567890)');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    // Reject chatting with own phone number
+    const currentUser = await User.findById(userId);
+    if (currentUser && currentUser.phoneNumber === cleanPhone) {
+      const err = new Error('Cannot start a chat with your own phone number.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const Block = require('../models/Block');
+    const PendingConversation = require('../models/PendingConversation');
+
+    // Look for existing registered user with this phone number
+    const candidate = await User.findOne({ phoneNumber: cleanPhone });
+
+    let isEligible = false;
+    if (candidate) {
+      // Check discoverability
+      const isDiscoverable = candidate.discoverableByPhone !== false;
+      // Check blocks in both directions
+      const hasBlock = await Block.findOne({
+        $or: [
+          { blocker: userId, blocked: candidate._id },
+          { blocker: candidate._id, blocked: userId }
+        ]
+      });
+
+      if (isDiscoverable && !hasBlock) {
+        isEligible = true;
+      }
+    }
+
+    // CASE 1: Registered & Discoverable user on Flash Chat
+    if (isEligible && candidate) {
+      const conversation = await this.createDirectConversation(userId, candidate._id);
+
+      let contactRecord = null;
+      if (saveContact || name) {
+        contactRecord = await Contact.findOneAndUpdate(
+          { owner: userId, phone: cleanPhone },
+          {
+            $set: {
+              owner: userId,
+              name: (name && name.trim()) || candidate.name || 'Contact',
+              phone: cleanPhone,
+              linkedUser: candidate._id
+            }
+          },
+          { upsert: true, new: true }
+        );
+      }
+
+      return {
+        status: 'ready',
+        conversationId: conversation._id,
+        contactId: contactRecord?._id || null,
+        isRegistered: true,
+        user: {
+          _id: candidate._id,
+          name: candidate.name,
+          username: candidate.username,
+          avatar: candidate.avatar
+        }
+      };
+    }
+
+    // CASE 2: Unregistered (or non-discoverable / blocked) -> Create/Reuse PendingConversation
+    const phoneHash = this.getPhoneHash(cleanPhone);
+    const masked = this.maskPhone(cleanPhone);
+
+    let contactRecord = null;
+    if (saveContact || name) {
+      contactRecord = await Contact.findOneAndUpdate(
+        { owner: userId, phone: cleanPhone },
+        {
+          $set: {
+            owner: userId,
+            name: (name && name.trim()) || 'Contact',
+            phone: cleanPhone,
+            linkedUser: null
+          }
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    // Check cap of 20 pending invitations per owner
+    const pendingCount = await PendingConversation.countDocuments({ owner: userId });
+    let pending = await PendingConversation.findOne({ owner: userId, phoneHash });
+
+    if (!pending && pendingCount >= 20) {
+      const err = new Error('Maximum limit of 20 pending invitations reached.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (!pending) {
+      pending = await PendingConversation.create({
+        owner: userId,
+        phoneHash,
+        rawPhoneMasked: masked,
+        contact: contactRecord?._id || null,
+        name: (name && name.trim()) || 'Contact',
+        queuedMessages: [],
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      });
+    } else if (name || contactRecord) {
+      pending.name = (name && name.trim()) || pending.name;
+      if (contactRecord) pending.contact = contactRecord._id;
+      await pending.save();
+    }
+
+    return {
+      status: 'pending',
+      pendingId: pending._id,
+      canInvite: true,
+      contactId: contactRecord?._id || null,
+      isRegistered: false,
+      maskedPhone: masked
+    };
+  }
+
+  /**
+   * Queue text message for an unregistered contact
+   */
+  async queuePendingMessage(userId, pendingId, text) {
+    const PendingConversation = require('../models/PendingConversation');
+    const pending = await PendingConversation.findOne({ _id: pendingId, owner: userId });
+
+    if (!pending) {
+      const err = new Error('Pending conversation not found or access denied.');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      const err = new Error('Message text is required');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const cleanText = text.trim();
+    if (cleanText.length > 500) {
+      const err = new Error('Pending messages are limited to 500 characters');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (pending.queuedMessages.length >= 5) {
+      const err = new Error('Cannot queue more than 5 messages for an unregistered contact');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    pending.queuedMessages.push({
+      text: cleanText,
+      createdAt: new Date()
+    });
+
+    await pending.save();
+
+    return {
+      success: true,
+      pendingId: pending._id,
+      queuedCount: pending.queuedMessages.length,
+      message: 'Message queued for delivery when recipient joins Flash Chat.'
+    };
+  }
+
+  /**
+   * Get all pending conversations for an owner
+   */
+  async getPendingConversations(userId) {
+    const PendingConversation = require('../models/PendingConversation');
+    return PendingConversation.find({ owner: userId })
+      .populate('contact')
+      .sort({ updatedAt: -1 })
+      .lean();
+  }
+
+  /**
+   * Delete / Cancel a pending conversation
+   */
+  async deletePendingConversation(userId, pendingId) {
+    const PendingConversation = require('../models/PendingConversation');
+    const result = await PendingConversation.findOneAndDelete({ _id: pendingId, owner: userId });
+    if (!result) {
+      const err = new Error('Pending conversation not found.');
+      err.statusCode = 404;
+      throw err;
+    }
+    return { success: true, message: 'Pending conversation removed.' };
+  }
+
+  /**
+   * Deliver pending messages upon user signup / phone verification
+   */
+  async deliverPendingConversationsOnSignup(newUser) {
+    if (!newUser || !newUser.phoneNumber) return 0;
+    if (newUser.discoverableByPhone === false) return 0;
+
+    const PendingConversation = require('../models/PendingConversation');
+    const Block = require('../models/Block');
+
+    const phoneHash = this.getPhoneHash(newUser.phoneNumber);
+    const pendingList = await PendingConversation.find({ phoneHash });
+
+    let deliveredCount = 0;
+
+    for (const pending of pendingList) {
+      try {
+        // Check blocks in either direction
+        const isBlocked = await Block.findOne({
+          $or: [
+            { blocker: pending.owner, blocked: newUser._id },
+            { blocker: newUser._id, blocked: pending.owner }
+          ]
+        });
+
+        if (isBlocked) {
+          await PendingConversation.findByIdAndDelete(pending._id);
+          continue;
+        }
+
+        // Link contact if exists
+        await Contact.updateMany(
+          { owner: pending.owner, phone: newUser.phoneNumber },
+          { $set: { linkedUser: newUser._id } }
+        );
+
+        // Create direct conversation with 'request' status if queued messages exist
+        const hasQueued = pending.queuedMessages && pending.queuedMessages.length > 0;
+        const conv = await this.createDirectConversation(pending.owner, newUser._id);
+
+        if (hasQueued) {
+          conv.status = 'request';
+          conv.requestedBy = pending.owner;
+
+          for (const qm of pending.queuedMessages) {
+            const msg = await Message.create({
+              conversation: conv._id,
+              chatId: conv._id,
+              sender: pending.owner,
+              text: qm.text,
+              type: 'text',
+              deliveredTo: [],
+              readBy: []
+            });
+            conv.lastMessage = msg._id;
+          }
+          await conv.save();
+        }
+
+        await PendingConversation.findByIdAndDelete(pending._id);
+        deliveredCount++;
+      } catch (err) {
+        const logger = require('../utils/logger');
+        logger.error({ err: err.message }, 'Error delivering pending conversation on signup');
+      }
+    }
+
+    return deliveredCount;
+  }
+
+  /**
+   * Accept incoming message request
+   */
+  async acceptMessageRequest(userId, conversationId) {
+    const conv = await Conversation.findOne({
+      _id: conversationId,
+      'members.user': userId
+    });
+
+    if (!conv) {
+      const err = new Error('Conversation not found or access denied.');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    conv.status = 'active';
+    conv.requestedBy = null;
+    await conv.save();
+
+    return Conversation.findById(conv._id)
+      .populate('members.user', '_id name username avatar isOnline lastSeen privacy')
+      .populate('lastMessage')
+      .lean();
+  }
+
+  /**
+   * Reject / Decline incoming message request
+   */
+  async rejectMessageRequest(userId, conversationId) {
+    const conv = await Conversation.findOne({
+      _id: conversationId,
+      'members.user': userId
+    });
+
+    if (!conv) {
+      const err = new Error('Conversation not found or access denied.');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    await Message.deleteMany({ conversation: conversationId });
+    await Conversation.findByIdAndDelete(conversationId);
+
+    return { success: true, message: 'Message request declined and removed.' };
+  }
 }
 
 module.exports = new ChatService();
+

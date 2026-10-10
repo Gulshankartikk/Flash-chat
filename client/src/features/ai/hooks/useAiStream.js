@@ -51,7 +51,7 @@ export const useAiStream = () => {
       abortControllerRef.current = controller;
 
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('flash_chat_token');
         const headers = {
           'Content-Type': 'application/json'
         };

@@ -53,6 +53,9 @@ jobs:
       - name: Run Documentation Quality & Consistency Suite
         run: npm run docs:check
 
+      - name: Run Release Consistency Check
+        run: node scripts/release-prepare.js --check
+
       - name: Run Project Integrity & Import Audit
         run: node server/tests/projectAudit.js
 

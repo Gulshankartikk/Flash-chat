@@ -37,6 +37,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
       - name: Validate Tag & Package Version Consistency
         id: version_step
         run: |
@@ -51,6 +57,9 @@ jobs:
             echo "ERROR: Version $VERSION does not follow semantic versioning!"
             exit 1
           fi
+
+          echo "Running release:prepare --check CI verification gate..."
+          node scripts/release-prepare.js --check "$VERSION"
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "image_tag=$VERSION" >> "$GITHUB_OUTPUT"
@@ -150,7 +159,8 @@ jobs:
     needs: [prepare, build-and-push]
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: staging
+    environment:
+      name: staging
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -165,7 +175,8 @@ jobs:
     needs: [prepare, build-and-push, deploy-staging]
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment: production
+    environment:
+      name: production
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4

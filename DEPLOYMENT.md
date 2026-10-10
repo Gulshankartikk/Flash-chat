@@ -2,6 +2,9 @@
 
 This guide outlines the production deployment, infrastructure architecture, high-availability configuration, security hardening, and operational runbooks for **Flash Chat**.
 
+> [!TIP]
+> For release preparation, versioning policies, and step-by-step deployment runbooks, refer to [RELEASING.md](file:///c:/Users/kg872/Documents/GitHub/Flash-chat/RELEASING.md) and [docs/RELEASING.md](file:///c:/Users/kg872/Documents/GitHub/Flash-chat/docs/RELEASING.md).
+
 ---
 
 ## 1. System Architecture & Sizing

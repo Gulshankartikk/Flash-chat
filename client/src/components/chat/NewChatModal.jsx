@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Users, User, Check, X, Sparkles, BookUser } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Users, User, UserPlus, ChevronRight, Check, X, Sparkles, BookUser, Phone } from 'lucide-react';
 import { Modal } from '../Modal';
 import { Avatar } from '../Avatar';
 import { Button } from '../Button';
@@ -7,12 +7,23 @@ import { Input } from '../Input';
 import api from '../../services/api';
 import { useChatStore } from '../../store/useChatStore';
 import { useContactsStore } from '../../features/contacts/useContacts';
+import { AddContactModal } from '../../features/contacts/AddContactModal';
+import {
+  isPossiblePhoneNumber,
+  formatToE164,
+  formatDisplayPhone,
+  getDefaultCountryCode
+} from '../../features/contacts/phoneUtils';
 
 export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
   const [activeTab, setActiveTab] = useState('direct'); // 'direct' | 'group'
   const [searchQuery, setSearchQuery] = useState('');
   const [userResults, setUserResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Add Contact Modal sub-state
+  const [isAddContactOpen, setIsAddContactOpen] = useState(false);
+  const [prefilledPhone, setPrefilledPhone] = useState('');
 
   // Group state
   const [groupName, setGroupName] = useState('');
@@ -35,10 +46,25 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
     }
   }, [isOpen, fetchContacts]);
 
+  // Phone number query detection
+  const isPhoneQuery = useMemo(() => {
+    return isPossiblePhoneNumber(searchQuery);
+  }, [searchQuery]);
+
+  const formattedPhoneSuggestion = useMemo(() => {
+    if (!isPhoneQuery) return null;
+    const e164 = formatToE164(searchQuery, getDefaultCountryCode());
+    return {
+      raw: searchQuery,
+      e164,
+      display: formatDisplayPhone(e164)
+    };
+  }, [isPhoneQuery, searchQuery]);
+
   // Search users
   useEffect(() => {
     const trimmed = searchQuery.trim();
-    if (!trimmed) {
+    if (!trimmed || isPhoneQuery) {
       setUserResults([]);
       setIsLoading(false);
       return;
@@ -57,7 +83,7 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, isPhoneQuery]);
 
   const handleStartDirect = async (userId) => {
     try {
@@ -66,6 +92,18 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
       if (onChatCreated) onChatCreated(conv);
     } catch (err) {
       alert(err.message || 'Failed to start chat');
+    }
+  };
+
+  const handleStartPhoneChat = (phoneString) => {
+    setPrefilledPhone(phoneString);
+    setIsAddContactOpen(true);
+  };
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter' && formattedPhoneSuggestion) {
+      e.preventDefault();
+      handleStartPhoneChat(formattedPhoneSuggestion.e164);
     }
   };
 
@@ -97,224 +135,297 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
     }
   };
 
-  const linkedContacts = contacts.filter((c) => c.linkedUser);
+  // Contacts sorted A-Z
+  const sortedContacts = useMemo(() => {
+    return [...contacts].sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+  }, [contacts]);
 
   return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={activeTab === 'direct' ? 'Start a New Chat' : 'Create a New Group'}
-      maxWidth="max-w-md"
-    >
-      <div className="space-y-4">
-        {/* Tab Switcher */}
-        <div className="flex p-1 bg-cream rounded-xl border border-line">
-          <button
-            type="button"
-            onClick={() => setActiveTab('direct')}
-            className={`flex-1 py-1.5 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition ${
-              activeTab === 'direct'
-                ? 'bg-card text-ink shadow-xs'
-                : 'text-muted hover:text-ink'
-            }`}
-          >
-            <User className="w-3.5 h-3.5 text-primary" />
-            <span>1:1 Direct Chat</span>
-          </button>
+    <>
+      <Modal
+        isOpen={isOpen && !isAddContactOpen}
+        onClose={onClose}
+        title={activeTab === 'direct' ? 'New Chat' : 'Create a New Group'}
+        maxWidth="max-w-md"
+      >
+        <div className="space-y-3.5">
+          {/* Direct Tab / Search / Top Action Rows */}
+          {activeTab === 'direct' ? (
+            <div className="space-y-3">
+              {/* Search Box */}
+              <div className="relative flex items-center">
+                <Search className="w-4 h-4 absolute left-3.5 text-primary pointer-events-none" />
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Search name, @username, or phone number..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-line bg-cream/40 text-xs font-semibold text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card transition"
+                />
+              </div>
 
-          <button
-            type="button"
-            onClick={() => setActiveTab('group')}
-            className={`flex-1 py-1.5 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition ${
-              activeTab === 'group'
-                ? 'bg-card text-ink shadow-xs'
-                : 'text-muted hover:text-ink'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5 text-secondary" />
-            <span>New Group Room</span>
-          </button>
-        </div>
-
-        {activeTab === 'direct' ? (
-          /* Direct Chat Search & Select */
-          <div className="space-y-3">
-            <div className="relative flex items-center">
-              <Search className="w-4 h-4 absolute left-3.5 text-primary pointer-events-none" />
-              <input
-                type="text"
-                autoFocus
-                placeholder="Search user by name or @username..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-line bg-cream/40 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card transition"
-              />
-            </div>
-
-            <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
-              {isLoading ? (
-                <div className="p-4 text-center text-xs text-muted animate-pulse">
-                  Searching users...
-                </div>
-              ) : userResults.length > 0 ? (
-                userResults.map((u) => (
-                  <div
-                    key={u._id}
-                    onClick={() => handleStartDirect(u._id)}
-                    className="flex items-center justify-between p-2.5 rounded-xl hover:bg-orange-50/40 transition cursor-pointer border border-transparent hover:border-line"
+              {/* Action Buttons: New Contact & New Group */}
+              {!searchQuery.trim() && (
+                <div className="space-y-1 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPrefilledPhone('');
+                      setIsAddContactOpen(true);
+                    }}
+                    className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-orange-50/60 border border-line/60 transition cursor-pointer group"
                   >
-                    <div className="flex items-center gap-2.5">
-                      <Avatar src={u.avatar} name={u.name} size="sm" isOnline={u.isOnline} showStatus />
-                      <div>
-                        <p className="text-xs font-bold text-ink">{u.name}</p>
-                        <p className="text-[10px] text-muted">@{u.username}</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-brand text-white flex items-center justify-center shadow-xs">
+                        <UserPlus className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs font-bold text-ink group-hover:text-primary transition-colors">
+                          New contact
+                        </p>
+                        <p className="text-[10px] text-muted">Add by name and phone number</p>
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-md">
-                      Chat
-                    </span>
+                    <ChevronRight className="w-4 h-4 text-muted group-hover:text-primary transition-colors" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('group')}
+                    className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-orange-50/60 border border-line/60 transition cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-secondary/15 text-secondary flex items-center justify-center">
+                        <Users className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs font-bold text-ink group-hover:text-secondary transition-colors">
+                          New group
+                        </p>
+                        <p className="text-[10px] text-muted">Group room with multiple members</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted group-hover:text-secondary transition-colors" />
+                  </button>
+                </div>
+              )}
+
+              {/* Dynamic Phone Number Result Row */}
+              {formattedPhoneSuggestion && (
+                <div className="pt-1">
+                  <div
+                    onClick={() => handleStartPhoneChat(formattedPhoneSuggestion.e164)}
+                    className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-primary/10 via-secondary/10 to-transparent border border-primary/30 hover:border-primary cursor-pointer transition shadow-xs group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center shadow-xs">
+                        <Phone className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-ink group-hover:text-primary transition-colors">
+                          Chat with {formattedPhoneSuggestion.display}
+                        </p>
+                        <p className="text-[10px] text-muted">Press Enter or tap to start chat</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-primary" />
                   </div>
-                ))
-              ) : searchQuery.trim() ? (
-                <p className="p-4 text-center text-xs text-muted">No users found.</p>
-              ) : linkedContacts.length > 0 ? (
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-muted uppercase tracking-wider px-1 mb-1 flex items-center gap-1">
-                    <BookUser className="w-3 h-3 text-primary" />
-                    <span>Saved Contacts on Flash Chat</span>
-                  </p>
-                  {linkedContacts.map((c) => {
-                    const uId = c.linkedUser?._id || c.linkedUser;
+                </div>
+              )}
+
+              {/* Results / Contacts List */}
+              <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+                {isLoading ? (
+                  <div className="p-4 text-center text-xs text-muted animate-pulse">
+                    Searching users...
+                  </div>
+                ) : userResults.length > 0 ? (
+                  userResults.map((u) => (
+                    <div
+                      key={u._id}
+                      onClick={() => handleStartDirect(u._id)}
+                      className="flex items-center justify-between p-2.5 rounded-xl hover:bg-orange-50/40 transition cursor-pointer border border-transparent hover:border-line"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Avatar src={u.avatar} name={u.name} size="sm" isOnline={u.isOnline} showStatus />
+                        <div>
+                          <p className="text-xs font-bold text-ink">{u.name}</p>
+                          <p className="text-[10px] text-muted">@{u.username}</p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-md">
+                        Chat
+                      </span>
+                    </div>
+                  ))
+                ) : searchQuery.trim() && !formattedPhoneSuggestion ? (
+                  <p className="p-4 text-center text-xs text-muted">No users found.</p>
+                ) : sortedContacts.length > 0 && !searchQuery.trim() ? (
+                  <div className="space-y-1 pt-1">
+                    <p className="text-[10px] font-bold text-muted uppercase tracking-wider px-1 mb-1 flex items-center gap-1">
+                      <BookUser className="w-3 h-3 text-primary" />
+                      <span>Contacts (A-Z)</span>
+                    </p>
+                    {sortedContacts.map((c) => {
+                      const isLinked = Boolean(c.linkedUser);
+                      const uId = c.linkedUser?._id || c.linkedUser;
+                      return (
+                        <div
+                          key={c._id}
+                          onClick={() => {
+                            if (isLinked) {
+                              handleStartDirect(uId);
+                            } else if (c.phone) {
+                              handleStartPhoneChat(c.phone);
+                            }
+                          }}
+                          className="flex items-center justify-between p-2.5 rounded-xl hover:bg-orange-50/40 transition cursor-pointer border border-transparent hover:border-line"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <Avatar src={c.avatar || c.linkedUser?.avatar} name={c.name} size="sm" />
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-ink truncate">{c.name}</p>
+                              <p className="text-[10px] text-muted truncate">
+                                {c.linkedUser?.username ? `@${c.linkedUser.username}` : c.phone || c.email}
+                              </p>
+                            </div>
+                          </div>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 ${
+                              isLinked
+                                ? 'text-primary bg-primary/15'
+                                : 'text-muted bg-cream border border-line'
+                            }`}
+                          >
+                            {isLinked ? 'Chat' : 'Invite'}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            /* Group Creation Form */
+            <form onSubmit={handleCreateGroup} className="space-y-4">
+              <div className="flex items-center justify-between pb-1 border-b border-line">
+                <span className="text-xs font-bold text-ink">New Group Details</span>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('direct')}
+                  className="text-xs text-primary font-bold hover:underline cursor-pointer"
+                >
+                  Back to 1:1 Chat
+                </button>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-ink mb-1">Group Name *</label>
+                <input
+                  type="text"
+                  required
+                  maxLength={100}
+                  placeholder="e.g. Product Launch Team"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-line bg-cream/40 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card transition"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-ink mb-1">
+                  Group Description (Optional)
+                </label>
+                <input
+                  type="text"
+                  maxLength={200}
+                  placeholder="Purpose of this group..."
+                  value={groupDescription}
+                  onChange={(e) => setGroupDescription(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-line bg-cream/40 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card transition"
+                />
+              </div>
+
+              {/* Member Selection */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-ink">
+                    Add Members ({selectedUserIds.length} selected)
+                  </label>
+                </div>
+
+                <div className="max-h-40 overflow-y-auto space-y-1 border border-line rounded-xl p-2 bg-cream/20">
+                  {(userResults.length > 0
+                    ? userResults
+                    : sortedContacts
+                        .filter((c) => c.linkedUser)
+                        .map((c) => ({
+                          _id: c.linkedUser?._id || c.linkedUser,
+                          name: c.name,
+                          username: c.linkedUser?.username || '',
+                          avatar: c.avatar
+                        }))
+                  ).map((u) => {
+                    if (!u._id) return null;
+                    const isSelected = selectedUserIds.includes(u._id);
                     return (
                       <div
-                        key={c._id}
-                        onClick={() => handleStartDirect(uId)}
-                        className="flex items-center justify-between p-2.5 rounded-xl hover:bg-orange-50/40 transition cursor-pointer border border-transparent hover:border-line"
+                        key={u._id}
+                        onClick={() => handleToggleGroupMember(u._id)}
+                        className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition ${
+                          isSelected ? 'bg-primary/15 border border-line' : 'hover:bg-card'
+                        }`}
                       >
-                        <div className="flex items-center gap-2.5">
-                          <Avatar src={c.avatar || c.linkedUser?.avatar} name={c.name} size="sm" />
-                          <div>
-                            <p className="text-xs font-bold text-ink">{c.name}</p>
-                            <p className="text-[10px] text-muted">
-                              {c.linkedUser?.username ? `@${c.linkedUser.username}` : c.phone || c.email}
-                            </p>
-                          </div>
+                        <div className="flex items-center gap-2">
+                          <Avatar src={u.avatar} name={u.name} size="xs" />
+                          <span className="text-xs font-medium text-ink">{u.name}</span>
+                          {u.username && <span className="text-[10px] text-muted">@{u.username}</span>}
                         </div>
-                        <span className="text-[10px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-md">
-                          Message
-                        </span>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}}
+                          className="w-4 h-4 text-primary rounded border-line"
+                        />
                       </div>
                     );
                   })}
                 </div>
-              ) : (
-                <p className="p-4 text-center text-xs text-muted">
-                  Type a name or username above to find someone.
-                </p>
-              )}
-            </div>
-          </div>
-        ) : (
-          /* Group Creation Form */
-          <form onSubmit={handleCreateGroup} className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-ink mb-1">
-                Group Name *
-              </label>
-              <input
-                type="text"
-                required
-                maxLength={100}
-                placeholder="e.g. Product Launch Team"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-line bg-cream/40 text-sm text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card transition"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-ink mb-1">
-                Group Description (Optional)
-              </label>
-              <input
-                type="text"
-                maxLength={200}
-                placeholder="Purpose of this group..."
-                value={groupDescription}
-                onChange={(e) => setGroupDescription(e.target.value)}
-                className="w-full px-3.5 py-2 rounded-xl border border-line bg-cream/40 text-xs text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card transition"
-              />
-            </div>
-
-            {/* Member Search & Selection */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-ink">
-                  Add Members ({selectedUserIds.length} selected)
-                </label>
               </div>
 
-              <div className="relative mb-2">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-primary" />
-                <input
-                  type="text"
-                  placeholder="Search users to add..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 rounded-xl border border-line bg-cream/40 text-xs focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card transition"
-                />
-              </div>
+              <Button
+                type="submit"
+                variant="primary"
+                isLoading={isCreatingGroup}
+                disabled={!groupName.trim() || selectedUserIds.length === 0}
+                className="w-full py-2.5"
+              >
+                Create Group Room
+              </Button>
+            </form>
+          )}
+        </div>
+      </Modal>
 
-              <div className="max-h-40 overflow-y-auto space-y-1 border border-line rounded-xl p-2 bg-cream/20">
-                {(userResults.length > 0
-                  ? userResults
-                  : linkedContacts.map((c) => ({
-                      _id: c.linkedUser?._id || c.linkedUser,
-                      name: c.name,
-                      username: c.linkedUser?.username || '',
-                      avatar: c.avatar
-                    }))
-                ).map((u) => {
-                  if (!u._id) return null;
-                  const isSelected = selectedUserIds.includes(u._id);
-                  return (
-                    <div
-                      key={u._id}
-                      onClick={() => handleToggleGroupMember(u._id)}
-                      className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition ${
-                        isSelected ? 'bg-primary/15 border border-line' : 'hover:bg-card'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Avatar src={u.avatar} name={u.name} size="xs" />
-                        <span className="text-xs font-medium text-ink">{u.name}</span>
-                        {u.username && <span className="text-[10px] text-muted">@{u.username}</span>}
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => {}}
-                        className="w-4 h-4 text-primary rounded border-line"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              variant="primary"
-              isLoading={isCreatingGroup}
-              disabled={!groupName.trim() || selectedUserIds.length === 0}
-              className="w-full py-2.5"
-            >
-              Create Group Room
-            </Button>
-          </form>
-        )}
-      </div>
-    </Modal>
+      {/* Embedded AddContactModal for direct phone flow */}
+      <AddContactModal
+        isOpen={isAddContactOpen}
+        onClose={() => {
+          setIsAddContactOpen(false);
+          setPrefilledPhone('');
+        }}
+        initialPhone={prefilledPhone}
+        onChatReady={(conversationId) => {
+          setIsAddContactOpen(false);
+          setPrefilledPhone('');
+          onClose();
+          if (onChatCreated) onChatCreated({ _id: conversationId });
+        }}
+      />
+    </>
   );
 };
 

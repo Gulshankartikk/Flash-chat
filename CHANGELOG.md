@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- Release preparation automation tooling (`npm run release:prepare`) with semver verification, dry-run, and check mode.
+- Pre-release gating in GitHub Actions release workflow.
+- Disaster recovery and automated deployment runbooks.
+
+### Changed
+- Refined production container healthcheck timings.
+
 ## [1.1.0] - 2026-10-04
 
 ### Added
@@ -56,3 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking Changes
 - None. Full backward compatibility is maintained for legacy users without role or discoverability fields (defaulting lazily to `role: "user"`, `discoverableByPhone: true`, `discoverableByEmail: true`).
+
+[Unreleased]: https://github.com/Gulshankartikk/Flash-chat/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Gulshankartikk/Flash-chat/compare/v1.0.0...v1.1.0
+

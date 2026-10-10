@@ -20,7 +20,8 @@ const testSuites = [
   { name: '8. Flash AI Defense & Prompt Wrapper Suite', file: 'tests/runAiTests.js' },
   { name: '9. Step 9A Security, Rate Limiting & Observability Suite', file: 'tests/backendSecurityPush.test.js' },
   { name: '10. Security, Privacy & Access Isolation Suite (B-3c.3)', file: 'tests/securityAndPrivacySuite.js' },
-  { name: '11. Migration, Idempotency & Compatibility Suite (B-3c.4)', file: 'tests/migrationAndCompatSuite.js' }
+  { name: '11. Migration, Idempotency & Compatibility Suite (B-3c.4)', file: 'tests/migrationAndCompatSuite.js' },
+  { name: '12. Phone-Based Chats & Pending Conversations Suite', file: 'tests/integration/phoneChatAndPendingSuite.test.js' }
 ];
 
 let totalPassedSuites = 0;

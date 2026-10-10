@@ -20,6 +20,8 @@ export const useChatStore = create((set, get) => ({
   starredMessages: [],
   isSearchingMessages: false,
   searchResults: [],
+  pendingConversations: [],
+  isLoadingPending: false,
 
   setOnlineUsers: (users) => set({ onlineUsers: new Set(users) }),
 
@@ -41,6 +43,104 @@ export const useChatStore = create((set, get) => ({
       console.error('Failed to fetch conversations:', err.message);
       set({ isLoadingConversations: false });
       return [];
+    }
+  },
+
+  /**
+   * Fetch pending/queued conversations for current user
+   */
+  fetchPendingConversations: async () => {
+    set({ isLoadingPending: true });
+    try {
+      const res = await api.get('/chats/pending');
+      const pendingList = res.data.pendingConversations || [];
+      set({ pendingConversations: pendingList, isLoadingPending: false });
+      return pendingList;
+    } catch (err) {
+      console.error('Failed to fetch pending conversations:', err.message);
+      set({ isLoadingPending: false });
+      return [];
+    }
+  },
+
+  /**
+   * Queue message to a pending conversation
+   */
+  queuePendingMessage: async (pendingId, text) => {
+    try {
+      const res = await api.post(`/chats/pending/${pendingId}/messages`, { text });
+      await get().fetchPendingConversations();
+      return res.data;
+    } catch (err) {
+      console.error('Failed to queue pending message:', err.message);
+      throw err;
+    }
+  },
+
+  /**
+   * Delete / cancel a pending conversation
+   */
+  deletePendingConversation: async (pendingId) => {
+    try {
+      const res = await api.delete(`/chats/pending/${pendingId}`);
+      set((state) => ({
+        pendingConversations: state.pendingConversations.filter((p) => p._id !== pendingId)
+      }));
+      return res.data;
+    } catch (err) {
+      console.error('Failed to delete pending conversation:', err.message);
+      throw err;
+    }
+  },
+
+  /**
+   * Accept a message request
+   */
+  acceptMessageRequest: async (convId) => {
+    try {
+      const res = await api.post(`/chats/${convId}/accept`);
+      const updated = res.data.conversation;
+      set((state) => {
+        const convs = state.conversations.map((c) =>
+          String(c._id) === String(convId) ? { ...c, status: 'active' } : c
+        );
+        return {
+          conversations: convs,
+          chats: convs,
+          activeConversation:
+            state.activeConversation && String(state.activeConversation._id) === String(convId)
+              ? { ...state.activeConversation, status: 'active' }
+              : state.activeConversation
+        };
+      });
+      return updated;
+    } catch (err) {
+      console.error('Failed to accept message request:', err.message);
+      throw err;
+    }
+  },
+
+  /**
+   * Reject / delete a message request
+   */
+  rejectMessageRequest: async (convId) => {
+    try {
+      const res = await api.post(`/chats/${convId}/reject`);
+      set((state) => {
+        const filtered = state.conversations.filter((c) => String(c._id) !== String(convId));
+        return {
+          conversations: filtered,
+          chats: filtered,
+          activeConversation:
+            state.activeConversation && String(state.activeConversation._id) === String(convId)
+              ? null
+              : state.activeConversation
+        };
+      });
+      return res.data;
+    } catch (err) {
+      console.error('Failed to reject message request:', err.message);
+      throw err;
     }
   },
 
@@ -587,6 +687,17 @@ export const useChatStore = create((set, get) => ({
 
     // Conversation Updated
     socket.on('conversation:updated', () => {
+      get().fetchConversations();
+      get().fetchPendingConversations();
+    });
+
+    // Message request or pending delivered
+    socket.on('pending:delivered', () => {
+      get().fetchConversations();
+      get().fetchPendingConversations();
+    });
+
+    socket.on('conversation:request', () => {
       get().fetchConversations();
     });
   }

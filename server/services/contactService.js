@@ -446,8 +446,12 @@ class ContactService {
           await contact.save();
         }
       }
+
+      // Deliver any pending queued messages
+      const chatService = require('./chatService');
+      await chatService.deliverPendingConversationsOnSignup(newUser);
     } catch (err) {
-      logger.error({ err: err.message }, 'Failed linking contacts for new user');
+      logger.error({ err: err.message }, 'Failed linking contacts or delivering pending conversations for new user');
     }
   }
 

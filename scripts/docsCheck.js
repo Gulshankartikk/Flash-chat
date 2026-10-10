@@ -43,6 +43,14 @@ function runDocsCheck() {
   // 3. Scan markdown docs
   const docFiles = [
     'README.md',
+    'RELEASING.md',
+    'DEPLOYMENT.md',
+    'CONTRIBUTING.md',
+    'SECURITY.md',
+    'DR.md',
+    'MONITORING.md',
+    'MIGRATION.md',
+    'RISKS.md',
     'DESIGN_SYSTEM.md',
     'ACCESSIBILITY.md',
     'SUPPORT_RUNBOOK.md',

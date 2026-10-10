@@ -432,6 +432,84 @@ const searchMessages = async (req, res, next) => {
   }
 };
 
+/**
+ * POST /api/chats/by-phone
+ */
+const startChatByPhone = async (req, res, next) => {
+  try {
+    const { phone, name, saveContact } = req.body;
+    const result = await chatService.startChatByPhone(req.user._id, {
+      phone,
+      name,
+      saveContact: saveContact !== false
+    });
+    return res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/chats/pending/:id/messages
+ */
+const queuePendingMessage = async (req, res, next) => {
+  try {
+    const { text } = req.body;
+    const result = await chatService.queuePendingMessage(req.user._id, req.params.id, text);
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/chats/pending
+ */
+const getPendingConversations = async (req, res, next) => {
+  try {
+    const pendingList = await chatService.getPendingConversations(req.user._id);
+    return res.status(200).json({ success: true, pendingConversations: pendingList });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * DELETE /api/chats/pending/:id
+ */
+const deletePendingConversation = async (req, res, next) => {
+  try {
+    const result = await chatService.deletePendingConversation(req.user._id, req.params.id);
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/chats/:id/accept
+ */
+const acceptMessageRequest = async (req, res, next) => {
+  try {
+    const conversation = await chatService.acceptMessageRequest(req.user._id, req.params.id);
+    return res.status(200).json({ success: true, conversation });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/chats/:id/reject
+ */
+const rejectMessageRequest = async (req, res, next) => {
+  try {
+    const result = await chatService.rejectMessageRequest(req.user._id, req.params.id);
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createOrGetDirectChat,
   createGroupChat,
@@ -447,5 +525,11 @@ module.exports = {
   updateChatSettings,
   getMessages,
   getChatMedia,
-  searchMessages
+  searchMessages,
+  startChatByPhone,
+  queuePendingMessage,
+  getPendingConversations,
+  deletePendingConversation,
+  acceptMessageRequest,
+  rejectMessageRequest
 };

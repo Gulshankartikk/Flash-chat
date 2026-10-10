@@ -702,6 +702,22 @@ Flash Chat uses a single source of truth for all styling tokens:
   # Example: db.users.updateOne({ email: "agent@flashchat.com" }, { $set: { role: "support" } })
   ```
 
+---
+
+## 23. Documentation Index & Operational Runbooks
+
+| Document | Purpose |
+| :--- | :--- |
+| **[RELEASING.md](file:///c:/Users/kg872/Documents/GitHub/Flash-chat/RELEASING.md)** | Release preparation tooling (`release:prepare`), SemVer policy, GitHub Actions release pipeline, rollback triggers, and hotfix workflows. |
+| **[DEPLOYMENT.md](file:///c:/Users/kg872/Documents/GitHub/Flash-chat/DEPLOYMENT.md)** | Production topology, Docker Compose orchestration, Nginx reverse proxy, Coturn TURN server, and host provisioning. |
+| **[CONTRIBUTING.md](file:///c:/Users/kg872/Documents/GitHub/Flash-chat/CONTRIBUTING.md)** | PR requirements, linting rules, design token strictness, and development guidelines. |
+| **[SECURITY.md](file:///c:/Users/kg872/Documents/GitHub/Flash-chat/SECURITY.md)** | Vulnerability reporting, security controls, token rotation, and threat models. |
+| **[DR.md](file:///c:/Users/kg872/Documents/GitHub/Flash-chat/DR.md)** | Disaster recovery procedures, MongoDB backup/restore drills, and RTO/RPO metrics. |
+| **[MONITORING.md](file:///c:/Users/kg872/Documents/GitHub/Flash-chat/MONITORING.md)** | Health metrics, Prometheus/Grafana alerts, logging architecture, and error thresholds. |
+| **[DESIGN_SYSTEM.md](file:///c:/Users/kg872/Documents/GitHub/Flash-chat/DESIGN_SYSTEM.md)** | 8-Token color palette, accessible component primitives, and styleguide specs. |
+
+
+
 
 
 

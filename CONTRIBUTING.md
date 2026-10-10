@@ -38,3 +38,11 @@ npm --prefix client run build
 
 - Visible AI references must always be **"Flash AI"**.
 - The word "Gemini" is strictly restricted to the explicit `AiProviderDisclosure` component and backend adapter identifiers.
+
+---
+
+## 4. Release Process & Versioning
+
+For details on how releases are versioned, prepared, verified, and deployed, refer to [RELEASING.md](file:///c:/Users/kg872/Documents/GitHub/Flash-chat/RELEASING.md).
+
+

@@ -23,7 +23,7 @@ const createHandler = (message) => (req, res, next, options) => {
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 300, // 300 requests per 15 min
+  max: process.env.NODE_ENV === 'production' ? 300 : 10000,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator,
@@ -104,6 +104,24 @@ const pocketPinLimiter = rateLimit({
 
 const pocketExportLimiter = exportLimiter;
 
+const chatByPhoneLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 30, // 30 phone lookups/chats per hour
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator,
+  handler: createHandler('You have reached the limit of 30 phone lookups per hour. Please wait a while before trying again.')
+});
+
+const dailyLookupLimiter = rateLimit({
+  windowMs: 24 * 60 * 60 * 1000, // 24 hours
+  max: 100, // 100 lookups per day
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator,
+  handler: createHandler('Daily lookup cap reached (100 lookups/day). Please try again tomorrow.')
+});
+
 module.exports = {
   apiLimiter,
   authLimiter,
@@ -114,5 +132,7 @@ module.exports = {
   pushLimiter,
   searchLimiter,
   pocketPinLimiter,
-  pocketExportLimiter
+  pocketExportLimiter,
+  chatByPhoneLimiter,
+  dailyLookupLimiter
 };

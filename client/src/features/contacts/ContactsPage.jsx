@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserPlus, UploadCloud, Undo2, Check } from 'lucide-react';
+import { UserPlus, UploadCloud, Undo2, Plus, Sparkles } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { Button } from '../../components/Button';
 import { ContactList } from './ContactList';
@@ -42,7 +42,7 @@ export const ContactsPage = () => {
   };
 
   return (
-    <div className="flex flex-col h-full bg-cream select-none overflow-hidden">
+    <div className="relative flex flex-col h-full bg-cream select-none overflow-hidden">
       {/* Top Header */}
       <PageHeader
         title="Contacts"
@@ -72,8 +72,8 @@ export const ContactsPage = () => {
         }
       />
 
-      {/* Main List */}
-      <div className="flex-1 overflow-hidden">
+      {/* Main List with bottom padding so FAB does not cover items */}
+      <div className="flex-1 overflow-hidden pb-20 md:pb-0">
         <ContactList
           contacts={contacts}
           isLoading={isLoading}
@@ -88,14 +88,38 @@ export const ContactsPage = () => {
         />
       </div>
 
+      {/* Mobile 56px Floating Action Button (FAB) placed above bottom nav with safe-area insets */}
+      <div
+        className="md:hidden fixed right-5 z-30 pointer-events-none"
+        style={{
+          bottom: 'calc(4.5rem + env(safe-area-inset-bottom, 0px))'
+        }}
+      >
+        <button
+          type="button"
+          aria-label="Add contact"
+          onClick={() => {
+            setContactToEdit(null);
+            setIsAddOpen(true);
+          }}
+          className="pointer-events-auto w-14 h-14 rounded-full bg-brand text-white shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform duration-200 focus:outline-none focus:ring-4 focus:ring-primary/40 cursor-pointer"
+        >
+          <Plus className="w-7 h-7 stroke-[2.5px]" />
+        </button>
+      </div>
+
       {/* Undo Toast */}
       {undoToast && (
-        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-2.5 bg-ink text-cream rounded-2xl shadow-xl border border-line text-xs font-semibold animate-in fade-in slide-in-from-bottom-3 duration-200">
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-4 py-2.5 bg-ink text-cream rounded-2xl shadow-xl border border-line text-xs font-semibold animate-in fade-in slide-in-from-bottom-3 duration-200"
+        >
           <span>{undoToast.message}</span>
           <button
             type="button"
             onClick={handleUndoDelete}
-            className="flex items-center gap-1 text-primary hover:underline font-bold ml-1"
+            className="flex items-center gap-1 text-primary hover:underline font-bold ml-1 cursor-pointer"
           >
             <Undo2 className="w-3.5 h-3.5" />
             <span>Undo</span>
@@ -135,3 +159,5 @@ export const ContactsPage = () => {
     </div>
   );
 };
+
+export default ContactsPage;
