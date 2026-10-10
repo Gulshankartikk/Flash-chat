@@ -172,9 +172,6 @@ export const AddContactModal = ({
 
   const validateForSave = () => {
     const errs = {};
-    if (saveToContacts && !name.trim()) {
-      errs.name = 'Contact name is required to save';
-    }
 
     if (!phoneNumber && !email) {
       errs.general = 'Please provide either a phone number or an email';
@@ -206,10 +203,6 @@ export const AddContactModal = ({
       errs.phone = "That's your number";
     }
 
-    if (saveToContacts && !name.trim()) {
-      errs.name = 'Contact name is required when "Save to contacts" is enabled';
-    }
-
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       errs.general = "You're offline. We'll save the contact and sync it later; chatting needs a connection.";
     }
@@ -225,11 +218,17 @@ export const AddContactModal = ({
     setIsSubmittingChat(true);
     setErrors({});
     try {
+      const contactName = name.trim() || fullPhone;
       const res = await api.post('/chats/by-phone', {
         phone: fullPhone,
-        name: name.trim() || undefined,
-        saveContact: saveToContacts
+        name: contactName,
+        saveContact: true
       });
+
+      // Refresh contact list store
+      if (useContactsStore.getState().fetchContacts) {
+        useContactsStore.getState().fetchContacts();
+      }
 
       const { status, conversationId, contactId, pendingId } = res.data;
 
@@ -245,7 +244,7 @@ export const AddContactModal = ({
           pendingId,
           contactId,
           phone: fullPhone,
-          name: name.trim()
+          name: contactName
         });
         setIsPendingSheetOpen(true);
       }
@@ -274,8 +273,9 @@ export const AddContactModal = ({
 
     setIsSubmittingSave(true);
     try {
+      const contactName = name.trim() || (phoneNumber ? fullPhone : email.trim()) || 'Contact';
       const payload = {
-        name: name.trim(),
+        name: contactName,
         phone: fullPhone || undefined,
         email: email.trim().toLowerCase() || undefined,
         note: note.trim() || undefined,
@@ -287,6 +287,10 @@ export const AddContactModal = ({
         result = await updateContact(contactToEdit._id, payload);
       } else {
         result = await addContact(payload);
+      }
+
+      if (useContactsStore.getState().fetchContacts) {
+        useContactsStore.getState().fetchContacts();
       }
 
       if (onSaved) onSaved(result?.contact || result);

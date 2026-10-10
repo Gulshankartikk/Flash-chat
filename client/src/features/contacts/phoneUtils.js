@@ -4,8 +4,8 @@
  */
 
 export const COUNTRY_CODES = [
-  { code: '+1', country: 'United States / Canada', flag: '🇺🇸' },
   { code: '+91', country: 'India', flag: '🇮🇳' },
+  { code: '+1', country: 'United States / Canada', flag: '🇺🇸' },
   { code: '+44', country: 'United Kingdom', flag: '🇬🇧' },
   { code: '+61', country: 'Australia', flag: '🇦🇺' },
   { code: '+49', country: 'Germany', flag: '🇩🇪' },
@@ -19,24 +19,25 @@ export const COUNTRY_CODES = [
 ];
 
 /**
- * Get default country code from browser locale
+ * Get default country code (Defaults to +91 India)
  */
 export function getDefaultCountryCode() {
-  if (typeof navigator === 'undefined' || !navigator.language) return '+1';
-  const lang = navigator.language.toLowerCase();
-  if (lang.includes('in') || lang.includes('hi')) return '+91';
-  if (lang.includes('gb') || lang.includes('uk')) return '+44';
-  if (lang.includes('au')) return '+61';
-  if (lang.includes('de')) return '+49';
-  if (lang.includes('fr')) return '+33';
-  if (lang.includes('ae')) return '+971';
-  return '+1';
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    const lang = navigator.language.toLowerCase();
+    if (lang.includes('gb') || lang.includes('uk')) return '+44';
+    if (lang.includes('au')) return '+61';
+    if (lang.includes('de')) return '+49';
+    if (lang.includes('fr')) return '+33';
+    if (lang.includes('ae')) return '+971';
+    if (lang.includes('us')) return '+1';
+  }
+  return '+91';
 }
 
 /**
  * Format raw input to standard E.164 (+[1-9][0-9]{6,14})
  */
-export function formatToE164(phone, defaultCountryCode = '+1') {
+export function formatToE164(phone, defaultCountryCode = '+91') {
   if (!phone || typeof phone !== 'string') return '';
   const cleaned = phone.trim().replace(/[\s\-().]/g, '');
   if (!cleaned) return '';
