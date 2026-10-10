@@ -12,6 +12,7 @@
     "format": "npm --prefix server run format",
     "docs:check": "node scripts/docsCheck.js",
     "deps:check": "node scripts/depsCheck.js",
+    "cycles:check": "node scripts/checkCycles.js",
     "test": "npm --prefix server test && node client/tests/runAllClientTests.js",
     "test:e2e:real": "node e2e/liveThreeBrowserSuite.js",
     "test:self": "node scripts/liveProjectSelfTest.js",
