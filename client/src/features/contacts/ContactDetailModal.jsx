@@ -339,6 +339,6 @@ export const ContactDetailModal = ({
           </div>
         )}
       </div>
-    </Modal>
+    </Wrapper>
   );
 };
