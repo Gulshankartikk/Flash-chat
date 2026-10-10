@@ -61,7 +61,10 @@ function runDocsCheck() {
   ];
 
   for (const docFile of docFiles) {
-    const fullPath = path.join(rootDir, docFile);
+    let fullPath = path.join(rootDir, docFile);
+    if (!fs.existsSync(fullPath)) {
+      fullPath = path.join(rootDir, 'docs', docFile);
+    }
     if (!fs.existsSync(fullPath)) {
       errors.push(`Missing expected document: ${docFile}`);
       continue;

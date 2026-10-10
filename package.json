@@ -13,7 +13,7 @@
     "docs:check": "node scripts/docsCheck.js",
     "deps:check": "node scripts/depsCheck.js",
     "test": "npm --prefix server test && node client/tests/runAllClientTests.js",
-    "test:e2e:real": "node client/tests/liveThreeBrowserSuite.js",
+    "test:e2e:real": "node e2e/liveThreeBrowserSuite.js",
     "test:self": "node scripts/liveProjectSelfTest.js",
     "release:prepare": "node scripts/release-prepare.js",
     "release:record": "node scripts/release-record.js"

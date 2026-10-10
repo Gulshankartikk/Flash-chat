@@ -16,7 +16,7 @@ import assert from 'node:assert';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const reportsDir = path.resolve(__dirname, '../../reports/e2e-real');
+const reportsDir = path.resolve(__dirname, '../reports/e2e-real');
 
 if (!fs.existsSync(reportsDir)) {
   fs.mkdirSync(reportsDir, { recursive: true });
