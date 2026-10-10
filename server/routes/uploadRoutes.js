@@ -3,7 +3,7 @@ const router = express.Router();
 const { upload, verifyUploadedFile } = require('../middleware/uploadMiddleware');
 const authMiddleware = require('../middleware/authMiddleware');
 const { uploadLimiter } = require('../middleware/rateLimiter');
-const { cloudinary, isCloudinaryConfigured } = require('../config/cloudinary');
+const mediaService = require('../services/mediaService');
 const logger = require('../utils/logger');
 
 /**
@@ -12,7 +12,7 @@ const logger = require('../utils/logger');
 const getResourceTypeAndType = (mimetype) => {
   if (mimetype.startsWith('image/')) return { resourceType: 'image', type: 'image' };
   if (mimetype.startsWith('video/')) return { resourceType: 'video', type: 'video' };
-  if (mimetype.startsWith('audio/')) return { resourceType: 'video', type: 'audio' }; // Cloudinary stores audio under 'video'
+  if (mimetype.startsWith('audio/')) return { resourceType: 'video', type: 'audio' };
   if (mimetype === 'application/pdf') return { resourceType: 'raw', type: 'pdf' };
   return { resourceType: 'auto', type: 'file' };
 };
@@ -30,42 +30,22 @@ router.post('/', authMiddleware, uploadLimiter, upload.single('file'), verifyUpl
       });
     }
 
-    if (!isCloudinaryConfigured) {
-      return res.status(400).json({
-        success: false,
-        message:
-          'Cloudinary is not configured. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in the server environment.'
-      });
-    }
-
     const { resourceType, type } = getResourceTypeAndType(req.file.mimetype);
     const folder = req.body.folder || 'flashchat/uploads';
 
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder,
-        resource_type: resourceType
-      },
-      (error, result) => {
-        if (error) {
-          logger.error({ err: error.message }, 'Cloudinary upload error');
-          return res.status(500).json({
-            success: false,
-            message: `Cloudinary upload failed: ${error.message}`
-          });
-        }
+    const uploaded = await mediaService.uploadFile(req.file, {
+      folder,
+      resource_type: resourceType
+    });
 
-        return res.status(200).json({
-          success: true,
-          url: result.secure_url,
-          publicId: result.public_id,
-          type
-        });
-      }
-    );
-
-    uploadStream.end(req.file.buffer);
+    return res.status(200).json({
+      success: true,
+      url: uploaded.url,
+      publicId: uploaded.public_id,
+      type
+    });
   } catch (error) {
+    logger.error({ err: error.message }, 'Upload handler error');
     next(error);
   }
 });
@@ -83,42 +63,22 @@ router.post('/avatar', authMiddleware, upload.single('avatar'), async (req, res,
       });
     }
 
-    if (!isCloudinaryConfigured) {
-      return res.status(400).json({
-        success: false,
-        message:
-          'Cloudinary is not configured. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in the server environment.'
-      });
-    }
+    const uploaded = await mediaService.uploadFile(req.file, {
+      folder: 'flashchat/avatars',
+      resource_type: 'image'
+    });
 
-    const uploadStream = cloudinary.uploader.upload_stream(
-      {
-        folder: 'flashchat/avatars',
-        resource_type: 'image',
-        transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }]
-      },
-      (error, result) => {
-        if (error) {
-          logger.error({ err: error.message }, 'Cloudinary avatar upload error');
-          return res.status(500).json({
-            success: false,
-            message: `Cloudinary upload failed: ${error.message}`
-          });
-        }
-
-        return res.status(200).json({
-          success: true,
-          url: result.secure_url,
-          publicId: result.public_id,
-          type: 'image'
-        });
-      }
-    );
-
-    uploadStream.end(req.file.buffer);
+    return res.status(200).json({
+      success: true,
+      url: uploaded.url,
+      publicId: uploaded.public_id,
+      type: 'image'
+    });
   } catch (error) {
+    logger.error({ err: error.message }, 'Avatar upload handler error');
     next(error);
   }
 });
 
 module.exports = router;
+
