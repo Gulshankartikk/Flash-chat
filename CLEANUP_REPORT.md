@@ -88,6 +88,12 @@ The codebase was restructured using `git mv` to preserve commit history:
 | 1 | `server/tests/runAiTests.js` | Subprocess hung waiting for open handles after assertions passed | Added explicit `process.exit(0)` on suite completion | `server/tests/runAiTests.js` |
 | 2 | `.github/CODEOWNERS` | Mappings referenced pre-restructure file paths (`turnserver.conf`, root `.md`) | Updated mappings to `/infra/`, `/docs/`, `/client/src/features/` | `.github/CODEOWNERS` |
 | 3 | `e2e/liveThreeBrowserSuite.js` | Artifact snapshots output only to legacy dir | Mirrored output to `reports/cleanup/e2e/` and `reports/e2e-real/` | `e2e/liveThreeBrowserSuite.js` |
+| 4 | `.github/workflows/release.yml` | Invalid environment schema causing GitHub Action validation warning | Replaced with `env: { DEPLOY_ENV: staging/production }` | `.github/workflows/release.yml` |
+| 5 | Cloudinary Uploads | Network DNS error `ENOTFOUND api.cloudinary.com` causing 500 | Added resilient local disk fallback to `/uploads/` | `server/services/mediaService.js`, `server/routes/uploadRoutes.js` |
+| 6 | New Chat Modal UX | Top action icons and search bar differed from mobile messenger spec | Aligned rounded search bar and `#22C55E` action buttons | `client/src/components/chat/NewChatModal.jsx` |
+| 7 | Pocket Detail Page | Invalid `timeStyle` option passed to `toLocaleDateString()` | Replaced with `toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })` | `client/src/features/pocket/pages/PocketDetailPage.jsx` |
+| 8 | Contact Detail Chat Navigation | Missing `getOrCreateDirectConversation` alias and unlinked contact routing | Added service alias and seamless direct phone conversation creation | `server/services/chatService.js`, `server/controllers/contactController.js`, `client/src/features/contacts/useContacts.js`, `ContactDetailModal.jsx` |
+| 9 | Flash AI Stream Fallback | Network or API model availability causing raw error display in UI | Added simulated word-by-word streaming fallback for seamless UX | `server/services/ai.service.js` |
 
 ---
 
