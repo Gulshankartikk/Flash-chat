@@ -48,6 +48,14 @@ class ChatService {
   }
 
   /**
+   * Alias for createDirectConversation
+   */
+  async getOrCreateDirectConversation(userIdA, userIdB) {
+    return this.createDirectConversation(userIdA, userIdB);
+  }
+
+
+  /**
    * Create a new group conversation
    */
   async createGroupConversation(creatorId, { name, memberIds = [], avatar = '', description = '' }) {

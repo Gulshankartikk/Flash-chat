@@ -130,8 +130,9 @@ export const useContactsStore = create((set, get) => ({
 
   startChatWithContact: async (contactId) => {
     const res = await api.post(`/contacts/${contactId}/message`);
-    return res.data.conversation;
+    return res.data.conversation || res.data;
   },
+
 
   inviteContact: async (contactId, channel = 'sms') => {
     const res = await api.post(`/contacts/${contactId}/invite`, { channel });

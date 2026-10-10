@@ -44,20 +44,40 @@ exports.bulkImportContacts = asyncHandler(async (req, res) => {
 exports.startChatWithContact = asyncHandler(async (req, res) => {
   const contact = await contactService.getContactById(req.user._id, req.params.id);
 
-  if (!contact.linkedUser) {
-    return res.status(404).json({
-      success: false,
-      message: 'This contact is not registered on Flash Chat yet. You can send them an invitation!'
+  if (contact.linkedUser) {
+    const targetUserId = contact.linkedUser._id || contact.linkedUser;
+    const conversation = await chatService.getOrCreateDirectConversation(req.user._id, targetUserId);
+    return res.status(200).json({ success: true, conversation });
+  }
+
+  if (contact.phone) {
+    const phoneResult = await chatService.startChatByPhone(req.user._id, {
+      phone: contact.phone,
+      name: contact.name,
+      saveContact: false
+    });
+
+    if (phoneResult.status === 'ready') {
+      const conversation = await Conversation.findById(phoneResult.conversationId)
+        .populate('members.user', '_id name username avatar isOnline lastSeen privacy')
+        .populate('lastMessage');
+      return res.status(200).json({ success: true, conversation: conversation || { _id: phoneResult.conversationId } });
+    }
+
+    return res.status(200).json({
+      success: true,
+      status: 'pending',
+      pendingId: phoneResult.pendingId,
+      canInvite: phoneResult.canInvite
     });
   }
 
-  const conversation = await chatService.getOrCreateDirectConversation(
-    req.user._id,
-    contact.linkedUser._id || contact.linkedUser
-  );
-
-  res.status(200).json({ success: true, conversation });
+  return res.status(404).json({
+    success: false,
+    message: 'This contact is not registered on Flash Chat yet. You can send them an invitation!'
+  });
 });
+
 
 exports.inviteContact = asyncHandler(async (req, res) => {
   const result = await contactService.inviteContact(req.user._id, req.params.id);

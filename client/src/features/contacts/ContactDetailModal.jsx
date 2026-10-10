@@ -59,11 +59,16 @@ export const ContactDetailModal = ({
       onClose();
       if (conv?._id) {
         navigate(`/chats/${conv._id}`);
+      } else if (conv?.conversationId) {
+        navigate(`/chats/${conv.conversationId}`);
+      } else if (conv?.status === 'pending' || conv?.pendingId) {
+        navigate('/chats');
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to start chat');
     }
   };
+
 
   const handleStartCall = (type = 'audio') => {
     if (!linkedUserData?._id) {
