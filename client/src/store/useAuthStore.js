@@ -19,15 +19,17 @@ export const useAuthStore = create((set, get) => ({
   setOtpCooldown: (val) => set({ otpCooldown: val }),
 
   checkAuth: async () => {
+    const token = localStorage.getItem('flash_chat_token') || get().token;
+    if (!token) {
+      set({ user: null, token: null, isCheckingAuth: false });
+      return null;
+    }
     set({ isCheckingAuth: true });
     try {
       const res = await api.get('/auth/me');
       const user = res.data.user;
-      set({ user, isCheckingAuth: false });
-      const currentToken = get().token;
-      if (currentToken) {
-        connectSocket(currentToken);
-      }
+      set({ user, token, isCheckingAuth: false });
+      connectSocket(token);
       return user;
     } catch {
       set({ user: null, token: null, isCheckingAuth: false });
