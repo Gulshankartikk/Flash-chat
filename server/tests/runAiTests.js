@@ -72,9 +72,11 @@ async function runTests() {
   console.log('  ✓ Moderation mock output:', moderationMock);
 
   console.log('\n🎉 ALL FLASH AI SECURITY & INTEGRATION TESTS PASSED (0 ERRORS)!');
+  process.exit(0);
 }
 
 runTests().catch((err) => {
   console.error('❌ Test failed:', err);
   process.exit(1);
 });
+
