@@ -16,10 +16,14 @@ import assert from 'node:assert';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const reportsDir = path.resolve(__dirname, '../reports/e2e-real');
+const reportsDir = path.resolve(__dirname, '../reports/cleanup/e2e');
+const legacyReportsDir = path.resolve(__dirname, '../reports/e2e-real');
 
 if (!fs.existsSync(reportsDir)) {
   fs.mkdirSync(reportsDir, { recursive: true });
+}
+if (!fs.existsSync(legacyReportsDir)) {
+  fs.mkdirSync(legacyReportsDir, { recursive: true });
 }
 
 const BASE_URL = process.env.CLIENT_URL || 'http://localhost:5173';
@@ -31,6 +35,13 @@ function recordResult(domain, scenario, status, evidence, bug = null, fix = null
   results.push({ domain, scenario, status, evidence, bug, fix });
   const icon = status === 'PASS' ? '\x1b[32m✔\x1b[0m' : status === 'FAIL' ? '\x1b[31m✖\x1b[0m' : '\x1b[33m⚠\x1b[0m';
   console.log(`  ${icon} [${domain}] ${scenario} -> \x1b[1m${status}\x1b[0m (${evidence})`);
+}
+
+async function takeSnapshot(page, filename) {
+  const p1 = path.join(reportsDir, filename);
+  const p2 = path.join(legacyReportsDir, filename);
+  await page.screenshot({ path: p1 });
+  try { fs.copyFileSync(p1, p2); } catch (e) {}
 }
 
 async function runLiveThreeBrowserSuite() {
@@ -145,10 +156,10 @@ async function runLiveThreeBrowserSuite() {
     await injectAuth(pageB, authB.token, authB.user);
     await injectAuth(pageC, authC.token, authC.user);
 
-    await pageA.screenshot({ path: path.join(reportsDir, '01-auth-alice-desktop.png') });
-    await pageC.screenshot({ path: path.join(reportsDir, '01-auth-charlie-mobile.png') });
+    await takeSnapshot(pageA, '01-auth-alice-desktop.png');
+    await takeSnapshot(pageC, '01-auth-charlie-mobile.png');
 
-    recordResult('Auth & Onboarding', 'Phone & Email OTP signups and session injection', 'PASS', 'reports/e2e-real/01-auth-alice-desktop.png');
+    recordResult('Auth & Onboarding', 'Phone & Email OTP signups and session injection', 'PASS', 'reports/cleanup/e2e/01-auth-alice-desktop.png');
 
     // -------------------------------------------------------------------------
     // SCENARIO 2: CHAT (A <-> B while C is Online, 30 Messages, Group Chat)
@@ -191,8 +202,8 @@ async function runLiveThreeBrowserSuite() {
     await pageA.waitForTimeout(1000);
     await pageB.waitForTimeout(1000);
 
-    await pageA.screenshot({ path: path.join(reportsDir, '02-chat-30-messages-desktop.png') });
-    recordResult('Realtime Chat', '30 concurrent messages with 0 lost and 0 duplicates', 'PASS', 'reports/e2e-real/02-chat-30-messages-desktop.png');
+    await takeSnapshot(pageA, '02-chat-30-messages-desktop.png');
+    recordResult('Realtime Chat', '30 concurrent messages with 0 lost and 0 duplicates', 'PASS', 'reports/cleanup/e2e/02-chat-30-messages-desktop.png');
 
     // Group Room Creation (A, B, C)
     const resGroup = await fetch(`${API_URL}/chats/group`, {
@@ -208,8 +219,8 @@ async function runLiveThreeBrowserSuite() {
 
     await pageC.goto(`${BASE_URL}/chats/${groupConv._id}`);
     await pageC.waitForTimeout(1000);
-    await pageC.screenshot({ path: path.join(reportsDir, '02-group-chat-mobile.png') });
-    recordResult('Group Chat', 'Created group room with A, B, C and synced across mobile', 'PASS', 'reports/e2e-real/02-group-chat-mobile.png');
+    await takeSnapshot(pageC, '02-group-chat-mobile.png');
+    recordResult('Group Chat', 'Created group room with A, B, C and synced across mobile', 'PASS', 'reports/cleanup/e2e/02-group-chat-mobile.png');
 
     // -------------------------------------------------------------------------
     // SCENARIO 3: SOCIAL (Follow, Post, Like, Comment)
@@ -251,8 +262,8 @@ async function runLiveThreeBrowserSuite() {
     // View on Social Page
     await pageB.goto(`${BASE_URL}/social`);
     await pageB.waitForTimeout(1000);
-    await pageB.screenshot({ path: path.join(reportsDir, '03-social-feed-desktop.png') });
-    recordResult('Social Engine', 'Post creation, like, comment, and hashtag indexing', 'PASS', 'reports/e2e-real/03-social-feed-desktop.png');
+    await takeSnapshot(pageB, '03-social-feed-desktop.png');
+    recordResult('Social Engine', 'Post creation, like, comment, and hashtag indexing', 'PASS', 'reports/cleanup/e2e/03-social-feed-desktop.png');
 
     // -------------------------------------------------------------------------
     // SCENARIO 4: CROSS-LINKING & ADD BY PHONE (Fix-2 Verification)
@@ -289,14 +300,14 @@ async function runLiveThreeBrowserSuite() {
 
     await pageA.goto(`${BASE_URL}/contacts`);
     await pageA.waitForTimeout(1000);
-    await pageA.screenshot({ path: path.join(reportsDir, '04-contacts-add-by-number.png') });
-    recordResult('Cross-Linking & Contacts', 'Add by registered phone opens chat; unregistered creates pending request', 'PASS', 'reports/e2e-real/04-contacts-add-by-number.png');
+    await takeSnapshot(pageA, '04-contacts-add-by-number.png');
+    recordResult('Cross-Linking & Contacts', 'Add by registered phone opens chat; unregistered creates pending request', 'PASS', 'reports/cleanup/e2e/04-contacts-add-by-number.png');
 
     // Mobile FAB Verification on Context C
     await pageC.goto(`${BASE_URL}/contacts`);
     await pageC.waitForTimeout(1000);
-    await pageC.screenshot({ path: path.join(reportsDir, '04-contacts-mobile-fab.png') });
-    recordResult('Mobile FAB', '56px floating action button placed above bottom nav on 390px mobile', 'PASS', 'reports/e2e-real/04-contacts-mobile-fab.png');
+    await takeSnapshot(pageC, '04-contacts-mobile-fab.png');
+    recordResult('Mobile FAB', '56px floating action button placed above bottom nav on 390px mobile', 'PASS', 'reports/cleanup/e2e/04-contacts-mobile-fab.png');
 
     // -------------------------------------------------------------------------
     // SCENARIO 5: WEBRTC CALLS & HISTORY
@@ -340,8 +351,8 @@ async function runLiveThreeBrowserSuite() {
 
     await pageA.goto(`${BASE_URL}/pocket`);
     await pageA.waitForTimeout(1000);
-    await pageA.screenshot({ path: path.join(reportsDir, '06-pocket-vault-desktop.png') });
-    recordResult('Pocket Vault', 'Saved note, tags, zero-knowledge encryption ready', 'PASS', 'reports/e2e-real/06-pocket-vault-desktop.png');
+    await takeSnapshot(pageA, '06-pocket-vault-desktop.png');
+    recordResult('Pocket Vault', 'Saved note, tags, zero-knowledge encryption ready', 'PASS', 'reports/cleanup/e2e/06-pocket-vault-desktop.png');
 
     // -------------------------------------------------------------------------
     // SCENARIO 7: FLASH AI FEATURES & BRANDING SCAN
@@ -355,8 +366,8 @@ async function runLiveThreeBrowserSuite() {
     const bodyText = await pageA.innerText('body');
     assert.ok(bodyText.includes('Flash AI'), 'Page must display Flash AI branding');
 
-    await pageA.screenshot({ path: path.join(reportsDir, '07-flash-ai-desktop.png') });
-    recordResult('Flash AI Assistant', 'Flash AI interface with honest disclosure and zero Gemini leaks', 'PASS', 'reports/e2e-real/07-flash-ai-desktop.png');
+    await takeSnapshot(pageA, '07-flash-ai-desktop.png');
+    recordResult('Flash AI Assistant', 'Flash AI interface with honest disclosure and zero Gemini leaks', 'PASS', 'reports/cleanup/e2e/07-flash-ai-desktop.png');
 
     // -------------------------------------------------------------------------
     // SCENARIO 8: SUPPORT DESK & AGENT LIVE CHAT
@@ -377,8 +388,8 @@ async function runLiveThreeBrowserSuite() {
 
     await pageA.goto(`${BASE_URL}/support`);
     await pageA.waitForTimeout(1000);
-    await pageA.screenshot({ path: path.join(reportsDir, '08-support-desk-desktop.png') });
-    recordResult('Support Desk', 'Ticket initialization with virtual Flash Support and rating lifecycle', 'PASS', 'reports/e2e-real/08-support-desk-desktop.png');
+    await takeSnapshot(pageA, '08-support-desk-desktop.png');
+    recordResult('Support Desk', 'Ticket initialization with virtual Flash Support and rating lifecycle', 'PASS', 'reports/cleanup/e2e/08-support-desk-desktop.png');
 
     // -------------------------------------------------------------------------
     // SCENARIO 9: NOTIFICATIONS & PWA OFFLINE BANNER
@@ -387,10 +398,10 @@ async function runLiveThreeBrowserSuite() {
 
     await pageA.evaluate(() => window.dispatchEvent(new Event('offline')));
     await pageA.waitForTimeout(500);
-    await pageA.screenshot({ path: path.join(reportsDir, '09-offline-banner-desktop.png') });
+    await takeSnapshot(pageA, '09-offline-banner-desktop.png');
 
     await pageA.evaluate(() => window.dispatchEvent(new Event('online')));
-    recordResult('PWA & Offline Mode', 'Offline status banner triggers and recovers gracefully on reconnect', 'PASS', 'reports/e2e-real/09-offline-banner-desktop.png');
+    recordResult('PWA & Offline Mode', 'Offline status banner triggers and recovers gracefully on reconnect', 'PASS', 'reports/cleanup/e2e/09-offline-banner-desktop.png');
 
     // -------------------------------------------------------------------------
     // SCENARIO 10: SETTINGS, SESSIONS & DARK THEME
@@ -400,8 +411,8 @@ async function runLiveThreeBrowserSuite() {
     await pageA.goto(`${BASE_URL}/profile`);
     await pageA.waitForTimeout(1000);
 
-    await pageA.screenshot({ path: path.join(reportsDir, '10-settings-dark-mode-desktop.png') });
-    recordResult('Settings & Themes', 'Dark mode toggle, privacy toggles, active sessions list', 'PASS', 'reports/e2e-real/10-settings-dark-mode-desktop.png');
+    await takeSnapshot(pageA, '10-settings-dark-mode-desktop.png');
+    recordResult('Settings & Themes', 'Dark mode toggle, privacy toggles, active sessions list', 'PASS', 'reports/cleanup/e2e/10-settings-dark-mode-desktop.png');
 
   } catch (err) {
     console.error('\n\x1b[31mE2E Execution Error:\x1b[0m', err);
