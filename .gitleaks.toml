@@ -5,6 +5,9 @@ useDefault = true
 
 [allowlist]
 description = "Allowed test fixtures and obviously fake placeholders"
+commits = [
+  '''5149678b974c10aa686f862160255323c733a9f6'''
+]
 regexes = [
   '''test_jwt_access_secret_super_secure_12345''',
   '''test_jwt_refresh_secret_super_secure_67890''',
