@@ -17,6 +17,7 @@ export default {
         muted: 'var(--muted)',
         line: 'var(--line)',
         brand: {
+          DEFAULT: 'var(--primary)',
           orange: '#F97316',
           pink: '#EC4899',
           rose: '#F43F5E',

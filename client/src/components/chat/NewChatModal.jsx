@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Users, User, UserPlus, ChevronRight, Check, X, Sparkles, BookUser, Phone } from 'lucide-react';
 import { Modal } from '../Modal';
 import { Avatar } from '../Avatar';
@@ -31,8 +32,9 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
 
+  const navigate = useNavigate();
   const { startDirectConversation, createGroup } = useChatStore();
-  const { contacts, fetchContacts } = useContactsStore();
+  const { contacts, fetchContacts, startChatWithContact } = useContactsStore();
 
   useEffect(() => {
     if (isOpen) {
@@ -92,6 +94,37 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
       if (onChatCreated) onChatCreated(conv);
     } catch (err) {
       alert(err.message || 'Failed to start chat');
+    }
+  };
+
+  const handleContactClick = async (c) => {
+    const isLinked = Boolean(c.linkedUser);
+    const uId = c.linkedUser?._id || c.linkedUser;
+    if (isLinked && uId) {
+      return handleStartDirect(uId);
+    }
+
+    try {
+      setIsLoading(true);
+      const conv = await startChatWithContact(c._id);
+      onClose();
+      if (conv?._id) {
+        if (onChatCreated) onChatCreated(conv);
+        else navigate(`/chats/${conv._id}`);
+      } else if (conv?.conversationId) {
+        if (onChatCreated) onChatCreated({ _id: conv.conversationId });
+        else navigate(`/chats/${conv.conversationId}`);
+      } else {
+        navigate('/chats');
+      }
+    } catch (err) {
+      if (c.phone) {
+        handleStartPhoneChat(c.phone);
+      } else {
+        alert(err.response?.data?.message || err.message || 'Could not start chat');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -265,17 +298,10 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
                     </p>
                     {sortedContacts.map((c) => {
                       const isLinked = Boolean(c.linkedUser);
-                      const uId = c.linkedUser?._id || c.linkedUser;
                       return (
                         <div
                           key={c._id}
-                          onClick={() => {
-                            if (isLinked) {
-                              handleStartDirect(uId);
-                            } else if (c.phone) {
-                              handleStartPhoneChat(c.phone);
-                            }
-                          }}
+                          onClick={() => handleContactClick(c)}
                           className="flex items-center justify-between p-2.5 rounded-xl hover:bg-orange-50/40 transition cursor-pointer border border-transparent hover:border-line"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">

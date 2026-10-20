@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UserPlus, UploadCloud, Undo2, Plus, Sparkles } from 'lucide-react';
 import { PageHeader } from '../../components/PageHeader';
 import { Button } from '../../components/Button';
@@ -9,7 +10,8 @@ import { ContactImportModal } from './ContactImportModal';
 import { useContactsStore } from './useContacts';
 
 export const ContactsPage = () => {
-  const { contacts, isLoading, error, fetchContacts, restoreContact } = useContactsStore();
+  const navigate = useNavigate();
+  const { contacts, isLoading, error, fetchContacts, restoreContact, startChatWithContact } = useContactsStore();
 
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -39,6 +41,21 @@ export const ContactsPage = () => {
       await restoreContact(undoToast.contact);
       setUndoToast(null);
     } catch (_) {}
+  };
+
+  const handleMessageContact = async (contact) => {
+    try {
+      const conv = await startChatWithContact(contact._id);
+      if (conv?._id) {
+        navigate(`/chats/${conv._id}`);
+      } else if (conv?.conversationId) {
+        navigate(`/chats/${conv.conversationId}`);
+      } else if (conv?.status === 'pending' || conv?.pendingId) {
+        navigate('/chats');
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to start chat');
+    }
   };
 
   return (
@@ -80,6 +97,7 @@ export const ContactsPage = () => {
           error={error}
           onRetry={fetchContacts}
           onSelectContact={(c) => setSelectedContact(c)}
+          onMessageContact={handleMessageContact}
           onAddContact={() => {
             setContactToEdit(null);
             setIsAddOpen(true);
@@ -102,7 +120,7 @@ export const ContactsPage = () => {
             setContactToEdit(null);
             setIsAddOpen(true);
           }}
-          className="pointer-events-auto w-14 h-14 rounded-full bg-brand text-white shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform duration-200 focus:outline-none focus:ring-4 focus:ring-primary/40 cursor-pointer"
+          className="pointer-events-auto w-14 h-14 rounded-full bg-brand-gradient hover:opacity-95 text-white shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform duration-200 focus:outline-none focus:ring-4 focus:ring-primary/40 cursor-pointer"
         >
           <Plus className="w-7 h-7 stroke-[2.5px]" />
         </button>

@@ -168,20 +168,21 @@ export const ContactDetailModal = ({
 
           {/* Quick Action Buttons (Horizontal Scrollable) */}
           <div className="flex items-center gap-2.5 mt-4 w-full overflow-x-auto pb-1.5 scrollbar-thin snap-x">
+            <button
+              type="button"
+              onClick={handleMessage}
+              className="flex flex-col items-center gap-1 p-2.5 min-w-[80px] rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs snap-start shrink-0 cursor-pointer"
+            >
+              <MessageSquare className="w-5 h-5 text-primary" />
+              <span>Message</span>
+            </button>
+
             {isLinked ? (
               <>
                 <button
                   type="button"
-                  onClick={handleMessage}
-                  className="flex flex-col items-center gap-1 p-2.5 min-w-[80px] rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs snap-start shrink-0"
-                >
-                  <MessageSquare className="w-5 h-5 text-primary" />
-                  <span>Message</span>
-                </button>
-                <button
-                  type="button"
                   onClick={() => handleStartCall('audio')}
-                  className="flex flex-col items-center gap-1 p-2.5 min-w-[80px] rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs snap-start shrink-0"
+                  className="flex flex-col items-center gap-1 p-2.5 min-w-[80px] rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs snap-start shrink-0 cursor-pointer"
                 >
                   <Phone className="w-5 h-5 text-primary" />
                   <span>Audio Call</span>
@@ -189,7 +190,7 @@ export const ContactDetailModal = ({
                 <button
                   type="button"
                   onClick={() => handleStartCall('video')}
-                  className="flex flex-col items-center gap-1 p-2.5 min-w-[80px] rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs snap-start shrink-0"
+                  className="flex flex-col items-center gap-1 p-2.5 min-w-[80px] rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs snap-start shrink-0 cursor-pointer"
                 >
                   <Video className="w-5 h-5 text-secondary" />
                   <span>Video Call</span>
@@ -201,7 +202,7 @@ export const ContactDetailModal = ({
                   type="button"
                   onClick={() => handleInvite('sms')}
                   disabled={isInviting || !contact.phone}
-                  className="flex flex-col items-center gap-1 p-2.5 min-w-[100px] rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition disabled:opacity-50 shadow-xs snap-start shrink-0"
+                  className="flex flex-col items-center gap-1 p-2.5 min-w-[100px] rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition disabled:opacity-50 shadow-xs snap-start shrink-0 cursor-pointer"
                 >
                   <Send className="w-5 h-5 text-primary" />
                   <span>Invite SMS</span>
@@ -209,7 +210,7 @@ export const ContactDetailModal = ({
                 <button
                   type="button"
                   onClick={handleShareLink}
-                  className="flex flex-col items-center gap-1 p-2.5 min-w-[100px] rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs snap-start shrink-0"
+                  className="flex flex-col items-center gap-1 p-2.5 min-w-[100px] rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs snap-start shrink-0 cursor-pointer"
                 >
                   {copiedLink ? <Check className="w-5 h-5 text-primary" /> : <Share2 className="w-5 h-5 text-secondary" />}
                   <span>{copiedLink ? 'Copied!' : 'Share Link'}</span>

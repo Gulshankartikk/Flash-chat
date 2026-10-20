@@ -227,7 +227,7 @@ export const ConversationList = ({
                   type="button"
                   aria-label="New message options"
                   onClick={() => setShowPlusMenu(!showPlusMenu)}
-                  className="p-1.5 rounded-xl bg-brand text-white shadow-md shadow-primary/25 hover:brightness-105 transition cursor-pointer"
+                  className="p-1.5 rounded-xl bg-brand-gradient hover:opacity-95 text-white shadow-md shadow-primary/25 transition cursor-pointer"
                   title="New chat options"
                 >
                   <Plus className="w-4 h-4 stroke-[2.5px]" />
@@ -430,6 +430,28 @@ export const ConversationList = ({
               <p className="text-[11px]">Start a new chat to begin messaging.</p>
             </div>
           ) : null}
+        </div>
+      )}
+
+      {/* WhatsApp-style Floating Action Button (FAB) for New Chat / Add Contact */}
+      {activeSection === 'chats' && (
+        <div
+          className="fixed md:absolute right-5 md:right-6 z-30 pointer-events-none"
+          style={{
+            bottom: 'calc(5.25rem + env(safe-area-inset-bottom, 0px))'
+          }}
+        >
+          <button
+            type="button"
+            aria-label="New chat or contact"
+            onClick={() => {
+              if (onOpenNewChat) onOpenNewChat('direct');
+            }}
+            className="pointer-events-auto w-14 h-14 rounded-full bg-brand-gradient hover:opacity-95 text-white shadow-xl shadow-primary/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-transform duration-200 focus:outline-none focus:ring-4 focus:ring-primary/40 cursor-pointer"
+            title="Start new chat or add contact"
+          >
+            <MessageSquare className="w-6 h-6 stroke-[2.2px]" />
+          </button>
         </div>
       )}
 
