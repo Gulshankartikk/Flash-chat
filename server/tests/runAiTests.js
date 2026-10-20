@@ -7,6 +7,7 @@ const aiService = require('../services/ai.service');
 
 async function runTests() {
   aiService.isConfigured = false;
+  aiService.forceMock = true;
   console.log('🧪 Starting Flash AI Integration & Security Verification Suite...\n');
 
   // 1. Prompt-Injection Defenses

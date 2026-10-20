@@ -294,9 +294,10 @@ async function runContactsSupportFlashAiTests() {
 
   // 2.7 Invite rate limit (10/day) & 7-day cooldown deduplication
   try {
+    const unregPhone = `+141599${Date.now().toString().slice(-5)}`;
     const unregisteredContact = await contactService.createContact(ownerA, {
       name: 'Unregistered Pal',
-      phone: '+14155558899'
+      phone: unregPhone
     });
 
     // 1st invite succeeds

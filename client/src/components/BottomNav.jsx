@@ -2,13 +2,17 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { MessageSquare, Flame, Bookmark, Sparkles, User } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
+import { useChatStore } from '../store/useChatStore';
 import { useSocialStore } from '../features/social/store/useSocialStore';
 import { Avatar } from './Avatar';
 
 export const BottomNav = () => {
   const { user } = useAuthStore();
+  const { conversations } = useChatStore();
   const { unreadNotificationsCount } = useSocialStore();
   const [hasPocketNotification, setHasPocketNotification] = React.useState(false);
+
+  const unreadChatCount = conversations?.reduce((acc, c) => acc + (c.unreadCount || 0), 0) || 0;
 
   React.useEffect(() => {
     const handlePocketSaved = () => setHasPocketNotification(true);
@@ -60,6 +64,11 @@ export const BottomNav = () => {
                       </div>
                     ) : (
                       <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                    )}
+                    {item.label === 'Chats' && unreadChatCount > 0 && (
+                      <span className="absolute -top-1 -right-1.5 min-w-4 h-4 px-1 rounded-full bg-accent text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-card">
+                        {unreadChatCount > 9 ? '9+' : unreadChatCount}
+                      </span>
                     )}
                     {item.label === 'Social' && unreadNotificationsCount > 0 && (
                       <span className="absolute -top-1 -right-1.5 w-4 h-4 rounded-full bg-accent text-white text-[9px] font-bold flex items-center justify-center ring-2 ring-card">

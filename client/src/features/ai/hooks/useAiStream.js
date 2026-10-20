@@ -59,7 +59,10 @@ export const useAiStream = () => {
           headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`/api/ai/chats/${chatId}/messages`, {
+        const baseUrl = import.meta.env.VITE_API_URL
+          ? `${import.meta.env.VITE_API_URL}/api`
+          : '/api';
+        const response = await fetch(`${baseUrl}/ai/chats/${chatId}/messages`, {
           method: 'POST',
           headers,
           body: JSON.stringify({ message, attachments }),

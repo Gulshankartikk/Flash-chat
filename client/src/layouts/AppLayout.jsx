@@ -1,14 +1,46 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Sidebar } from '../components/Sidebar';
 import { BottomNav } from '../components/BottomNav';
 import { PageHeader } from '../components/PageHeader';
 import { UserSearchModal } from '../features/search/UserSearchModal';
-import { ToastProvider } from '../components/Toast';
+import { ToastProvider, useToast } from '../components/Toast';
+import { useAuthStore } from '../store/useAuthStore';
+import { useChatStore } from '../store/useChatStore';
 
-export const AppLayout = () => {
+const AppLayoutInner = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const toast = useToast();
+  const { user } = useAuthStore();
+  const { initSocketEvents, fetchConversations } = useChatStore();
+
+  // Initialize socket listeners & fetch active conversations across all routes
+  useEffect(() => {
+    if (user) {
+      initSocketEvents();
+      fetchConversations();
+    }
+  }, [user, initSocketEvents, fetchConversations]);
+
+  // Global in-app message notification listener
+  useEffect(() => {
+    const handleInAppNotification = (e) => {
+      const { message, conversationId } = e.detail || {};
+      if (!message) return;
+      const senderName = message.sender?.name || 'Someone';
+      const textPreview =
+        message.text || (message.media?.length ? 'Sent an attachment' : 'New message');
+      toast.info(
+        `${senderName}: ${
+          textPreview.length > 40 ? textPreview.substring(0, 40) + '...' : textPreview
+        }`
+      );
+    };
+    window.addEventListener('in_app_message_notification', handleInAppNotification);
+    return () => window.removeEventListener('in_app_message_notification', handleInAppNotification);
+  }, [toast]);
 
   // Determine current page title from pathname
   const getHeaderInfo = () => {
@@ -55,35 +87,41 @@ export const AppLayout = () => {
   }, []);
 
   return (
-    <ToastProvider>
-      <div className="flex h-screen w-screen overflow-hidden bg-cream text-ink">
-        {/* Desktop Left Sidebar */}
-        <Sidebar onOpenSearch={() => setIsSearchOpen(true)} />
+    <div className="flex h-screen w-screen overflow-hidden bg-cream text-ink">
+      {/* Desktop Left Sidebar */}
+      <Sidebar onOpenSearch={() => setIsSearchOpen(true)} />
 
-        {/* Main Content Area */}
-        <div className="flex flex-col flex-1 h-screen overflow-hidden">
-          {/* Header */}
-          <PageHeader
-            title={title}
-            subtitle={subtitle}
-            onOpenSearch={() => setIsSearchOpen(true)}
-          />
-
-          {/* Subview Outlet */}
-          <main className="flex-1 overflow-y-auto overflow-x-hidden relative scrollbar-thin">
-            <Outlet />
-          </main>
-
-          {/* Mobile Bottom Navigation */}
-          <BottomNav />
-        </div>
-
-        {/* Search Modal */}
-        <UserSearchModal
-          isOpen={isSearchOpen}
-          onClose={() => setIsSearchOpen(false)}
+      {/* Main Content Area */}
+      <div className="flex flex-col flex-1 h-screen overflow-hidden">
+        {/* Header */}
+        <PageHeader
+          title={title}
+          subtitle={subtitle}
+          onOpenSearch={() => setIsSearchOpen(true)}
         />
+
+        {/* Subview Outlet */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden relative scrollbar-thin">
+          <Outlet />
+        </main>
+
+        {/* Mobile Bottom Navigation */}
+        <BottomNav />
       </div>
+
+      {/* Search Modal */}
+      <UserSearchModal
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+      />
+    </div>
+  );
+};
+
+export const AppLayout = () => {
+  return (
+    <ToastProvider>
+      <AppLayoutInner />
     </ToastProvider>
   );
 };

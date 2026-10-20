@@ -15,15 +15,19 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useThemeStore } from '../store/useThemeStore';
+import { useChatStore } from '../store/useChatStore';
 import { useSocialStore } from '../features/social/store/useSocialStore';
 import { Avatar } from './Avatar';
 
 export const Sidebar = ({ onOpenSearch }) => {
   const { user, logout } = useAuthStore();
   const { theme, toggleTheme } = useThemeStore();
+  const { conversations } = useChatStore();
   const { unreadNotificationsCount } = useSocialStore();
   const [hasPocketNotification, setHasPocketNotification] = React.useState(false);
   const navigate = useNavigate();
+
+  const unreadChatCount = conversations?.reduce((acc, c) => acc + (c.unreadCount || 0), 0) || 0;
 
   React.useEffect(() => {
     const handlePocketSaved = () => setHasPocketNotification(true);
@@ -32,7 +36,13 @@ export const Sidebar = ({ onOpenSearch }) => {
   }, []);
 
   const navItems = [
-    { label: 'Chats', path: '/chats', icon: MessageSquare, badge: null },
+    {
+      label: 'Chats',
+      path: '/chats',
+      icon: MessageSquare,
+      badge: unreadChatCount > 0 ? (unreadChatCount > 99 ? '99+' : unreadChatCount) : null,
+      isAlert: unreadChatCount > 0
+    },
     {
       label: 'Social',
       path: '/social',

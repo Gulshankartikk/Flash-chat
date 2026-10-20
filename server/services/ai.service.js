@@ -235,7 +235,7 @@ class AiService {
     }
 
     // Mock Mode fallback
-    if (isMockMode()) {
+    if (isMockMode() || options.forceMock || this.forceMock) {
       const mockResult = this.getMockResponse(task, input);
       if (userId) await this.recordUsage(userId, 20);
       return mockResult;
@@ -252,17 +252,28 @@ class AiService {
       return this.getMockResponse(task, input);
     }
 
-    // Call Gemini with 1 retry on 429/5xx and 30s timeout
+    // Call Gemini with 1 retry on 429/5xx and 8s timeout with guaranteed Promise.race
     let lastError = null;
     for (let attempt = 1; attempt <= 2; attempt++) {
+      let timeoutId = null;
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 30000);
-
-        const result = await model.generateContent({
-          contents: [{ role: 'user', parts: [{ text: this.truncateInput(userPrompt) }] }]
+        const timeoutPromise = new Promise((_, reject) => {
+          timeoutId = setTimeout(() => {
+            try { controller.abort(); } catch (_) {}
+            reject(new Error('AI generation timed out after 8 seconds'));
+          }, 8000);
         });
-        clearTimeout(timeout);
+
+        const generatePromise = model.generateContent(
+          {
+            contents: [{ role: 'user', parts: [{ text: this.truncateInput(userPrompt) }] }]
+          },
+          { signal: controller.signal }
+        );
+
+        const result = await Promise.race([generatePromise, timeoutPromise]);
+        if (timeoutId) clearTimeout(timeoutId);
 
         const responseText = result.response.text();
         let parsedResult = responseText;
@@ -288,10 +299,11 @@ class AiService {
 
         return parsedResult;
       } catch (err) {
+        if (timeoutId) clearTimeout(timeoutId);
         lastError = err;
         logger.warn({ attempt, err: err.message }, 'Gemini generation attempt error');
         if (attempt === 1) {
-          await new Promise((r) => setTimeout(r, 1000)); // Backoff 1s
+          await new Promise((r) => setTimeout(r, 500)); // Backoff 500ms
         }
       }
     }
@@ -317,7 +329,7 @@ class AiService {
     }
 
     // Mock Mode streaming generator
-    if (isMockMode()) {
+    if (isMockMode() || this.forceMock) {
       const mockText = `Hello! Flash AI is running in local demonstration mode because \`GEMINI_API_KEY\` is not configured.\n\nYou asked:\n> "${message}"\n\nOnce configured with your Gemini API key in \`server/.env\`, full generative intelligence with streaming, multimodal vision, and RAG search is automatically enabled!`;
       const words = mockText.split(' ');
       for (const word of words) {

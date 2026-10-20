@@ -561,8 +561,10 @@ export const useChatStore = create((set, get) => ({
         const updated = [...list, msg];
 
         // Update conversation preview and unread count
+        let convFound = false;
         const updatedConvs = state.conversations.map((c) => {
           if (String(c._id) === String(convId)) {
+            convFound = true;
             return {
               ...c,
               lastMessage: msg,
@@ -571,6 +573,10 @@ export const useChatStore = create((set, get) => ({
           }
           return c;
         });
+
+        if (!convFound) {
+          get().fetchConversations();
+        }
 
         return {
           messagesByConv: { ...state.messagesByConv, [convId]: updated },
@@ -583,6 +589,12 @@ export const useChatStore = create((set, get) => ({
       // If viewing this chat, automatically mark read
       if (isCurrentChat) {
         socket.emit('message:read', { conversationId: convId, upToMessageId: msg._id });
+      } else if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('in_app_message_notification', {
+            detail: { message: msg, conversationId: convId }
+          })
+        );
       }
     });
 
