@@ -234,15 +234,15 @@ const initSocketIO = (io) => {
               });
             }
 
+            // Notify user's personal room for conversation list update (for ALL members including sender)
+            io.to(`user:${memberIdStr}`).emit('conversation:updated', {
+              conversationId: conv._id,
+              lastMessage: message
+            });
+
             if (memberIdStr !== userId) {
               // Direct emit to recipient personal room ensures delivery across all active tabs/views
               io.to(`user:${memberIdStr}`).emit('message:new', message);
-
-              // Notify user's personal room for conversation list update
-              io.to(`user:${memberIdStr}`).emit('conversation:updated', {
-                conversationId: conv._id,
-                lastMessage: message
-              });
 
               // If recipient online, mark delivered
               if (onlineUserSockets.has(memberIdStr)) {

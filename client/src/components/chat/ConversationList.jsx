@@ -65,15 +65,19 @@ export const ConversationList = ({
     return format(date, 'M/d/yy');
   };
 
-  // Message Requests: conversations where status === 'request'
-  const messageRequests = conversations.filter((c) => c.status === 'request');
+  const currentUserId = user?._id ? String(user._id) : '';
+
+  // Incoming Message Requests (only for recipient, where current user is not the requester)
+  const messageRequests = conversations.filter(
+    (c) => c.status === 'request' && String(c.requestedBy || '') !== currentUserId
+  );
 
   // Filter conversations
   const filteredConversations = conversations.filter((c) => {
-    // If viewing requests filter, only show requests
-    if (filterTab === 'requests') return c.status === 'request';
-    // In normal views, message requests are rendered in their own dedicated top section
-    if (c.status === 'request') return false;
+    // If viewing requests filter, only show incoming requests
+    if (filterTab === 'requests') return c.status === 'request' && String(c.requestedBy || '') !== currentUserId;
+    // In normal views, only incoming message requests are hidden into their dedicated top section
+    if (c.status === 'request' && String(c.requestedBy || '') !== currentUserId) return false;
 
     const title = c.contactName || c.displayName || c.name || '';
     const nameMatch = title.toLowerCase().includes(searchFilter.toLowerCase().trim());
@@ -112,12 +116,28 @@ export const ConversationList = ({
   const handleStartChatWithContact = async (contact) => {
     try {
       const linkedId = contact.linkedUser?._id || contact.linkedUser;
+      const isSelf =
+        (linkedId && String(linkedId) === currentUserId) ||
+        (user?.phoneNumber && contact.phone && contact.phone.trim() === user.phoneNumber.trim()) ||
+        (user?.email && contact.email && contact.email.toLowerCase().trim() === user.email.toLowerCase().trim());
+
+      if (isSelf && currentUserId) {
+        const conv = await startDirectConversation(currentUserId);
+        if (conv && onSelectConversation) onSelectConversation(conv);
+        return;
+      }
+
       if (linkedId) {
         const conv = await startDirectConversation(linkedId);
         if (conv && onSelectConversation) onSelectConversation(conv);
       } else {
         const res = await startChatWithContact(contact._id);
-        if (res && onSelectConversation) onSelectConversation(res);
+        const conv = res?.conversation || res;
+        if (conv?._id) {
+          if (onSelectConversation) onSelectConversation(conv);
+        } else if (res?.status === 'pending' || res?.pendingId) {
+          if (onSelectPending) onSelectPending(res);
+        }
       }
     } catch (err) {
       console.error('Failed to start chat with contact:', err);
@@ -151,14 +171,18 @@ export const ConversationList = ({
   const renderConversationItem = (conv) => {
     const isSelected = activeConversation && String(activeConversation._id) === String(conv._id);
     const otherUserId = conv.otherUser?._id ? String(conv.otherUser._id) : null;
-    const isOnline =
-      conv.type === 'direct' && otherUserId
-        ? (onlineUsers instanceof Set ? onlineUsers.has(otherUserId) : false) || Boolean(conv.otherUser?.isOnline)
-        : false;
+    const isSelf = conv.isSelf || (conv.type === 'direct' && otherUserId && otherUserId === currentUserId);
+    const isOnline = isSelf
+      ? true
+      : conv.type === 'direct' && otherUserId
+      ? (onlineUsers instanceof Set ? onlineUsers.has(otherUserId) : false) || Boolean(conv.otherUser?.isOnline)
+      : false;
     const isSupport = conv.type === 'support';
     const isRequest = conv.status === 'request';
     const title = isSupport
       ? 'Flash Support'
+      : isSelf
+      ? 'You (Message yourself)'
       : (isRequest && conv.otherUser?.name)
       ? conv.otherUser.name
       : (conv.contactName || conv.displayName || conv.name || 'Chat');
@@ -196,7 +220,7 @@ export const ConversationList = ({
               )}
               {isRequest && (
                 <span className="px-1.5 py-0.2 rounded-full bg-primary/15 text-primary text-[9px] font-bold">
-                  Request
+                  {String(conv.requestedBy || '') === currentUserId ? 'Request Sent' : 'Request'}
                 </span>
               )}
               {conv.isMuted && <VolumeX className="w-3 h-3 text-muted shrink-0" />}
@@ -519,7 +543,13 @@ export const ConversationList = ({
                     : c.linkedUser
                     ? String(c.linkedUser)
                     : null;
-                  const isOnline = linkedUserId
+                  const isSelf =
+                    (linkedUserId && linkedUserId === currentUserId) ||
+                    (user?.phoneNumber && c.phone && c.phone.trim() === user.phoneNumber.trim()) ||
+                    (user?.email && c.email && c.email.toLowerCase().trim() === user.email.toLowerCase().trim());
+                  const isOnline = isSelf
+                    ? true
+                    : linkedUserId
                     ? (onlineUsers instanceof Set ? onlineUsers.has(linkedUserId) : false) || Boolean(c.linkedUser?.isOnline)
                     : false;
 
@@ -531,19 +561,28 @@ export const ConversationList = ({
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <Avatar
-                          src={c.avatar || c.linkedUser?.avatar}
-                          name={c.name}
+                          src={c.avatar || c.linkedUser?.avatar || (isSelf ? user?.avatar : undefined)}
+                          name={isSelf ? 'You' : c.name}
                           size="md"
                           isOnline={isOnline}
-                          showStatus={Boolean(linkedUserId)}
+                          showStatus={Boolean(linkedUserId) || isSelf}
                         />
                         <div className="min-w-0">
-                          <p className="text-xs font-bold text-ink truncate flex items-center gap-1">
+                          <p className="text-xs font-bold text-ink truncate flex items-center gap-1.5">
                             <span>{c.name}</span>
+                            {isSelf && (
+                              <span className="text-[10px] bg-primary/10 text-primary font-bold px-1.5 py-0.2 rounded-full">
+                                You
+                              </span>
+                            )}
                             {c.isFavorite && <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" />}
                           </p>
                           <p className="text-[10px] text-muted truncate">
-                            {c.linkedUser?.username ? `@${c.linkedUser.username}` : c.phone || c.email || 'Saved contact'}
+                            {isSelf
+                              ? 'Message yourself'
+                              : c.linkedUser?.username
+                              ? `@${c.linkedUser.username}`
+                              : c.phone || c.email || 'Saved contact'}
                           </p>
                         </div>
                       </div>

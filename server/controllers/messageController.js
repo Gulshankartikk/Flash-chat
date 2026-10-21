@@ -87,12 +87,12 @@ const sendMessage = async (req, res, next) => {
         if (conv?.members) {
           conv.members.forEach((m) => {
             const mId = String(m.user);
+            req.io.to(`user:${mId}`).emit('conversation:updated', {
+              conversationId: conv._id,
+              lastMessage: message
+            });
             if (mId !== String(req.user._id)) {
               req.io.to(`user:${mId}`).emit('message:new', message);
-              req.io.to(`user:${mId}`).emit('conversation:updated', {
-                conversationId: conv._id,
-                lastMessage: message
-              });
             }
           });
         }

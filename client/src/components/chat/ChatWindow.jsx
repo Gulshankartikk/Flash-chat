@@ -156,18 +156,23 @@ export const ChatWindow = ({ conversationId, onBack }) => {
   const isGroup = activeConversation.type === 'group';
   const otherUser = activeConversation.otherUser;
   const otherUserId = otherUser?._id ? String(otherUser._id) : null;
-  const isOtherOnline =
-    otherUserId && (onlineUsers instanceof Set ? onlineUsers.has(otherUserId) : false)
-      ? true
-      : Boolean(otherUser?.isOnline);
+  const isSelf = activeConversation.isSelf || (
+    activeConversation.type === 'direct' && otherUserId && String(otherUserId) === String(currentUserId)
+  );
+  const isOtherOnline = isSelf
+    ? true
+    : otherUserId && (onlineUsers instanceof Set ? onlineUsers.has(otherUserId) : false)
+    ? true
+    : Boolean(otherUser?.isOnline);
 
   // Typing state for this conversation
   const typers = typingUsers[activeConversation._id] || [];
-  const isTyping = typers.some((t) => t.userId !== currentUserId);
+  const isTyping = !isSelf && typers.some((t) => t.userId !== currentUserId);
   const typerName = typers.find((t) => t.userId !== currentUserId)?.userName || 'Someone';
 
   // Subheader status text
   const getSubheader = () => {
+    if (isSelf) return 'Message yourself • Notes, links & media';
     if (isTyping) return `${typerName} is typing...`;
     if (isGroup) return `${activeConversation.members?.length || 0} participants`;
     if (isOtherOnline) return 'Active now';
@@ -294,44 +299,48 @@ export const ChatWindow = ({ conversationId, onBack }) => {
             </div>
           )}
 
-          {/* Voice & Video Call Buttons */}
-          <button
-            type="button"
-            disabled={callState !== 'idle'}
-            onClick={() =>
-              startCall({
-                conversationId: activeConversation._id,
-                type: 'audio'
-              })
-            }
-            className={`p-2 rounded-xl transition cursor-pointer ${
-              callState !== 'idle'
-                ? 'opacity-40 cursor-not-allowed text-gray-300'
-                : 'hover:bg-[#FFF7ED] hover:text-[#F97316]'
-            }`}
-            title="Start voice call"
-          >
-            <Phone className="w-4 h-4" />
-          </button>
+          {/* Voice & Video Call Buttons (hidden in self notes) */}
+          {!isSelf && (
+            <>
+              <button
+                type="button"
+                disabled={callState !== 'idle'}
+                onClick={() =>
+                  startCall({
+                    conversationId: activeConversation._id,
+                    type: 'audio'
+                  })
+                }
+                className={`p-2 rounded-xl transition cursor-pointer ${
+                  callState !== 'idle'
+                    ? 'opacity-40 cursor-not-allowed text-gray-300'
+                    : 'hover:bg-[#FFF7ED] hover:text-[#F97316]'
+                }`}
+                title="Start voice call"
+              >
+                <Phone className="w-4 h-4" />
+              </button>
 
-          <button
-            type="button"
-            disabled={callState !== 'idle'}
-            onClick={() =>
-              startCall({
-                conversationId: activeConversation._id,
-                type: 'video'
-              })
-            }
-            className={`p-2 rounded-xl transition cursor-pointer ${
-              callState !== 'idle'
-                ? 'opacity-40 cursor-not-allowed text-gray-300'
-                : 'hover:bg-[#FFF7ED] hover:text-[#F97316]'
-            }`}
-            title="Start video call"
-          >
-            <Video className="w-4 h-4" />
-          </button>
+              <button
+                type="button"
+                disabled={callState !== 'idle'}
+                onClick={() =>
+                  startCall({
+                    conversationId: activeConversation._id,
+                    type: 'video'
+                  })
+                }
+                className={`p-2 rounded-xl transition cursor-pointer ${
+                  callState !== 'idle'
+                    ? 'opacity-40 cursor-not-allowed text-gray-300'
+                    : 'hover:bg-[#FFF7ED] hover:text-[#F97316]'
+                }`}
+                title="Start video call"
+              >
+                <Video className="w-4 h-4" />
+              </button>
+            </>
+          )}
 
           {/* View Profile button for direct chats */}
           {!isGroup && otherUser?.username && (

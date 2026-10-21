@@ -19,6 +19,7 @@ import { Skeleton } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { Button } from '../../components/Button';
 import { useChatStore } from '../../store/useChatStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { formatDisplayPhone } from './phoneUtils';
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('');
@@ -246,19 +247,29 @@ export const ContactList = ({
 
 const ContactRow = ({ contact, onSelect, onMessage, onInvite }) => {
   const { onlineUsers } = useChatStore();
+  const { user } = useAuthStore();
+  const currentUserId = user?._id ? String(user._id) : '';
   const isLinked = Boolean(contact.linkedUser);
   const linkedUserId = contact.linkedUser?._id
     ? String(contact.linkedUser._id)
     : contact.linkedUser
     ? String(contact.linkedUser)
     : null;
-  const isOnline = linkedUserId
+  const isSelf =
+    (linkedUserId && linkedUserId === currentUserId) ||
+    (user?.phoneNumber && contact.phone && contact.phone.trim() === user.phoneNumber.trim()) ||
+    (user?.email && contact.email && contact.email.toLowerCase().trim() === user.email.toLowerCase().trim());
+  const isOnline = isSelf
+    ? true
+    : linkedUserId
     ? (onlineUsers instanceof Set ? onlineUsers.has(linkedUserId) : false) || Boolean(contact.linkedUser?.isOnline)
     : false;
-  const subtitle = [
-    contact.phone ? formatDisplayPhone(contact.phone) : null,
-    contact.email
-  ].filter(Boolean).join(' • ');
+  const subtitle = isSelf
+    ? 'Message yourself'
+    : [
+        contact.phone ? formatDisplayPhone(contact.phone) : null,
+        contact.email
+      ].filter(Boolean).join(' • ');
 
   return (
     <div
@@ -267,17 +278,22 @@ const ContactRow = ({ contact, onSelect, onMessage, onInvite }) => {
     >
       <div className="flex items-center gap-3 min-w-0">
         <Avatar
-          src={contact.avatar || contact.linkedUser?.avatar}
-          name={contact.name}
+          src={contact.avatar || contact.linkedUser?.avatar || (isSelf ? user?.avatar : undefined)}
+          name={isSelf ? 'You' : contact.name}
           size="md"
           isOnline={isOnline}
-          showStatus={isLinked}
+          showStatus={isLinked || isSelf}
         />
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-bold text-ink truncate group-hover:text-primary transition-colors">
               {contact.name}
             </span>
+            {isSelf && (
+              <span className="text-[10px] bg-primary/10 text-primary font-bold px-1.5 py-0.2 rounded-full">
+                You
+              </span>
+            )}
             {contact.isFavorite && (
               <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" />
             )}
@@ -307,7 +323,11 @@ const ContactRow = ({ contact, onSelect, onMessage, onInvite }) => {
           </button>
         )}
 
-        {isLinked ? (
+        {isSelf ? (
+          <span className="hidden sm:inline-flex px-2 py-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold items-center gap-1">
+            <span>Note to Self</span>
+          </span>
+        ) : isLinked ? (
           <span className="hidden sm:inline-flex px-2 py-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold items-center gap-1">
             <span>On Flash Chat</span>
             <Check className="w-3 h-3" />

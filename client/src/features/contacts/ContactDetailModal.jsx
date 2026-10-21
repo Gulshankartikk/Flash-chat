@@ -56,13 +56,14 @@ export const ContactDetailModal = ({
 
   const handleMessage = async () => {
     try {
-      const conv = await startChatWithContact(contact._id);
+      const res = await startChatWithContact(contact._id);
+      const conv = res?.conversation || res;
       onClose();
       if (conv?._id) {
         navigate(`/chats/${conv._id}`);
       } else if (conv?.conversationId) {
         navigate(`/chats/${conv.conversationId}`);
-      } else if (conv?.status === 'pending' || conv?.pendingId) {
+      } else if (res?.status === 'pending' || res?.pendingId) {
         navigate('/chats');
       }
     } catch (err) {

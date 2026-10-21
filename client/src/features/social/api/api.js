@@ -82,6 +82,11 @@ export const recordReelViewApi = async (reelId) => {
   return res.data;
 };
 
+export const deleteReelApi = async (reelId) => {
+  const res = await api.delete(`/reels/${reelId}`);
+  return res.data;
+};
+
 // -------------------------------------------------------------
 // STORIES API
 // -------------------------------------------------------------

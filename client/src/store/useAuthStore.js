@@ -125,6 +125,7 @@ export const useAuthStore = create((set, get) => ({
       disconnectSocket();
       if (typeof window !== 'undefined') {
         try {
+          window.dispatchEvent(new CustomEvent('flash_chat_auth_logout'));
           localStorage.removeItem('flash_chat_offline_contacts');
           if (navigator.serviceWorker?.controller) {
             navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_USER_CACHES' });
@@ -145,6 +146,7 @@ export const useAuthStore = create((set, get) => ({
       disconnectSocket();
       if (typeof window !== 'undefined') {
         try {
+          window.dispatchEvent(new CustomEvent('flash_chat_auth_logout'));
           localStorage.removeItem('flash_chat_offline_contacts');
           if (navigator.serviceWorker?.controller) {
             navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_USER_CACHES' });

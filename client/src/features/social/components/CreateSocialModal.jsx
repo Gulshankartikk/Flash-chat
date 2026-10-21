@@ -162,6 +162,9 @@ export const CreateSocialModal = () => {
           processFiles([video]);
         }
       };
+      tempVideo.onerror = () => {
+        processFiles([video]);
+      };
     } else if (activeType === 'story') {
       const file = files[0];
       if (file.type.startsWith('video/')) {
@@ -173,6 +176,9 @@ export const CreateSocialModal = () => {
           } else {
             processFiles([file]);
           }
+        };
+        tempVideo.onerror = () => {
+          processFiles([file]);
         };
       } else {
         processFiles([file]);
@@ -379,9 +385,10 @@ export const CreateSocialModal = () => {
           abortControllerRef.current.signal
         );
 
-        if (uploadRes.success) {
+        if (uploadRes && (uploadRes.success || uploadRes.url)) {
           uploadedMedia.push({
             url: uploadRes.url,
+            publicId: uploadRes.publicId || uploadRes.public_id || '',
             type: uploadRes.type || item.type,
             thumbnail: uploadRes.thumbnail || uploadRes.url,
             width: uploadRes.width,
@@ -389,6 +396,10 @@ export const CreateSocialModal = () => {
             duration: uploadRes.duration
           });
         }
+      }
+
+      if (uploadedMedia.length === 0) {
+        throw new Error('Media upload failed. Please try again.');
       }
 
       setUploadProgress(95);
@@ -410,9 +421,23 @@ export const CreateSocialModal = () => {
           abortControllerRef.current.signal
         );
       } else if (activeType === 'reel') {
+        const reelMedia = uploadedMedia[0];
+        if (!reelMedia || !reelMedia.url) {
+          throw new Error('Reel video upload failed. Please select a valid video file.');
+        }
+
         await createReelApi(
           {
-            media: uploadedMedia[0],
+            video: {
+              url: reelMedia.url,
+              publicId: reelMedia.publicId || '',
+              thumbnail: reelMedia.thumbnail || reelMedia.url,
+              duration: reelMedia.duration || 0,
+              width: reelMedia.width || 1080,
+              height: reelMedia.height || 1920
+            },
+            media: reelMedia,
+            thumbnail: reelMedia.thumbnail || reelMedia.url,
             caption: finalCaption,
             audioName: audioName.trim() || 'Original Audio',
             allowComments
@@ -442,7 +467,7 @@ export const CreateSocialModal = () => {
         console.log('Upload canceled');
       } else {
         console.error('Publish error:', err);
-        setUploadError(err.response?.data?.message || 'Upload failed. Please try again.');
+        setUploadError(err.response?.data?.message || err.message || 'Upload failed. Please try again.');
       }
     } finally {
       setIsUploading(false);

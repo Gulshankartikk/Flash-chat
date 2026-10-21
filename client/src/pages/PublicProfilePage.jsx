@@ -686,7 +686,7 @@ export const PublicProfilePage = () => {
                     className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-neutral-900 cursor-pointer group shadow-xs"
                   >
                     <img
-                      src={reel.media?.thumbnail || reel.media?.url}
+                      src={reel.media?.thumbnail || reel.video?.thumbnail || reel.thumbnail || reel.media?.url || reel.video?.url}
                       alt="Reel"
                       loading="lazy"
                       className="w-full h-full object-cover group-hover:scale-105 transition duration-300"

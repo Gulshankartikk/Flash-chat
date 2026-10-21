@@ -13,8 +13,8 @@ router.post('/onboarding', authMiddleware, authController.onboarding);
 router.get('/check-username/:username', authController.checkUsername);
 router.get('/sessions', authMiddleware, authController.getSessions);
 router.delete('/sessions/:sid', authMiddleware, authController.deleteSession);
-router.post('/logout', authMiddleware, authController.logout);
-router.post('/logout-all', authMiddleware, authController.logoutAll);
+router.post('/logout', authMiddleware.optional, authController.logout);
+router.post('/logout-all', authMiddleware.optional, authController.logoutAll);
 router.get('/me', authMiddleware, authController.getMe);
 
 // Password reset routes

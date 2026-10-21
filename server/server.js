@@ -283,6 +283,14 @@ const startServer = async () => {
     schedulePocketTrashCleanup();
 
     // 4. Start HTTP + Socket.IO Server
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        logger.error(`Port ${config.PORT} is currently in use. Please ensure previous instances are terminated.`);
+      } else {
+        logger.fatal({ err: err.message }, 'Server encountered an unexpected error');
+      }
+    });
+
     server.listen(config.PORT, () => {
       logger.info(
         `⚡ Flash Chat Server is actively listening on http://localhost:${config.PORT} [${config.NODE_ENV}]`

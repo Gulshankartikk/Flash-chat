@@ -20,7 +20,7 @@ class ChatService {
    */
   async createDirectConversation(userIdA, userIdB) {
     if (String(userIdA) === String(userIdB)) {
-      throw new Error('Cannot start a direct conversation with yourself.');
+      return this.getOrCreateSelfConversation(userIdA);
     }
 
     const memberKey = this.getMemberKey(userIdA, userIdB);
@@ -49,6 +49,44 @@ class ChatService {
 
       conversation = await Conversation.findById(conversation._id)
         .populate('members.user', '_id name username avatar isOnline lastSeen privacy')
+        .populate('lastMessage');
+    }
+
+    return conversation;
+  }
+
+  /**
+   * Get or create a self conversation (Message yourself / Note to Self)
+   */
+  async getOrCreateSelfConversation(userId) {
+    const memberKey = `${userId}_${userId}`;
+    let conversation = await Conversation.findOne({ memberKey })
+      .populate('members.user', '_id name username avatar phoneNumber isOnline lastSeen privacy')
+      .populate('lastMessage');
+
+    if (!conversation) {
+      const user = await User.findById(userId).select('_id name username avatar').lean();
+      try {
+        conversation = await Conversation.create({
+          type: 'direct',
+          memberKey,
+          createdBy: userId,
+          name: `${user?.name || 'You'} (You)`,
+          avatar: user?.avatar || '',
+          members: [
+            { user: userId, role: 'member', unreadCount: 0 }
+          ]
+        });
+      } catch (err) {
+        if (err.code === 11000) {
+          conversation = await Conversation.findOne({ memberKey });
+        } else {
+          throw err;
+        }
+      }
+
+      conversation = await Conversation.findById(conversation._id)
+        .populate('members.user', '_id name username avatar phoneNumber isOnline lastSeen privacy')
         .populate('lastMessage');
     }
 
@@ -239,13 +277,111 @@ class ChatService {
   }
 
   /**
+   * Helper: format a conversation with member-specific metadata
+   * (isPinned, isArchived, isMuted, unreadCount, otherUser, contactName, displayName, displayAvatar)
+   */
+  formatConversation(conv, userId, contactMap = {}, phoneMap = {}) {
+    if (!conv) return null;
+    const getUserIdStr = (u) => String(u?._id || u || '');
+    const myMember = conv.members?.find((m) => getUserIdStr(m.user) === String(userId));
+    const otherMember = conv.members?.find((m) => getUserIdStr(m.user) !== String(userId));
+    const isSelfChat = !otherMember || conv.members?.length === 1 || String(conv.memberKey) === `${userId}_${userId}`;
+
+    if (isSelfChat && conv.type === 'direct') {
+      const myUser = myMember?.user;
+      return {
+        ...conv,
+        isPinned: Boolean(myMember?.isPinned),
+        isArchived: Boolean(myMember?.isArchived),
+        isMuted: Boolean(myMember?.mutedUntil && new Date(myMember.mutedUntil) > new Date()),
+        unreadCount: 0,
+        otherUser: myUser || null,
+        contactName: 'You (Message yourself)',
+        displayName: 'You (Message yourself)',
+        displayAvatar: myUser?.avatar || '',
+        isSelf: true
+      };
+    }
+
+    const otherUserId = otherMember?.user?._id ? String(otherMember.user._id) : (otherMember?.user ? String(otherMember.user) : null);
+    const otherPhone = otherMember?.user?.phoneNumber || null;
+    const contactName = (otherUserId && contactMap[otherUserId]) || (otherPhone && phoneMap[otherPhone]) || null;
+
+    let displayName = 'Flash User';
+    if (conv.type === 'group') {
+      displayName = conv.name || 'Group Chat';
+    } else if (conv.type === 'support') {
+      displayName = 'Flash Support';
+    } else if (contactName) {
+      displayName = contactName;
+    } else if (otherMember?.user?.name) {
+      displayName = otherMember.user.name;
+    } else if (otherMember?.user?.username) {
+      displayName = `@${otherMember.user.username}`;
+    }
+
+    let displayAvatar = '';
+    if (conv.type === 'group') {
+      displayAvatar = conv.avatar || '';
+    } else if (conv.type === 'support') {
+      displayAvatar = conv.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=FlashSupport&backgroundColor=f97316';
+    } else {
+      displayAvatar = otherMember?.user?.avatar || '';
+    }
+
+    return {
+      ...conv,
+      isPinned: Boolean(myMember?.isPinned),
+      isArchived: Boolean(myMember?.isArchived),
+      isMuted: Boolean(myMember?.mutedUntil && new Date(myMember.mutedUntil) > new Date()),
+      unreadCount: myMember?.unreadCount || 0,
+      otherUser: conv.type === 'direct' ? (otherMember?.user || null) : null,
+      contactName: contactName || undefined,
+      displayName,
+      displayAvatar
+    };
+  }
+
+  /**
+   * Get single formatted conversation by ID and user ID
+   */
+  async getFormattedConversation(conversationId, userId) {
+    const conv = await Conversation.findOne({
+      _id: conversationId,
+      'members.user': userId
+    })
+      .populate('members.user', '_id name username avatar phoneNumber isOnline lastSeen privacy')
+      .populate('createdBy', '_id name username')
+      .populate({
+        path: 'lastMessage',
+        populate: { path: 'sender', select: '_id name username' }
+      })
+      .lean();
+
+    if (!conv) return null;
+
+    const savedContacts = await Contact.find({
+      owner: userId
+    }).select('name phone linkedUser').lean();
+
+    const contactMap = {};
+    const phoneMap = {};
+    for (const c of savedContacts) {
+      if (c.linkedUser) contactMap[String(c.linkedUser)] = c.name;
+      if (c.phone) phoneMap[c.phone] = c.name;
+    }
+
+    return this.formatConversation(conv, userId, contactMap, phoneMap);
+  }
+
+  /**
    * Get user's conversation list with sorted pinning
    */
   async getUserConversations(userId) {
     const conversations = await Conversation.find({
       'members.user': userId
     })
-      .populate('members.user', '_id name username avatar isOnline lastSeen privacy')
+      .populate('members.user', '_id name username avatar phoneNumber isOnline lastSeen privacy')
       .populate({
         path: 'lastMessage',
         populate: { path: 'sender', select: '_id name username' }
@@ -253,56 +389,22 @@ class ChatService {
       .sort({ updatedAt: -1 })
       .lean();
 
-    // Retrieve owner's saved contact names to map linkedUser -> saved contact name
+    // Retrieve owner's saved contact names to map linkedUser/phone -> saved contact name
     const savedContacts = await Contact.find({
-      owner: userId,
-      linkedUser: { $ne: null }
-    }).select('name linkedUser').lean();
+      owner: userId
+    }).select('name phone linkedUser').lean();
 
     const contactMap = {};
+    const phoneMap = {};
     for (const c of savedContacts) {
       if (c.linkedUser) contactMap[String(c.linkedUser)] = c.name;
+      if (c.phone) phoneMap[c.phone] = c.name;
     }
 
     // Map conversation with member-specific metadata (isPinned, isArchived, unreadCount, otherUser, contactName)
-    const formatted = conversations.map((conv) => {
-      const myMember = conv.members.find((m) => String(m.user?._id) === String(userId));
-      const otherMember = conv.members.find((m) => String(m.user?._id) !== String(userId));
-      const otherUserId = otherMember?.user?._id ? String(otherMember.user._id) : null;
-      const contactName = otherUserId && contactMap[otherUserId] ? contactMap[otherUserId] : null;
-
-      let displayName = 'Flash User';
-      if (conv.type === 'group') {
-        displayName = conv.name;
-      } else if (conv.type === 'support') {
-        displayName = 'Flash Support';
-      } else if (contactName) {
-        displayName = contactName;
-      } else if (otherMember?.user?.name) {
-        displayName = otherMember.user.name;
-      }
-
-      let displayAvatar = '';
-      if (conv.type === 'group') {
-        displayAvatar = conv.avatar;
-      } else if (conv.type === 'support') {
-        displayAvatar = conv.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=FlashSupport&backgroundColor=f97316';
-      } else {
-        displayAvatar = otherMember?.user?.avatar || '';
-      }
-
-      return {
-        ...conv,
-        isPinned: myMember?.isPinned || false,
-        isArchived: myMember?.isArchived || false,
-        isMuted: myMember?.mutedUntil && new Date(myMember.mutedUntil) > new Date(),
-        unreadCount: myMember?.unreadCount || 0,
-        otherUser: conv.type === 'direct' ? otherMember?.user || null : null,
-        contactName: contactName || undefined,
-        displayName,
-        displayAvatar
-      };
-    });
+    const formatted = conversations.map((conv) =>
+      this.formatConversation(conv, userId, contactMap, phoneMap)
+    );
 
     // Pinned conversations appear first, then sorted by updatedAt
     return formatted.sort((a, b) => {
@@ -366,7 +468,8 @@ class ChatService {
 
     // Oldest to newest for frontend display
     const ordered = mapped.reverse();
-    const nextCursor = messages.length === Number(limit) ? messages[0].createdAt : null;
+    // nextCursor should point to the oldest message in this batch to fetch previous history
+    const nextCursor = messages.length === Number(limit) ? messages[messages.length - 1].createdAt : null;
 
     return {
       messages: ordered,

@@ -35,6 +35,28 @@ const enrichReels = async (reels, userId) => {
     const r = reel.toObject ? reel.toObject() : { ...reel };
     r.isLiked = likedSet.has(String(r._id));
     r.isSaved = savedSet.has(String(r._id));
+    const videoUrl = r.video?.url || r.media?.url || '';
+    const thumb = r.thumbnail || r.media?.thumbnail || r.video?.thumbnail || videoUrl;
+    if (!r.media) {
+      r.media = {
+        url: videoUrl,
+        type: 'video',
+        thumbnail: thumb,
+        width: r.video?.width || 1080,
+        height: r.video?.height || 1920,
+        duration: r.video?.duration || 0
+      };
+    }
+    if (!r.video) {
+      r.video = {
+        url: videoUrl,
+        publicId: r.media?.publicId || '',
+        thumbnail: thumb,
+        width: r.media?.width || 1080,
+        height: r.media?.height || 1920,
+        duration: r.media?.duration || 0
+      };
+    }
     return r;
   });
 };
@@ -44,24 +66,65 @@ const enrichReels = async (reels, userId) => {
  */
 const createReel = async (req, res, next) => {
   try {
-    const { video, thumbnail = '', caption = '', audioName = 'Original Audio' } = req.body;
+    const {
+      video,
+      media,
+      videoUrl,
+      thumbnail = '',
+      caption = '',
+      audioName = 'Original Audio'
+    } = req.body;
 
-    if (!video || !video.url) {
+    // Support both video and media object, or string videoUrl
+    const rawVideo = video || media || (videoUrl ? { url: videoUrl } : null);
+    const videoObj = typeof rawVideo === 'string'
+      ? { url: rawVideo }
+      : (rawVideo && typeof rawVideo === 'object' ? { ...rawVideo } : null);
+
+    const videoUrlResolved = videoObj?.url || (typeof rawVideo === 'string' ? rawVideo : null);
+
+    if (!videoUrlResolved) {
       return res.status(400).json({ success: false, message: 'Reel video URL is required.' });
     }
+
+    const resolvedThumbnail =
+      thumbnail ||
+      videoObj.thumbnail ||
+      (typeof videoUrlResolved === 'string' ? videoUrlResolved.replace(/\.[^/.]+$/, '.jpg') : '');
+
+    const normalizedVideo = {
+      url: videoUrlResolved,
+      publicId: videoObj.publicId || '',
+      duration: videoObj.duration || 0,
+      width: videoObj.width || 1080,
+      height: videoObj.height || 1920
+    };
+
+    const normalizedMedia = {
+      url: videoUrlResolved,
+      type: 'video',
+      thumbnail: resolvedThumbnail,
+      duration: videoObj.duration || 0,
+      width: videoObj.width || 1080,
+      height: videoObj.height || 1920
+    };
 
     const hashtags = extractHashtags(caption);
     const mentions = await extractMentions(caption);
 
     const reel = await Reel.create({
       author: req.user._id,
-      video,
-      thumbnail: thumbnail || video.url.replace(/\.[^/.]+$/, '.jpg'),
+      video: normalizedVideo,
+      media: normalizedMedia,
+      thumbnail: resolvedThumbnail,
       caption: caption.trim(),
-      audioName: audioName.trim(),
+      audioName: audioName.trim() || 'Original Audio',
       hashtags,
       mentions
     });
+
+    // Increment user posts/reels count
+    await User.findByIdAndUpdate(req.user._id, { $inc: { postsCount: 1 } });
 
     // Notify mentions
     for (const mentionId of mentions) {
@@ -338,8 +401,29 @@ const getUserReels = async (req, res, next) => {
   }
 };
 
+/**
+ * DELETE /api/reels/:id - Delete own reel
+ */
+const deleteReel = async (req, res, next) => {
+  try {
+    const reel = await Reel.findById(req.params.id);
+    if (!reel) {
+      return res.status(404).json({ success: false, message: 'Reel not found.' });
+    }
+    if (String(reel.author) !== String(req.user._id)) {
+      return res.status(403).json({ success: false, message: 'You can only delete your own reels.' });
+    }
+    await Reel.findByIdAndDelete(req.params.id);
+    await User.findByIdAndUpdate(req.user._id, { $inc: { postsCount: -1 } });
+    return res.status(200).json({ success: true, message: 'Reel deleted successfully.' });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   createReel,
+  deleteReel,
   getReelsFeed,
   getReelById,
   likeReel,

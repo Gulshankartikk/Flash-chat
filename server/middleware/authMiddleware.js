@@ -68,4 +68,49 @@ const authMiddleware = async (req, res, next) => {
   }
 };
 
+const optionalAuth = async (req, res, next) => {
+  try {
+    let token = null;
+
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1];
+    } else if (req.cookies && (req.cookies.token || req.cookies.refreshToken)) {
+      token = req.cookies.token || req.cookies.refreshToken;
+    }
+
+    if (!token) {
+      return next();
+    }
+
+    let decoded = null;
+    const accessSecret = config.JWT_ACCESS_SECRET || config.JWT_SECRET;
+    const refreshSecret = config.JWT_REFRESH_SECRET || (config.JWT_SECRET + '_refresh');
+
+    try {
+      decoded = jwt.verify(token, accessSecret);
+    } catch (_) {
+      try {
+        decoded = jwt.verify(token, refreshSecret);
+      } catch (_) {
+        try {
+          decoded = jwt.verify(token, config.JWT_SECRET);
+        } catch (_) {}
+      }
+    }
+
+    if (decoded?.id) {
+      const user = await User.findById(decoded.id).select('-passwordHash').lean();
+      if (user) {
+        req.user = user;
+        req.token = token;
+      }
+    }
+
+    next();
+  } catch (_) {
+    next();
+  }
+};
+
+authMiddleware.optional = optionalAuth;
 module.exports = authMiddleware;

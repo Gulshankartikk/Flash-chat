@@ -23,6 +23,21 @@ export const useChatStore = create((set, get) => ({
   pendingConversations: [],
   isLoadingPending: false,
 
+  resetChatState: () =>
+    set({
+      conversations: [],
+      chats: [],
+      activeConversation: null,
+      activeChat: null,
+      messages: [],
+      messagesByConv: {},
+      nextCursor: null,
+      hasMore: false,
+      pendingConversations: [],
+      onlineUsers: new Set(),
+      typingUsers: {}
+    }),
+
   setOnlineUsers: (users) => set({ onlineUsers: new Set(users) }),
 
   /**
@@ -33,10 +48,21 @@ export const useChatStore = create((set, get) => ({
     try {
       const res = await api.get('/chats');
       const convs = res.data.conversations || [];
-      set({
-        conversations: convs,
-        chats: convs,
-        isLoadingConversations: false
+      set((state) => {
+        let updatedActive = state.activeConversation;
+        if (updatedActive?._id) {
+          const fresh = convs.find((c) => String(c._id) === String(updatedActive._id));
+          if (fresh) {
+            updatedActive = { ...updatedActive, ...fresh };
+          }
+        }
+        return {
+          conversations: convs,
+          chats: convs,
+          activeConversation: updatedActive,
+          activeChat: updatedActive,
+          isLoadingConversations: false
+        };
       });
       return convs;
     } catch (err) {
@@ -204,25 +230,43 @@ export const useChatStore = create((set, get) => ({
     }
 
     let conversation =
-      typeof convOrId === 'object'
+      typeof convOrId === 'object' && convOrId?.displayName
         ? convOrId
         : get().conversations.find((c) => String(c._id) === String(convId));
 
-    if (!conversation) {
+    if (!conversation || !conversation.displayName) {
       try {
         const res = await api.get(`/chats/${convId}`);
-        conversation = res.data.conversation;
+        if (res.data?.conversation) {
+          conversation = res.data.conversation;
+        }
       } catch (err) {
         console.error('Failed to load conversation details:', err.message);
       }
     }
 
-    set({
-      activeConversation: conversation,
-      activeChat: conversation,
-      messages: get().messagesByConv[convId] || [],
-      nextCursor: null,
-      hasMore: false
+    set((state) => {
+      let updatedConvs = state.conversations;
+      if (conversation) {
+        const exists = state.conversations.some((c) => String(c._id) === String(convId));
+        if (exists) {
+          updatedConvs = state.conversations.map((c) =>
+            String(c._id) === String(convId) ? { ...c, ...conversation, unreadCount: 0 } : c
+          );
+        } else {
+          updatedConvs = [{ ...conversation, unreadCount: 0 }, ...state.conversations];
+        }
+      }
+
+      return {
+        conversations: updatedConvs,
+        chats: updatedConvs,
+        activeConversation: conversation || state.activeConversation,
+        activeChat: conversation || state.activeChat,
+        messages: state.messagesByConv[convId] || [],
+        nextCursor: null,
+        hasMore: false
+      };
     });
 
     const socket = getSocket();
@@ -230,14 +274,6 @@ export const useChatStore = create((set, get) => ({
       socket.emit('conversation:join', { conversationId: convId });
       socket.emit('message:read', { conversationId: convId });
     }
-
-    // Reset unread count locally
-    set((state) => {
-      const updatedConvs = state.conversations.map((c) =>
-        String(c._id) === String(convId) ? { ...c, unreadCount: 0 } : c
-      );
-      return { conversations: updatedConvs, chats: updatedConvs };
-    });
 
     // Fetch latest messages from API
     await get().fetchMessages(convId);
@@ -266,9 +302,22 @@ export const useChatStore = create((set, get) => ({
         const existing = cursor ? state.messagesByConv[targetId] || [] : [];
         const combined = cursor ? [...messages, ...existing] : messages;
 
+        // Deduplicate messages by _id or clientId
+        const seen = new Set();
+        const deduplicated = [];
+        for (const m of combined) {
+          const key = m._id || m.clientId;
+          if (key && !seen.has(key)) {
+            seen.add(key);
+            deduplicated.push(m);
+          } else if (!key) {
+            deduplicated.push(m);
+          }
+        }
+
         return {
-          messagesByConv: { ...state.messagesByConv, [targetId]: combined },
-          messages: String(state.activeConversation?._id) === String(targetId) ? combined : state.messages,
+          messagesByConv: { ...state.messagesByConv, [targetId]: deduplicated },
+          messages: String(state.activeConversation?._id) === String(targetId) ? deduplicated : state.messages,
           nextCursor,
           hasMore: !!nextCursor,
           isLoadingMessages: false
@@ -370,9 +419,35 @@ export const useChatStore = create((set, get) => ({
     set((state) => {
       const list = state.messagesByConv[convId] || [];
       const updated = list.map((m) => (m.clientId === clientId ? realMessage : m));
+
+      let convFound = false;
+      const updatedConvs = (state.conversations || []).map((c) => {
+        if (String(c._id) === String(convId)) {
+          convFound = true;
+          return {
+            ...c,
+            lastMessage: realMessage,
+            updatedAt: realMessage.createdAt || new Date().toISOString()
+          };
+        }
+        return c;
+      });
+
+      // Sort so pinned are on top, then newest updatedAt / lastMessage.createdAt
+      const sortedConvs = [...updatedConvs].sort((a, b) => {
+        if (Boolean(a.isPinned) !== Boolean(b.isPinned)) {
+          return a.isPinned ? -1 : 1;
+        }
+        const timeA = new Date(a.lastMessage?.createdAt || a.updatedAt || 0).getTime();
+        const timeB = new Date(b.lastMessage?.createdAt || b.updatedAt || 0).getTime();
+        return timeB - timeA;
+      });
+
       return {
         messagesByConv: { ...state.messagesByConv, [convId]: updated },
-        messages: String(state.activeConversation?._id) === String(convId) ? updated : state.messages
+        messages: String(state.activeConversation?._id) === String(convId) ? updated : state.messages,
+        conversations: sortedConvs,
+        chats: sortedConvs
       };
     });
   },
@@ -555,22 +630,21 @@ export const useChatStore = create((set, get) => ({
 
       set((state) => {
         const list = state.messagesByConv[convId] || [];
-        // Prevent duplicate if already received via ack
-        if (list.some((m) => m._id === msg._id || (m.clientId && m.clientId === msg.clientId))) {
-          return {};
-        }
-
-        const updated = [...list, msg];
+        const alreadyHasMsg = list.some(
+          (m) => m._id === msg._id || (m.clientId && m.clientId === msg.clientId)
+        );
+        const updated = alreadyHasMsg ? list : [...list, msg];
 
         // Update conversation preview and unread count
         let convFound = false;
-        const updatedConvs = state.conversations.map((c) => {
+        const updatedConvs = (state.conversations || []).map((c) => {
           if (String(c._id) === String(convId)) {
             convFound = true;
             return {
               ...c,
               lastMessage: msg,
-              unreadCount: isCurrentChat ? 0 : (c.unreadCount || 0) + 1
+              updatedAt: msg.createdAt || new Date().toISOString(),
+              unreadCount: isCurrentChat ? 0 : (c.unreadCount || 0) + (alreadyHasMsg ? 0 : 1)
             };
           }
           return c;
@@ -580,11 +654,21 @@ export const useChatStore = create((set, get) => ({
           get().fetchConversations();
         }
 
+        // Keep pinned at top, then newest message
+        const sortedConvs = [...updatedConvs].sort((a, b) => {
+          if (Boolean(a.isPinned) !== Boolean(b.isPinned)) {
+            return a.isPinned ? -1 : 1;
+          }
+          const timeA = new Date(a.lastMessage?.createdAt || a.updatedAt || 0).getTime();
+          const timeB = new Date(b.lastMessage?.createdAt || b.updatedAt || 0).getTime();
+          return timeB - timeA;
+        });
+
         return {
           messagesByConv: { ...state.messagesByConv, [convId]: updated },
           messages: isCurrentChat ? updated : state.messages,
-          conversations: updatedConvs,
-          chats: updatedConvs
+          conversations: sortedConvs,
+          chats: sortedConvs
         };
       });
 
@@ -821,5 +905,11 @@ export const useChatStore = create((set, get) => ({
     });
   }
 }));
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('flash_chat_auth_logout', () => {
+    useChatStore.getState().resetChatState?.();
+  });
+}
 
 export default useChatStore;

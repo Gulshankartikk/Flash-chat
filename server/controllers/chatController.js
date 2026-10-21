@@ -47,16 +47,18 @@ const createOrGetDirectChat = async (req, res, next) => {
     }
 
     const targetUserId = parsed.data.userId || parsed.data.recipientId || parsed.data.participantId;
-    const conversation = await chatService.createDirectConversation(req.user._id, targetUserId);
+    const rawConv = await chatService.createDirectConversation(req.user._id, targetUserId);
+    const conversation = (await chatService.getFormattedConversation(rawConv._id, req.user._id)) || rawConv;
 
     if (req.io) {
+      const recipientConv = (await chatService.getFormattedConversation(rawConv._id, targetUserId)) || rawConv;
       req.io.to(`user:${req.user._id}`).emit('conversation:updated', {
         conversationId: conversation._id,
         conversation
       });
       req.io.to(`user:${targetUserId}`).emit('conversation:updated', {
         conversationId: conversation._id,
-        conversation
+        conversation: recipientConv
       });
     }
 
@@ -101,17 +103,7 @@ const getUserChats = async (req, res, next) => {
 const getChatById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const conversation = await Conversation.findOne({
-      _id: id,
-      'members.user': req.user._id
-    })
-      .populate('members.user', '_id name username avatar isOnline lastSeen privacy')
-      .populate('createdBy', '_id name username')
-      .populate({
-        path: 'lastMessage',
-        populate: { path: 'sender', select: '_id name username' }
-      })
-      .lean();
+    const conversation = await chatService.getFormattedConversation(id, req.user._id);
 
     if (!conversation) {
       return res.status(404).json({ success: false, message: 'Chat room not found or access denied.' });

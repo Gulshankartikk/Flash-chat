@@ -259,8 +259,10 @@ const ReelCard = ({
   };
 
   const handleOpenShare = () => {
+    const videoUrl = reel.media?.url || reel.video?.url || '';
+    const videoThumb = reel.media?.thumbnail || reel.video?.thumbnail || reel.thumbnail || videoUrl;
     const snapshot = {
-      thumbnail: reel.media?.thumbnail || reel.media?.url || '',
+      thumbnail: videoThumb,
       authorUsername: reel.author?.username || 'user',
       authorName: reel.author?.name || 'User',
       authorAvatar: reel.author?.avatar || '',
@@ -275,8 +277,8 @@ const ReelCard = ({
       {/* Video Element */}
       <video
         ref={videoRef}
-        src={reel.media?.url}
-        poster={reel.media?.thumbnail}
+        src={reel.media?.url || reel.video?.url}
+        poster={reel.media?.thumbnail || reel.video?.thumbnail || reel.thumbnail}
         loop
         playsInline
         muted={isMuted}

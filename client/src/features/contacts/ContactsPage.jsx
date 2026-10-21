@@ -8,9 +8,14 @@ import { AddContactModal } from './AddContactModal';
 import { ContactDetailModal } from './ContactDetailModal';
 import { ContactImportModal } from './ContactImportModal';
 import { useContactsStore } from './useContacts';
+import { useAuthStore } from '../../store/useAuthStore';
+import { useChatStore } from '../../store/useChatStore';
 
 export const ContactsPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const currentUserId = user?._id ? String(user._id) : '';
+  const { startDirectConversation } = useChatStore();
   const { contacts, isLoading, error, fetchContacts, restoreContact, startChatWithContact } = useContactsStore();
 
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -45,12 +50,28 @@ export const ContactsPage = () => {
 
   const handleMessageContact = async (contact) => {
     try {
-      const conv = await startChatWithContact(contact._id);
+      const uId = contact.linkedUser?._id ? String(contact.linkedUser._id) : (contact.linkedUser ? String(contact.linkedUser) : null);
+      const isSelf =
+        (uId && uId === currentUserId) ||
+        (user?.phoneNumber && contact.phone && contact.phone.trim() === user.phoneNumber.trim()) ||
+        (user?.email && contact.email && contact.email.toLowerCase().trim() === user.email.toLowerCase().trim());
+
+      if (isSelf && currentUserId) {
+        const conv = await startDirectConversation(currentUserId);
+        if (conv?._id) return navigate(`/chats/${conv._id}`);
+      }
+      if (uId) {
+        const conv = await startDirectConversation(uId);
+        if (conv?._id) return navigate(`/chats/${conv._id}`);
+      }
+
+      const res = await startChatWithContact(contact._id);
+      const conv = res?.conversation || res;
       if (conv?._id) {
         navigate(`/chats/${conv._id}`);
       } else if (conv?.conversationId) {
         navigate(`/chats/${conv.conversationId}`);
-      } else if (conv?.status === 'pending' || conv?.pendingId) {
+      } else if (res?.status === 'pending' || res?.pendingId) {
         navigate('/chats');
       }
     } catch (err) {

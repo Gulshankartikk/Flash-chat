@@ -32,7 +32,7 @@ const apiLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // 20 attempts per 15 min
+  max: process.env.NODE_ENV === 'production' ? 20 : 10000,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator,

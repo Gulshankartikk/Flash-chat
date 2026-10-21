@@ -7,6 +7,7 @@ import { Button } from '../Button';
 import { Input } from '../Input';
 import api from '../../services/api';
 import { useChatStore } from '../../store/useChatStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { useContactsStore } from '../../features/contacts/useContacts';
 import { AddContactModal } from '../../features/contacts/AddContactModal';
 import {
@@ -33,6 +34,8 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
   const [isCreatingGroup, setIsCreatingGroup] = useState(false);
 
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const currentUserId = user?._id ? String(user._id) : '';
   const { startDirectConversation, createGroup } = useChatStore();
   const { contacts, fetchContacts, startChatWithContact, addContact } = useContactsStore();
 
@@ -99,14 +102,24 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
 
   const handleContactClick = async (c) => {
     const isLinked = Boolean(c.linkedUser);
-    const uId = c.linkedUser?._id || c.linkedUser;
+    const uId = c.linkedUser?._id ? String(c.linkedUser._id) : (c.linkedUser ? String(c.linkedUser) : null);
+    const isSelfContact =
+      (uId && uId === currentUserId) ||
+      (user?.phoneNumber && c.phone && c.phone.trim() === user.phoneNumber.trim()) ||
+      (user?.email && c.email && c.email.toLowerCase().trim() === user.email.toLowerCase().trim());
+
+    if (isSelfContact && currentUserId) {
+      return handleStartDirect(currentUserId);
+    }
+
     if (isLinked && uId) {
       return handleStartDirect(uId);
     }
 
     try {
       setIsLoading(true);
-      const conv = await startChatWithContact(c._id);
+      const res = await startChatWithContact(c._id);
+      const conv = res?.conversation || res;
       onClose();
       if (conv?._id) {
         if (onChatCreated) onChatCreated(conv);
@@ -129,6 +142,11 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
   };
 
   const handleStartPhoneChat = (phoneString) => {
+    const e164 = formatToE164(phoneString, getDefaultCountryCode());
+    const userPhoneE164 = user?.phoneNumber ? formatToE164(user.phoneNumber, getDefaultCountryCode()) : null;
+    if (userPhoneE164 && e164 && e164 === userPhoneE164 && currentUserId) {
+      return handleStartDirect(currentUserId);
+    }
     setPrefilledPhone(phoneString);
     setIsAddContactOpen(true);
   };
@@ -322,7 +340,13 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
                       <span>Contacts (A-Z)</span>
                     </p>
                     {sortedContacts.map((c) => {
+                      const uId = c.linkedUser?._id ? String(c.linkedUser._id) : (c.linkedUser ? String(c.linkedUser) : null);
+                      const isSelfContact =
+                        (uId && uId === currentUserId) ||
+                        (user?.phoneNumber && c.phone && c.phone.trim() === user.phoneNumber.trim()) ||
+                        (user?.email && c.email && c.email.toLowerCase().trim() === user.email.toLowerCase().trim());
                       const isLinked = Boolean(c.linkedUser);
+
                       return (
                         <div
                           key={c._id}
@@ -330,22 +354,37 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
                           className="flex items-center justify-between p-2.5 rounded-xl hover:bg-orange-50/40 transition cursor-pointer border border-transparent hover:border-line"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <Avatar src={c.avatar || c.linkedUser?.avatar} name={c.name} size="sm" />
+                            <Avatar
+                              src={c.avatar || c.linkedUser?.avatar || (isSelfContact ? user?.avatar : undefined)}
+                              name={isSelfContact ? 'You' : c.name}
+                              size="sm"
+                            />
                             <div className="min-w-0">
-                              <p className="text-xs font-bold text-ink truncate">{c.name}</p>
+                              <p className="text-xs font-bold text-ink truncate flex items-center gap-1.5">
+                                <span>{c.name}</span>
+                                {isSelfContact && (
+                                  <span className="text-[10px] bg-primary/10 text-primary font-bold px-1.5 py-0.2 rounded-full">
+                                    You
+                                  </span>
+                                )}
+                              </p>
                               <p className="text-[10px] text-muted truncate">
-                                {c.linkedUser?.username ? `@${c.linkedUser.username}` : c.phone || c.email}
+                                {isSelfContact
+                                  ? 'Message yourself'
+                                  : c.linkedUser?.username
+                                  ? `@${c.linkedUser.username}`
+                                  : c.phone || c.email}
                               </p>
                             </div>
                           </div>
                           <span
                             className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 ${
-                              isLinked
+                              isSelfContact || isLinked
                                 ? 'text-primary bg-primary/15'
                                 : 'text-muted bg-cream border border-line'
                             }`}
                           >
-                            {isLinked ? 'Chat' : 'Invite'}
+                            {isSelfContact ? 'You' : isLinked ? 'Chat' : 'Invite'}
                           </span>
                         </div>
                       );

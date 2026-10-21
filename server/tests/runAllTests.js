@@ -22,7 +22,8 @@ const testSuites = [
   { name: '10. Security, Privacy & Access Isolation Suite (B-3c.3)', file: 'tests/securityAndPrivacySuite.js' },
   { name: '11. Migration, Idempotency & Compatibility Suite (B-3c.4)', file: 'tests/migrationAndCompatSuite.js' },
   { name: '12. Phone-Based Chats & Pending Conversations Suite', file: 'tests/integration/phoneChatAndPendingSuite.test.js' },
-  { name: '13. Multi-User Auth, Manual Search & Real-Time Chat Suite', file: '../scripts/verifyMultiUserChat.js' }
+  { name: '13. Multi-User Auth, Manual Search & Real-Time Chat Suite', file: '../scripts/verifyMultiUserChat.js' },
+  { name: '14. Chat History Persistence & Reopening Verification Suite', file: '../scripts/verifyChatHistoryPersistence.js' }
 ];
 
 let totalPassedSuites = 0;

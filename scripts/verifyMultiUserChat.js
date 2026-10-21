@@ -80,6 +80,23 @@ function request(method, pathStr, body = null, headers = {}) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function waitForSocketConnect(socket, ms = 5000) {
+  return new Promise((resolve, reject) => {
+    if (socket.connected) return resolve();
+    const timer = setTimeout(() => {
+      reject(new Error(`Socket connection timed out after ${ms}ms`));
+    }, ms);
+    socket.once('connect', () => {
+      clearTimeout(timer);
+      resolve();
+    });
+    socket.once('connect_error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
+
 async function runFullScenarioVerification() {
   console.log('\n========================================================================');
   console.log('⚡ FLASH CHAT - COMPLETE 20-SCENARIO VERIFICATION SUITE (SECTION 10)');
@@ -186,8 +203,8 @@ async function runFullScenarioVerification() {
     socketsToClose.push(socketA, socketB);
 
     await Promise.all([
-      new Promise((res) => socketA.on('connect', res)),
-      new Promise((res) => socketB.on('connect', res))
+      waitForSocketConnect(socketA),
+      waitForSocketConnect(socketB)
     ]);
 
     let bobReceivedMsg = null;
@@ -266,7 +283,7 @@ async function runFullScenarioVerification() {
     // 13. User B reconnects and the status updates.
     const socketB_reconnect = ioClient(BASE_URL, { auth: { token: tokenB }, transports: ['websocket'], reconnection: false });
     socketsToClose.push(socketB_reconnect);
-    await new Promise((res) => socketB_reconnect.on('connect', res));
+    await waitForSocketConnect(socketB_reconnect);
     await sleep(400);
     assert(aliceSawBobOnline, `Scenario 13: User B reconnected and User A saw presence:update isOnline: true`);
 
@@ -274,7 +291,7 @@ async function runFullScenarioVerification() {
     // Open a second tab for Bob
     const socketB_tab2 = ioClient(BASE_URL, { auth: { token: tokenB }, transports: ['websocket'], reconnection: false });
     socketsToClose.push(socketB_tab2);
-    await new Promise((res) => socketB_tab2.on('connect', res));
+    await waitForSocketConnect(socketB_tab2);
 
     aliceSawBobOffline = false; // Reset flag
     // Close Tab 1 for Bob, but Tab 2 is still open!
