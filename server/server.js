@@ -216,6 +216,7 @@ const pushRoutes = require('./routes/pushRoutes');
 app.use('/api', apiLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/chats', chatRoutes);
+app.use('/api/conversations', chatRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/mail', mailRoutes);

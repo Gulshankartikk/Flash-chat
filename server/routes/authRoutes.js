@@ -23,6 +23,7 @@ router.post('/reset-password', authLimiter, authController.resetPassword);
 
 // Legacy routes (backward compatibility)
 router.post('/signup', authLimiter, authController.signup);
+router.post('/register', authLimiter, authController.signup);
 router.post('/login', authLimiter, authController.login);
 router.post('/google', authLimiter, authController.googleAuth);
 

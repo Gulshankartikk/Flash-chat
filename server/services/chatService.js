@@ -29,15 +29,23 @@ class ChatService {
       .populate('lastMessage');
 
     if (!conversation) {
-      conversation = await Conversation.create({
-        type: 'direct',
-        memberKey,
-        createdBy: userIdA,
-        members: [
-          { user: userIdA, role: 'member', unreadCount: 0 },
-          { user: userIdB, role: 'member', unreadCount: 0 }
-        ]
-      });
+      try {
+        conversation = await Conversation.create({
+          type: 'direct',
+          memberKey,
+          createdBy: userIdA,
+          members: [
+            { user: userIdA, role: 'member', unreadCount: 0 },
+            { user: userIdB, role: 'member', unreadCount: 0 }
+          ]
+        });
+      } catch (err) {
+        if (err.code === 11000) {
+          conversation = await Conversation.findOne({ memberKey });
+        } else {
+          throw err;
+        }
+      }
 
       conversation = await Conversation.findById(conversation._id)
         .populate('members.user', '_id name username avatar isOnline lastSeen privacy')
@@ -309,7 +317,9 @@ class ChatService {
   async getMessages(conversationId, userId, { cursor, limit = 30 }) {
     const isMember = await this.isMember(conversationId, userId);
     if (!isMember) {
-      throw new Error('Not authorized to access messages in this conversation.');
+      const err = new Error('Not authorized to access messages in this conversation.');
+      err.statusCode = 403;
+      throw err;
     }
 
     const savedContacts = await Contact.find({

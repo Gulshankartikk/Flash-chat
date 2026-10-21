@@ -227,6 +227,7 @@ export const useChatStore = create((set, get) => ({
 
     const socket = getSocket();
     if (socket && socket.connected) {
+      socket.emit('conversation:join', { conversationId: convId });
       socket.emit('message:read', { conversationId: convId });
     }
 

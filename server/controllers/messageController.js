@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const chatService = require('../services/chatService');
 const Message = require('../models/Message');
+const Conversation = require('../models/Conversation');
 
 const sendMessageSchema = z.object({
   conversationId: z.string().min(1, 'conversationId is required'),
@@ -78,9 +79,26 @@ const sendMessage = async (req, res, next) => {
 
     const message = await chatService.sendMessage(req.user._id, parsed.data);
 
-    // Broadcast to room if Socket.IO is attached
+    // Broadcast to room and member user rooms if Socket.IO is attached
     if (req.io) {
       req.io.to(`conv:${parsed.data.conversationId}`).emit('message:new', message);
+      try {
+        const conv = await Conversation.findById(parsed.data.conversationId).select('members').lean();
+        if (conv?.members) {
+          conv.members.forEach((m) => {
+            const mId = String(m.user);
+            if (mId !== String(req.user._id)) {
+              req.io.to(`user:${mId}`).emit('message:new', message);
+              req.io.to(`user:${mId}`).emit('conversation:updated', {
+                conversationId: conv._id,
+                lastMessage: message
+              });
+            }
+          });
+        }
+      } catch (e) {
+        // non-blocking
+      }
     }
 
     return res.status(201).json({ success: true, message });

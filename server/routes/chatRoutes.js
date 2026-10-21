@@ -8,6 +8,12 @@ router.use(authMiddleware);
 
 // Core conversation routes
 router.get('/', chatController.getUserChats);
+router.post('/', (req, res, next) => {
+  if (req.body && (req.body.isGroup || req.body.type === 'group' || Array.isArray(req.body.memberIds))) {
+    return chatController.createGroupChat(req, res, next);
+  }
+  return chatController.createOrGetDirectChat(req, res, next);
+});
 router.post('/direct', chatController.createOrGetDirectChat);
 router.post('/group', chatController.createGroupChat);
 router.get('/search/messages', chatController.searchMessages);

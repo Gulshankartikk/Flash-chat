@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { z } = require('zod');
 const User = require('../models/User');
 
@@ -166,7 +167,6 @@ const searchUsers = async (req, res, next) => {
 
     const filter = {
       _id: { $ne: req.user._id },
-      isOnboarded: true,
       $or: [{ username: regex }, { name: regex }]
     };
 
@@ -192,17 +192,29 @@ const searchUsers = async (req, res, next) => {
 };
 
 /**
- * GET /api/users/:username
+ * GET /api/users/:username (or :userId)
  * Public profile endpoint
  */
 const getPublicProfile = async (req, res, next) => {
   try {
-    const username = (req.params.username || '').toLowerCase().trim();
+    const identifier = (req.params.username || req.params.identifier || req.params.id || '').trim();
+    if (!identifier) {
+      return res.status(404).json({
+        success: false,
+        message: 'User profile not found'
+      });
+    }
+
     const Block = require('../models/Block');
     const Follow = require('../models/Follow');
     const Story = require('../models/Story');
 
-    const user = await User.findOne({ username })
+    const isObjectId = mongoose.Types.ObjectId.isValid(identifier);
+    const userQuery = isObjectId
+      ? { $or: [{ _id: identifier }, { username: identifier.toLowerCase() }] }
+      : { username: identifier.toLowerCase() };
+
+    const user = await User.findOne(userQuery)
       .select(
         '_id name username avatar bio isOnline lastSeen isPrivateAccount followersCount followingCount postsCount createdAt privacy'
       )

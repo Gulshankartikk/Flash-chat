@@ -5,9 +5,15 @@ const Message = require('../models/Message');
 const chatService = require('../services/chatService');
 
 // Zod schemas
-const createDirectSchema = z.object({
-  userId: z.string().min(1, 'Target user ID is required')
-});
+const createDirectSchema = z
+  .object({
+    userId: z.string().min(1).optional(),
+    recipientId: z.string().min(1).optional(),
+    participantId: z.string().min(1).optional()
+  })
+  .refine((data) => data.userId || data.recipientId || data.participantId, {
+    message: 'Target user ID is required'
+  });
 
 const createGroupSchema = z.object({
   name: z.string().min(2, 'Group name must be at least 2 characters').max(100),
@@ -40,7 +46,20 @@ const createOrGetDirectChat = async (req, res, next) => {
       return res.status(400).json({ success: false, message: parsed.error.issues[0].message });
     }
 
-    const conversation = await chatService.createDirectConversation(req.user._id, parsed.data.userId);
+    const targetUserId = parsed.data.userId || parsed.data.recipientId || parsed.data.participantId;
+    const conversation = await chatService.createDirectConversation(req.user._id, targetUserId);
+
+    if (req.io) {
+      req.io.to(`user:${req.user._id}`).emit('conversation:updated', {
+        conversationId: conversation._id,
+        conversation
+      });
+      req.io.to(`user:${targetUserId}`).emit('conversation:updated', {
+        conversationId: conversation._id,
+        conversation
+      });
+    }
+
     return res.status(200).json({ success: true, conversation });
   } catch (error) {
     next(error);
@@ -346,6 +365,14 @@ const getMessages = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { cursor, limit = 30 } = req.query;
+
+    const isMember = await chatService.isMember(id, req.user._id);
+    if (!isMember) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to access messages in this conversation.'
+      });
+    }
 
     const result = await chatService.getMessages(id, req.user._id, { cursor, limit });
     return res.status(200).json({ success: true, ...result });

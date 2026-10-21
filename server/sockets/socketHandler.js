@@ -167,6 +167,33 @@ const initSocketIO = (io) => {
     registerCallHandlers(io, socket, { onlineUserSockets });
 
     // -------------------------------------------------------------------------
+    // Event: conversation:join & chat:join
+    // -------------------------------------------------------------------------
+    socket.on('conversation:join', async ({ conversationId } = {}) => {
+      try {
+        if (!conversationId) return;
+        const isMember = await chatService.isMember(conversationId, userId);
+        if (isMember) {
+          socket.join(`conv:${conversationId}`);
+        }
+      } catch (e) {
+        // silent
+      }
+    });
+
+    socket.on('chat:join', async ({ conversationId } = {}) => {
+      try {
+        if (!conversationId) return;
+        const isMember = await chatService.isMember(conversationId, userId);
+        if (isMember) {
+          socket.join(`conv:${conversationId}`);
+        }
+      } catch (e) {
+        // silent
+      }
+    });
+
+    // -------------------------------------------------------------------------
     // Event: message:send
     // -------------------------------------------------------------------------
     socket.on('message:send', async (payload, ack) => {
@@ -192,7 +219,22 @@ const initSocketIO = (io) => {
         if (conv) {
           conv.members.forEach((m) => {
             const memberIdStr = String(m.user);
+
+            // Ensure active sockets of conversation members are joined to the room
+            const memberSockets = onlineUserSockets.get(memberIdStr);
+            if (memberSockets) {
+              memberSockets.forEach((sId) => {
+                const s = io.sockets.sockets.get(sId);
+                if (s && !s.rooms.has(`conv:${conv._id}`)) {
+                  s.join(`conv:${conv._id}`);
+                }
+              });
+            }
+
             if (memberIdStr !== userId) {
+              // Direct emit to recipient personal room ensures delivery across all active tabs/views
+              io.to(`user:${memberIdStr}`).emit('message:new', message);
+
               // Notify user's personal room for conversation list update
               io.to(`user:${memberIdStr}`).emit('conversation:updated', {
                 conversationId: conv._id,
