@@ -38,14 +38,15 @@ export const ContactList = ({
 
   // Filter contacts by search query
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim().toLowerCase().replace(/^@/, '');
     if (!q) return contacts;
     return contacts.filter((c) => {
       const nameMatch = c.name?.toLowerCase().includes(q);
+      const usernameMatch = c.linkedUser?.username?.toLowerCase().includes(q);
       const phoneMatch = c.phone?.includes(q);
       const emailMatch = c.email?.toLowerCase().includes(q);
       const noteMatch = c.note?.toLowerCase().includes(q);
-      return nameMatch || phoneMatch || emailMatch || noteMatch;
+      return nameMatch || usernameMatch || phoneMatch || emailMatch || noteMatch;
     });
   }, [contacts, search]);
 

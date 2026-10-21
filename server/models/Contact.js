@@ -68,6 +68,14 @@ contactSchema.index(
   }
 );
 
+contactSchema.index(
+  { owner: 1, linkedUser: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { linkedUser: { $type: 'objectId' } }
+  }
+);
+
 contactSchema.index({ owner: 1, name: 1 });
 contactSchema.index({ owner: 1, isFavorite: -1, name: 1 });
 

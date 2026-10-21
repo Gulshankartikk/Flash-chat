@@ -34,7 +34,7 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
 
   const navigate = useNavigate();
   const { startDirectConversation, createGroup } = useChatStore();
-  const { contacts, fetchContacts, startChatWithContact } = useContactsStore();
+  const { contacts, fetchContacts, startChatWithContact, addContact } = useContactsStore();
 
   useEffect(() => {
     if (isOpen) {
@@ -270,24 +270,49 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
                     Searching users...
                   </div>
                 ) : userResults.length > 0 ? (
-                  userResults.map((u) => (
-                    <div
-                      key={u._id}
-                      onClick={() => handleStartDirect(u._id)}
-                      className="flex items-center justify-between p-2.5 rounded-xl hover:bg-orange-50/40 transition cursor-pointer border border-transparent hover:border-line"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <Avatar src={u.avatar} name={u.name} size="sm" isOnline={u.isOnline} showStatus />
-                        <div>
-                          <p className="text-xs font-bold text-ink">{u.name}</p>
-                          <p className="text-[10px] text-muted">@{u.username}</p>
+                  userResults.map((u) => {
+                    const isSaved = contacts.some(
+                      (c) => String(c.linkedUser?._id || c.linkedUser) === String(u._id)
+                    );
+
+                    return (
+                      <div
+                        key={u._id}
+                        onClick={() => handleStartDirect(u._id)}
+                        className="flex items-center justify-between p-2.5 rounded-xl hover:bg-orange-50/40 transition cursor-pointer border border-transparent hover:border-line"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Avatar src={u.avatar} name={u.name} size="sm" isOnline={u.isOnline} showStatus />
+                          <div>
+                            <p className="text-xs font-bold text-ink">{u.name}</p>
+                            <p className="text-[10px] text-muted">@{u.username}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {!isSaved && (
+                            <button
+                              type="button"
+                              title="Add to contacts"
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                try {
+                                  await addContact({ userId: u._id, name: u.name });
+                                } catch (err) {
+                                  console.error('Add contact error:', err);
+                                }
+                              }}
+                              className="p-1 rounded-md hover:bg-cream text-muted hover:text-primary transition cursor-pointer"
+                            >
+                              <UserPlus className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          <span className="text-[10px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-md">
+                            Chat
+                          </span>
                         </div>
                       </div>
-                      <span className="text-[10px] font-bold text-primary bg-primary/15 px-2 py-0.5 rounded-md">
-                        Chat
-                      </span>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : searchQuery.trim() && !formattedPhoneSuggestion ? (
                   <p className="p-4 text-center text-xs text-muted">No users found.</p>
                 ) : sortedContacts.length > 0 && !searchQuery.trim() ? (

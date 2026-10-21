@@ -16,11 +16,14 @@ import {
   Clock,
   UserPlus,
   ChevronRight,
-  Inbox
+  Inbox,
+  BookUser,
+  Star
 } from 'lucide-react';
 import { Avatar } from '../Avatar';
 import { useChatStore } from '../../store/useChatStore';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useContactsStore } from '../../features/contacts/useContacts';
 import { CallHistoryList } from '../../features/calls';
 import { StoriesTray } from '../../features/social/components/StoriesTray';
 import { AddContactModal } from '../../features/contacts/AddContactModal';
@@ -36,19 +39,23 @@ export const ConversationList = ({
     activeConversation,
     pendingConversations,
     fetchPendingConversations,
-    onlineUsers
+    onlineUsers,
+    updateChatSettings,
+    startDirectConversation
   } = useChatStore();
   const { user } = useAuthStore();
+  const { contacts, fetchContacts, startChatWithContact } = useContactsStore();
 
   const [activeSection, setActiveSection] = useState('chats'); // 'chats' | 'stories' | 'calls'
   const [searchFilter, setSearchFilter] = useState('');
-  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'unread' | 'groups' | 'requests' | 'support' | 'archived'
+  const [filterTab, setFilterTab] = useState('all'); // 'all' | 'unread' | 'online' | 'contacts' | 'groups' | 'requests' | 'support' | 'archived'
   const [showPlusMenu, setShowPlusMenu] = useState(false);
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
 
   useEffect(() => {
     fetchPendingConversations();
-  }, [fetchPendingConversations]);
+    fetchContacts();
+  }, [fetchPendingConversations, fetchContacts]);
 
   const formatMessageTime = (dateStr) => {
     if (!dateStr) return '';
@@ -76,11 +83,46 @@ export const ConversationList = ({
     if (c.isArchived) return false;
 
     if (filterTab === 'unread') return (c.unreadCount || 0) > 0;
+    if (filterTab === 'online') {
+      const otherUserId = c.otherUser?._id ? String(c.otherUser._id) : null;
+      return (
+        c.type === 'direct' &&
+        otherUserId &&
+        ((onlineUsers instanceof Set ? onlineUsers.has(otherUserId) : false) || Boolean(c.otherUser?.isOnline))
+      );
+    }
     if (filterTab === 'groups') return c.type === 'group';
     if (filterTab === 'support') return c.type === 'support';
 
     return true;
   });
+
+  // Filter contacts by search query
+  const filteredContacts = contacts.filter((c) => {
+    const q = searchFilter.toLowerCase().trim().replace(/^@/, '');
+    if (!q) return true;
+    return (
+      (c.name || '').toLowerCase().includes(q) ||
+      (c.linkedUser?.username || '').toLowerCase().includes(q) ||
+      (c.phone || '').includes(q) ||
+      (c.email || '').toLowerCase().includes(q)
+    );
+  });
+
+  const handleStartChatWithContact = async (contact) => {
+    try {
+      const linkedId = contact.linkedUser?._id || contact.linkedUser;
+      if (linkedId) {
+        const conv = await startDirectConversation(linkedId);
+        if (conv && onSelectConversation) onSelectConversation(conv);
+      } else {
+        const res = await startChatWithContact(contact._id);
+        if (res && onSelectConversation) onSelectConversation(res);
+      }
+    } catch (err) {
+      console.error('Failed to start chat with contact:', err);
+    }
+  };
 
   // Pinned vs Regular
   const pinnedConversations = filteredConversations.filter((c) => c.isPinned && !c.isArchived);
@@ -125,7 +167,7 @@ export const ConversationList = ({
       <div
         key={conv._id}
         onClick={() => onSelectConversation(conv)}
-        className={`flex items-center gap-3 p-3.5 hover:bg-orange-50/40 transition cursor-pointer relative ${
+        className={`group flex items-center gap-3 p-3.5 hover:bg-orange-50/40 transition cursor-pointer relative ${
           isSelected ? 'bg-orange-50/70 border-l-4 border-l-primary' : ''
         }`}
       >
@@ -165,12 +207,51 @@ export const ConversationList = ({
           </div>
 
           <div className="flex items-center justify-between mt-1">
-            <p className="text-[11px] text-muted truncate max-w-[180px]">
+            <p className="text-[11px] text-muted truncate max-w-[170px]">
               {getMessageSnippet(conv.lastMessage)}
             </p>
 
             <div className="flex items-center gap-1.5 shrink-0">
-              {conv.isPinned && <Pin className="w-3 h-3 text-primary fill-primary" />}
+              {/* Quick actions on hover */}
+              <div className="hidden group-hover:flex items-center gap-1">
+                <button
+                  type="button"
+                  title={conv.isPinned ? 'Unpin' : 'Pin'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateChatSettings(conv._id, { pin: !conv.isPinned });
+                  }}
+                  className="p-1 rounded hover:bg-cream text-muted hover:text-primary transition"
+                >
+                  <Pin className={`w-3 h-3 ${conv.isPinned ? 'fill-primary text-primary' : ''}`} />
+                </button>
+                <button
+                  type="button"
+                  title={conv.isMuted ? 'Unmute' : 'Mute'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateChatSettings(conv._id, {
+                      muteUntil: conv.isMuted ? null : new Date(Date.now() + 7 * 86400000).toISOString()
+                    });
+                  }}
+                  className="p-1 rounded hover:bg-cream text-muted hover:text-primary transition"
+                >
+                  <VolumeX className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  title={conv.isArchived ? 'Unarchive' : 'Archive'}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateChatSettings(conv._id, { archive: !conv.isArchived });
+                  }}
+                  className="p-1 rounded hover:bg-cream text-muted hover:text-primary transition"
+                >
+                  <Archive className="w-3 h-3" />
+                </button>
+              </div>
+
+              {conv.isPinned && <Pin className="w-3 h-3 text-primary fill-primary group-hover:hidden" />}
               {isSupport && (
                 <span className="px-1.5 py-0.2 rounded-full bg-primary/15 text-primary text-[9px] font-bold">
                   Support
@@ -192,6 +273,83 @@ export const ConversationList = ({
     <div className="flex flex-col h-full bg-card border-r border-line w-full md:w-80 lg:w-96 select-none shrink-0">
       {/* Header Bar */}
       <div className="p-4 border-b border-line space-y-3">
+        {/* Flash Chat Brand Header & User Profile Bar */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Avatar
+              src={user?.avatar}
+              name={user?.name || user?.username || 'User'}
+              size="sm"
+              isOnline={true}
+              showStatus={true}
+            />
+            <div className="min-w-0">
+              <h1 className="text-sm font-black text-ink tracking-tight flex items-center gap-1">
+                <span className="text-primary font-black">⚡ Flash Chat</span>
+              </h1>
+              <p className="text-[10px] text-muted flex items-center gap-1 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                <span>Active now</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0">
+            {/* + Action Menu Trigger */}
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="New message options"
+                onClick={() => setShowPlusMenu(!showPlusMenu)}
+                className="p-1.5 rounded-xl bg-brand-gradient hover:opacity-95 text-white shadow-md shadow-primary/25 transition cursor-pointer"
+                title="New chat options"
+              >
+                <Plus className="w-4 h-4 stroke-[2.5px]" />
+              </button>
+
+              {showPlusMenu && (
+                <div className="absolute right-0 top-10 z-40 p-1.5 rounded-2xl bg-card border border-line shadow-xl text-xs space-y-1 w-44 animate-scaleUp">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPlusMenu(false);
+                      if (onOpenNewChat) onOpenNewChat('direct');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-orange-50/60 text-ink transition font-bold flex items-center gap-2.5 cursor-pointer"
+                  >
+                    <MessageSquare className="w-4 h-4 text-primary" />
+                    <span>New chat</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPlusMenu(false);
+                      if (onOpenNewChat) onOpenNewChat('group');
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-orange-50/60 text-ink transition font-bold flex items-center gap-2.5 cursor-pointer"
+                  >
+                    <Users className="w-4 h-4 text-secondary" />
+                    <span>New group</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPlusMenu(false);
+                      setIsAddContactOpen(true);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-orange-50/60 text-ink transition font-bold flex items-center gap-2.5 cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4 text-accent" />
+                    <span>New contact</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
         {/* Chats | Stories | Calls Switcher */}
         <div className="flex items-center gap-1 p-1 bg-cream rounded-xl border border-line">
           <button
@@ -234,71 +392,12 @@ export const ConversationList = ({
 
         {activeSection === 'chats' && (
           <>
-            <div className="flex items-center justify-between relative">
-              <h2 className="text-base font-black text-ink tracking-tight">
-                Messages
-              </h2>
-
-              {/* + Action Menu Trigger */}
-              <div className="relative">
-                <button
-                  type="button"
-                  aria-label="New message options"
-                  onClick={() => setShowPlusMenu(!showPlusMenu)}
-                  className="p-1.5 rounded-xl bg-brand-gradient hover:opacity-95 text-white shadow-md shadow-primary/25 transition cursor-pointer"
-                  title="New chat options"
-                >
-                  <Plus className="w-4 h-4 stroke-[2.5px]" />
-                </button>
-
-                {showPlusMenu && (
-                  <div className="absolute right-0 top-10 z-40 p-1.5 rounded-2xl bg-card border border-line shadow-xl text-xs space-y-1 w-44 animate-scaleUp">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowPlusMenu(false);
-                        if (onOpenNewChat) onOpenNewChat('direct');
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-orange-50/60 text-ink transition font-bold flex items-center gap-2.5 cursor-pointer"
-                    >
-                      <MessageSquare className="w-4 h-4 text-primary" />
-                      <span>New chat</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowPlusMenu(false);
-                        if (onOpenNewChat) onOpenNewChat('group');
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-orange-50/60 text-ink transition font-bold flex items-center gap-2.5 cursor-pointer"
-                    >
-                      <Users className="w-4 h-4 text-secondary" />
-                      <span>New group</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowPlusMenu(false);
-                        setIsAddContactOpen(true);
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-xl hover:bg-orange-50/60 text-ink transition font-bold flex items-center gap-2.5 cursor-pointer"
-                    >
-                      <UserPlus className="w-4 h-4 text-accent" />
-                      <span>New contact</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-
             {/* Search Input */}
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-primary" />
               <input
                 type="text"
-                placeholder="Search conversations..."
+                placeholder={filterTab === 'contacts' ? "Search saved contacts..." : "Search conversations..."}
                 value={searchFilter}
                 onChange={(e) => setSearchFilter(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 rounded-xl border border-line bg-cream/40 text-xs text-ink placeholder:text-muted/60 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card transition"
@@ -310,6 +409,8 @@ export const ConversationList = ({
               {[
                 { id: 'all', label: 'All' },
                 { id: 'unread', label: 'Unread' },
+                { id: 'online', label: 'Online' },
+                { id: 'contacts', label: `Contacts (${contacts.length})` },
                 ...(messageRequests.length > 0 ? [{ id: 'requests', label: `Requests (${messageRequests.length})` }] : []),
                 { id: 'groups', label: 'Groups' },
                 { id: 'support', label: 'Support' },
@@ -381,6 +482,88 @@ export const ConversationList = ({
             </div>
           )}
 
+          {/* If 'contacts' filter tab is active */}
+          {filterTab === 'contacts' && (
+            <div className="divide-y divide-line/30">
+              <div className="px-4 py-2 bg-cream/60 text-[10px] font-bold text-primary uppercase tracking-wider flex items-center justify-between">
+                <span className="flex items-center gap-1">
+                  <BookUser className="w-3 h-3" />
+                  <span>Saved Contacts ({filteredContacts.length})</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsAddContactOpen(true)}
+                  className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                >
+                  + Add Contact
+                </button>
+              </div>
+
+              {filteredContacts.length === 0 ? (
+                <div className="p-8 text-center text-xs text-muted space-y-2">
+                  <UserPlus className="w-8 h-8 text-line mx-auto mb-2" />
+                  <p className="font-semibold text-ink">No contacts found</p>
+                  <p className="text-[11px]">Add friends to your contacts list to message them anytime.</p>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddContactOpen(true)}
+                    className="mt-2 px-3 py-1.5 rounded-xl bg-primary text-white text-xs font-bold hover:bg-primary/90 transition cursor-pointer"
+                  >
+                    Add Contact
+                  </button>
+                </div>
+              ) : (
+                filteredContacts.map((c) => {
+                  const linkedUserId = c.linkedUser?._id
+                    ? String(c.linkedUser._id)
+                    : c.linkedUser
+                    ? String(c.linkedUser)
+                    : null;
+                  const isOnline = linkedUserId
+                    ? (onlineUsers instanceof Set ? onlineUsers.has(linkedUserId) : false) || Boolean(c.linkedUser?.isOnline)
+                    : false;
+
+                  return (
+                    <div
+                      key={c._id}
+                      onClick={() => handleStartChatWithContact(c)}
+                      className="flex items-center justify-between p-3.5 hover:bg-orange-50/40 transition cursor-pointer"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <Avatar
+                          src={c.avatar || c.linkedUser?.avatar}
+                          name={c.name}
+                          size="md"
+                          isOnline={isOnline}
+                          showStatus={Boolean(linkedUserId)}
+                        />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-ink truncate flex items-center gap-1">
+                            <span>{c.name}</span>
+                            {c.isFavorite && <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" />}
+                          </p>
+                          <p className="text-[10px] text-muted truncate">
+                            {c.linkedUser?.username ? `@${c.linkedUser.username}` : c.phone || c.email || 'Saved contact'}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleStartChatWithContact(c);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-primary/15 text-primary text-[11px] font-bold hover:bg-primary hover:text-white transition cursor-pointer"
+                      >
+                        Chat
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
           {/* Waiting to Join (Pending Conversations) Section */}
           {pendingConversations.length > 0 && filterTab === 'all' && (
             <div className="space-y-0.5">
@@ -436,7 +619,7 @@ export const ConversationList = ({
           )}
 
           {/* Pinned Section */}
-          {pinnedConversations.length > 0 && filterTab !== 'requests' && (
+          {pinnedConversations.length > 0 && filterTab !== 'requests' && filterTab !== 'contacts' && (
             <div className="space-y-0.5">
               <div className="px-4 py-1.5 bg-cream/60 text-[10px] font-bold text-primary uppercase tracking-wider flex items-center gap-1">
                 <Pin className="w-3 h-3 fill-primary" />
@@ -447,13 +630,25 @@ export const ConversationList = ({
           )}
 
           {/* Regular / Filtered List */}
-          {filterTab !== 'requests' && regularConversations.length > 0 ? (
+          {filterTab !== 'requests' && filterTab !== 'contacts' && regularConversations.length > 0 ? (
             regularConversations.map(renderConversationItem)
-          ) : filterTab !== 'requests' && pinnedConversations.length === 0 && pendingConversations.length === 0 ? (
+          ) : filterTab !== 'requests' && filterTab !== 'contacts' && pinnedConversations.length === 0 && pendingConversations.length === 0 ? (
             <div className="p-8 text-center text-xs text-muted space-y-2">
               <MessageSquare className="w-8 h-8 text-line mx-auto mb-2" />
-              <p className="font-semibold text-ink">No conversations found</p>
-              <p className="text-[11px]">Start a new chat to begin messaging.</p>
+              <p className="font-semibold text-ink">
+                {filterTab === 'online'
+                  ? 'No online chats right now'
+                  : filterTab === 'unread'
+                  ? 'No unread messages'
+                  : 'No conversations found'}
+              </p>
+              <p className="text-[11px]">
+                {filterTab === 'online'
+                  ? 'Active users will appear here when online.'
+                  : filterTab === 'unread'
+                  ? 'All your chats are caught up.'
+                  : 'Start a new chat to begin messaging.'}
+              </p>
             </div>
           ) : null}
         </div>

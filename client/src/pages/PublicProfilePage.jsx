@@ -23,11 +23,13 @@ import {
   Play,
   Layers,
   ShieldCheck,
-  Edit3
+  Edit3,
+  BookUser
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useCall } from '../features/calls';
 import { useSocialStore } from '../features/social/store/useSocialStore';
+import { useContactsStore } from '../features/contacts/useContacts';
 import {
   fetchUserProfileApi,
   fetchUserPostsApi,
@@ -72,6 +74,12 @@ export const PublicProfilePage = () => {
   const [showRequestsModal, setShowRequestsModal] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [activePostId, setActivePostId] = useState(null);
+
+  const { contacts, addContact, deleteContact, fetchContacts } = useContactsStore();
+
+  useEffect(() => {
+    fetchContacts();
+  }, [fetchContacts]);
 
   const isMe =
     Boolean(currentUser?._id && profile?._id) &&
@@ -539,6 +547,35 @@ export const PublicProfilePage = () => {
                 title="Video Call"
               >
                 <Video className="w-4 h-4" />
+              </button>
+
+              {/* Saved Contact Toggle */}
+              <button
+                type="button"
+                onClick={async () => {
+                  const existingContact = contacts.find(
+                    (c) => String(c.linkedUser?._id || c.linkedUser) === String(profile._id)
+                  );
+                  if (existingContact) {
+                    if (window.confirm(`Remove ${profile.name} from saved contacts?`)) {
+                      await deleteContact(existingContact._id);
+                    }
+                  } else {
+                    await addContact({ userId: profile._id, name: profile.name });
+                  }
+                }}
+                className={`p-2 rounded-xl border transition cursor-pointer ${
+                  contacts.some((c) => String(c.linkedUser?._id || c.linkedUser) === String(profile._id))
+                    ? 'bg-orange-50 border-[#F97316] text-[#F97316]'
+                    : 'bg-white border-[#FED7AA] text-[#1F2937] hover:border-[#F97316] hover:text-[#F97316]'
+                }`}
+                title={
+                  contacts.some((c) => String(c.linkedUser?._id || c.linkedUser) === String(profile._id))
+                    ? 'Saved in contacts'
+                    : 'Add to contacts'
+                }
+              >
+                <BookUser className="w-4 h-4" />
               </button>
             </>
           )}

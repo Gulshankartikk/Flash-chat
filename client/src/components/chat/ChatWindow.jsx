@@ -219,8 +219,11 @@ export const ChatWindow = ({ conversationId, onBack }) => {
             onClick={() => isGroup && setShowGroupInfo(true)}
             className={`min-w-0 ${isGroup ? 'cursor-pointer' : ''}`}
           >
-            <h3 className="text-sm font-bold text-[#1F2937] truncate">
-              {activeConversation.displayName}
+            <h3 className="text-sm font-bold text-[#1F2937] truncate flex items-center gap-1.5">
+              <span>{activeConversation.displayName}</span>
+              {!isGroup && otherUser?.username && (
+                <span className="text-[11px] font-normal text-[#6B7280] truncate">@{otherUser.username}</span>
+              )}
             </h3>
             <p
               className={`text-[11px] truncate font-medium ${
@@ -407,6 +410,29 @@ export const ChatWindow = ({ conversationId, onBack }) => {
         {isLoadingMessages && (
           <div className="p-2 text-center text-xs text-[#6B7280] animate-pulse">
             Loading older messages...
+          </div>
+        )}
+
+        {displayedMessages.length === 0 && !isLoadingMessages && (
+          <div className="flex flex-col items-center justify-center h-full p-8 text-center my-auto select-none">
+            <div className="p-3 rounded-full bg-primary/10 text-primary mb-3 shadow-xs">
+              <Avatar
+                src={activeConversation.displayAvatar}
+                alt={activeConversation.displayName}
+                size="lg"
+                isOnline={isOtherOnline}
+                showStatus={!isGroup}
+              />
+            </div>
+            <h4 className="text-sm font-bold text-[#1F2937]">
+              {activeConversation.displayName}
+            </h4>
+            {!isGroup && otherUser?.username && (
+              <p className="text-xs text-[#6B7280] mb-2">@{otherUser.username}</p>
+            )}
+            <p className="text-xs text-[#6B7280] max-w-xs mt-1">
+              No messages here yet. Say hello to start the conversation!
+            </p>
           </div>
         )}
 
