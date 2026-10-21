@@ -45,7 +45,10 @@ const recordViolation = (socket) => {
   }
 };
 
+let ioInstance = null;
+
 const initSocketIO = (io) => {
+  ioInstance = io;
   // Attach Redis adapter if Redis is connected
   if (redisClient && redisClient.status === 'ready') {
     try {
@@ -432,5 +435,6 @@ const initSocketIO = (io) => {
 
 module.exports = {
   initSocketIO,
+  getIO: () => ioInstance,
   onlineUserSockets
 };

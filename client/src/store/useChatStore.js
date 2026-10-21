@@ -545,6 +545,7 @@ export const useChatStore = create((set, get) => ({
     socket.off('presence:update');
     socket.off('users:online_list');
     socket.off('conversation:updated');
+    socket.off('user:updated');
 
     // New Message
     socket.on('message:new', (msg) => {
@@ -776,6 +777,47 @@ export const useChatStore = create((set, get) => ({
 
     socket.on('conversation:request', () => {
       get().fetchConversations();
+    });
+
+    // Profile & user updates synchronization
+    socket.on('user:updated', ({ userId, user }) => {
+      if (!userId || !user) return;
+      set((state) => {
+        const updateParticipant = (p) => {
+          if (!p) return p;
+          if (String(p._id || p) === String(userId)) {
+            return typeof p === 'object' ? { ...p, ...user } : p;
+          }
+          return p;
+        };
+
+        const updatedConversations = (state.conversations || []).map((c) => {
+          if (!c.participants) return c;
+          const hasUser = c.participants.some((p) => String(p._id || p) === String(userId));
+          if (!hasUser) return c;
+          return {
+            ...c,
+            participants: c.participants.map(updateParticipant)
+          };
+        });
+
+        let updatedActive = state.activeConversation;
+        if (updatedActive?.participants) {
+          const hasUser = updatedActive.participants.some((p) => String(p._id || p) === String(userId));
+          if (hasUser) {
+            updatedActive = {
+              ...updatedActive,
+              participants: updatedActive.participants.map(updateParticipant)
+            };
+          }
+        }
+
+        return {
+          conversations: updatedConversations,
+          chats: updatedConversations,
+          activeConversation: updatedActive
+        };
+      });
     });
   }
 }));

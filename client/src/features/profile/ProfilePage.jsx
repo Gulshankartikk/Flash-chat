@@ -23,7 +23,12 @@ import {
   Trash2,
   Users,
   HelpCircle,
-  Palette
+  Palette,
+  ArrowLeft,
+  ExternalLink,
+  Calendar,
+  Mail,
+  Loader2
 } from 'lucide-react';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useThemeStore } from '../../store/useThemeStore';
@@ -36,6 +41,7 @@ import { UsageMeter } from '../ai';
 import { AiProviderDisclosure } from '../../components/common/AiProviderDisclosure';
 import { NotificationSettingsModal } from './NotificationSettingsModal';
 import { usePwaInstall } from '../../hooks/usePwaInstall';
+import { isValidE164, formatToE164 } from '../contacts/phoneUtils';
 import api from '../../services/api';
 
 const PRESET_AVATARS = [
@@ -59,11 +65,14 @@ export const ProfilePage = () => {
   const [username, setUsername] = useState(user?.username || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [avatar, setAvatar] = useState(user?.avatar || PRESET_AVATARS[0]);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const [phoneNumber, setPhoneNumber] = useState(user?.phoneNumber || user?.phone || '');
+  const [phoneError, setPhoneError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   // Username validation state
-  const [usernameStatus, setUsernameStatus] = useState({ checking: false, available: null, error: null });
+  const [usernameStatus, setUsernameStatus] = useState({ checking: false, available: true, error: null });
 
   // Privacy Settings state
   const [privacy, setPrivacy] = useState({
@@ -102,6 +111,7 @@ export const ProfilePage = () => {
       setUsername(user.username || '');
       setBio(user.bio || '');
       setAvatar(user.avatar || PRESET_AVATARS[0]);
+      setPhoneNumber(user.phoneNumber || user.phone || '');
       setPrivacy({
         lastSeen: user.privacy?.lastSeen || user.privacySettings?.lastSeen || 'everyone',
         profilePhoto: user.privacy?.profilePhoto || user.privacySettings?.profilePhoto || 'everyone',
@@ -117,6 +127,44 @@ export const ProfilePage = () => {
       });
     }
   }, [user]);
+
+  // Debounced username availability checker
+  useEffect(() => {
+    const trimmed = username.trim().toLowerCase();
+    if (!trimmed || trimmed === user?.username?.toLowerCase()) {
+      setUsernameStatus({ checking: false, available: true, error: null });
+      return;
+    }
+
+    if (trimmed.length < 3 || !/^[a-z0-9_]{3,30}$/.test(trimmed)) {
+      setUsernameStatus({
+        checking: false,
+        available: false,
+        error: 'Must be 3-30 lowercase characters (letters, numbers, underscores)'
+      });
+      return;
+    }
+
+    setUsernameStatus({ checking: true, available: null, error: null });
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.get(`/users/check-username/${encodeURIComponent(trimmed)}`);
+        if (res.data?.available) {
+          setUsernameStatus({ checking: false, available: true, error: null });
+        } else {
+          setUsernameStatus({ checking: false, available: false, error: 'Username is already taken' });
+        }
+      } catch (err) {
+        setUsernameStatus({
+          checking: false,
+          available: false,
+          error: err.response?.data?.message || 'Error checking username'
+        });
+      }
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [username, user?.username]);
 
   // Fetch active sessions on mount
   useEffect(() => {
@@ -137,8 +185,27 @@ export const ProfilePage = () => {
   const handleProfileSubmit = async (e) => {
     e.preventDefault();
     if (!name.trim()) {
-      toast.error('Name cannot be empty');
+      toast.error('Display Name cannot be empty');
       return;
+    }
+
+    if (usernameStatus.error || usernameStatus.available === false) {
+      toast.error('Please choose a valid and available username');
+      return;
+    }
+
+    // Validate phone number if provided
+    let normalizedPhone = null;
+    if (phoneNumber && phoneNumber.trim()) {
+      const raw = phoneNumber.trim();
+      const formatted = raw.startsWith('+') ? raw : formatToE164(raw);
+      if (!isValidE164(formatted)) {
+        setPhoneError('Invalid phone number. Must be valid E.164 (e.g. +14155552671)');
+        toast.error('Invalid phone number. Please include country code (e.g. +14155552671)');
+        return;
+      }
+      normalizedPhone = formatted;
+      setPhoneError(null);
     }
 
     setIsSaving(true);
@@ -147,7 +214,10 @@ export const ProfilePage = () => {
         name: name.trim(),
         username: username.trim(),
         bio: bio.trim(),
+        about: bio.trim(),
         avatar,
+        phoneNumber: normalizedPhone,
+        phone: normalizedPhone,
         privacy,
         isPrivateAccount,
         discoverableByPhone,
@@ -166,10 +236,18 @@ export const ProfilePage = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file (JPEG, PNG, WebP, or GIF)');
+      return;
+    }
+
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Avatar file must be smaller than 5MB');
       return;
     }
+
+    const previewUrl = URL.createObjectURL(file);
+    setAvatarPreview(previewUrl);
 
     const formData = new FormData();
     formData.append('file', file);
@@ -181,12 +259,17 @@ export const ProfilePage = () => {
       });
       if (res.data?.url) {
         setAvatar(res.data.url);
-        toast.success('Photo uploaded!');
+        setAvatarPreview(null);
+        toast.success('Profile photo updated successfully!');
+      } else {
+        throw new Error('No URL returned from upload server');
       }
     } catch (err) {
-      toast.error('Failed to upload image');
+      setAvatarPreview(null);
+      toast.error(err.response?.data?.message || 'Failed to upload photo. Kept previous avatar.');
     } finally {
       setIsUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -220,14 +303,115 @@ export const ProfilePage = () => {
     }
   };
 
+  const joinedDate = user?.createdAt
+    ? new Date(user.createdAt).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
+    : 'Recently';
+
   return (
     <div className="flex-1 h-full overflow-y-auto bg-cream p-4 sm:p-6 lg:p-8 space-y-6 select-none">
+      {/* Top Header Bar with Back Navigation & Social Link */}
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => navigate('/chats')}
+          className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-card border border-line text-xs font-bold text-ink hover:border-primary/50 transition cursor-pointer shadow-xs"
+        >
+          <ArrowLeft className="w-4 h-4 text-primary" />
+          <span>Back to Chats</span>
+        </button>
+
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-line text-[11px] font-bold text-ink shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-primary" />
+            <span>Active Now</span>
+          </span>
+
+          {user?.username && (
+            <button
+              type="button"
+              onClick={() => navigate(`/u/${user.username}`)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-card border border-line text-xs font-bold text-ink hover:text-primary transition cursor-pointer shadow-xs"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-primary" />
+              <span>View Social Profile</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Profile Summary Card with WhatsApp & Instagram Presence */}
+      <div className="bg-card rounded-3xl p-6 border border-line shadow-xs">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
+          <div className="relative">
+            <Avatar
+              src={avatarPreview || avatar}
+              name={name}
+              size="2xl"
+              isOnline={true}
+              showStatus
+              className="shadow-lg shadow-primary/20 ring-4 ring-cream"
+            />
+          </div>
+
+          <div className="flex-1 text-center sm:text-left space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3">
+              <h2 className="text-xl font-black text-ink tracking-tight flex items-center justify-center sm:justify-start gap-1.5">
+                <span>{name || 'Flash User'}</span>
+                {user?.isVerified && (
+                  <span className="w-4 h-4 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
+                    ✓
+                  </span>
+                )}
+              </h2>
+              {username && (
+                <span className="text-xs font-bold text-muted bg-cream px-2.5 py-1 rounded-full border border-line self-center sm:self-auto">
+                  @{username}
+                </span>
+              )}
+            </div>
+
+            <p className="text-xs text-ink/90 leading-relaxed italic max-w-lg">
+              "{bio || '⚡ Hey there! I am using Flash Chat.'}"
+            </p>
+
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 pt-1 text-[11px] text-muted">
+              <div className="flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-primary" />
+                <span>Joined {joinedDate}</span>
+              </div>
+              {user?.phoneNumber && (
+                <div className="flex items-center gap-1">
+                  <Smartphone className="w-3.5 h-3.5 text-primary" />
+                  <span>{user.phoneNumber}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Social Stats Strip */}
+          <div className="flex sm:flex-col items-center justify-around sm:justify-center gap-4 sm:gap-2 sm:border-l border-line sm:pl-6 w-full sm:w-auto text-center">
+            <div className="flex-1 sm:flex-initial">
+              <p className="text-base font-black text-ink">{user?.postsCount || 0}</p>
+              <p className="text-[10px] text-muted uppercase tracking-wider font-semibold">Posts</p>
+            </div>
+            <div className="flex-1 sm:flex-initial">
+              <p className="text-base font-black text-ink">{user?.followersCount || 0}</p>
+              <p className="text-[10px] text-muted uppercase tracking-wider font-semibold">Followers</p>
+            </div>
+            <div className="flex-1 sm:flex-initial">
+              <p className="text-base font-black text-ink">{user?.followingCount || 0}</p>
+              <p className="text-[10px] text-muted uppercase tracking-wider font-semibold">Following</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Quick Navigation Hub */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <button
           type="button"
           onClick={() => navigate('/contacts')}
-          className="p-3.5 bg-card hover:bg-orange-50/40 border border-line rounded-2xl transition flex items-center gap-3 text-left shadow-xs group"
+          className="p-3.5 bg-card hover:bg-orange-50/40 border border-line rounded-2xl transition flex items-center gap-3 text-left shadow-xs group cursor-pointer"
         >
           <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center group-hover:scale-105 transition-transform">
             <Users className="w-5 h-5" />
@@ -241,7 +425,7 @@ export const ProfilePage = () => {
         <button
           type="button"
           onClick={() => navigate('/support')}
-          className="p-3.5 bg-card hover:bg-orange-50/40 border border-line rounded-2xl transition flex items-center gap-3 text-left shadow-xs group"
+          className="p-3.5 bg-card hover:bg-orange-50/40 border border-line rounded-2xl transition flex items-center gap-3 text-left shadow-xs group cursor-pointer"
         >
           <div className="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center group-hover:scale-105 transition-transform">
             <HelpCircle className="w-5 h-5" />
@@ -256,7 +440,7 @@ export const ProfilePage = () => {
           <button
             type="button"
             onClick={() => navigate('/dev/ui')}
-            className="p-3.5 bg-card hover:bg-orange-50/40 border border-line rounded-2xl transition flex items-center gap-3 text-left shadow-xs group"
+            className="p-3.5 bg-card hover:bg-orange-50/40 border border-line rounded-2xl transition flex items-center gap-3 text-left shadow-xs group cursor-pointer"
           >
             <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center group-hover:scale-105 transition-transform">
               <Palette className="w-5 h-5" />
@@ -275,46 +459,63 @@ export const ProfilePage = () => {
           {/* Header */}
           <div className="border-b border-line/60 pb-4">
             <h2 className="text-xl font-black text-ink tracking-tight">
-              Profile & Account Settings
+              Edit Profile & Account Settings
             </h2>
             <p className="text-xs text-muted mt-0.5">
-              Customize your public persona, privacy preferences, and Flash AI controls
+              Customize your persona, presence visibility, privacy controls, and AI features
             </p>
           </div>
 
           {/* Avatar selector & upload */}
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <div className="relative group">
-              <Avatar src={avatar} name={name} size="2xl" className="shadow-lg shadow-primary/20" />
+              <Avatar
+                src={avatarPreview || avatar}
+                name={name}
+                size="2xl"
+                isOnline={true}
+                showStatus
+                className="shadow-lg shadow-primary/20"
+              />
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploadingAvatar}
-                className="absolute inset-0 bg-ink/60 rounded-full flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition duration-200 cursor-pointer"
+                className="absolute inset-0 bg-ink/60 rounded-full flex flex-col items-center justify-center text-white opacity-0 group-hover:opacity-100 transition duration-200 cursor-pointer disabled:cursor-wait"
                 title="Upload photo"
               >
-                <Camera className="w-6 h-6 mb-1" />
-                <span className="text-[10px] font-bold">Change</span>
+                {isUploadingAvatar ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  <>
+                    <Camera className="w-6 h-6 mb-1" />
+                    <span className="text-[10px] font-bold">Change</span>
+                  </>
+                )}
               </button>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/gif"
                 onChange={handleAvatarUpload}
                 className="hidden"
               />
             </div>
 
             <div className="space-y-2 text-center sm:text-left flex-1">
-              <p className="text-xs font-bold text-ink">Select a Preset Avatar</p>
-              <div className="flex flex-wrap gap-2 justify-center sm:justify-start">
+              <p className="text-xs font-bold text-ink">Select a Preset Avatar or Upload Custom Photo</p>
+              <p className="text-[11px] text-muted">Supported formats: JPEG, PNG, WebP (max 5MB)</p>
+              <div className="flex flex-wrap gap-2 justify-center sm:justify-start pt-1">
                 {PRESET_AVATARS.map((seedUrl, idx) => (
                   <button
                     key={idx}
                     type="button"
-                    onClick={() => setAvatar(seedUrl)}
+                    onClick={() => {
+                      setAvatar(seedUrl);
+                      setAvatarPreview(null);
+                    }}
                     className={`w-10 h-10 rounded-full border-2 overflow-hidden transition cursor-pointer hover:scale-105 ${
-                      avatar === seedUrl ? 'border-primary ring-2 ring-primary/30' : 'border-line'
+                      avatar === seedUrl && !avatarPreview ? 'border-primary ring-2 ring-primary/30' : 'border-line'
                     }`}
                   >
                     <img src={seedUrl} alt="Avatar option" className="w-full h-full object-cover" />
@@ -333,51 +534,121 @@ export const ProfilePage = () => {
               placeholder="Your full name"
               required
             />
-            <Input
-              label="Username (@handle)"
-              value={username}
-              onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
-              placeholder="username"
-              icon={<AtSign className="w-4 h-4 text-muted" />}
-            />
+            <div>
+              <Input
+                label="Username (@handle) *"
+                value={username}
+                onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+                placeholder="username"
+                icon={<AtSign className="w-4 h-4 text-muted" />}
+                required
+              />
+              <div className="mt-1 flex items-center gap-1.5 text-[11px]">
+                {usernameStatus.checking ? (
+                  <span className="text-muted flex items-center gap-1">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Checking availability...
+                  </span>
+                ) : usernameStatus.error ? (
+                  <span className="text-accent flex items-center gap-1">
+                    <AlertCircle className="w-3 h-3" /> {usernameStatus.error}
+                  </span>
+                ) : usernameStatus.available && username.trim() !== user?.username ? (
+                  <span className="text-primary flex items-center gap-1 font-semibold">
+                    <Check className="w-3 h-3" /> @{username} is available
+                  </span>
+                ) : null}
+              </div>
+            </div>
           </div>
 
+          {/* Phone & Email Fields */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Input
+                label="Phone Number"
+                value={phoneNumber}
+                onChange={(e) => {
+                  setPhoneNumber(e.target.value);
+                  if (phoneError) setPhoneError(null);
+                }}
+                placeholder="+14155552671"
+                icon={<Smartphone className="w-4 h-4 text-muted" />}
+              />
+              <p className="text-[10px] text-muted mt-1">E.164 format with country code (e.g. +91, +1, +44)</p>
+              {phoneError && (
+                <p className="text-[11px] text-accent mt-0.5 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" /> {phoneError}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <Input
+                label="Email Address"
+                value={user?.email || 'No email registered'}
+                disabled
+                placeholder="user@example.com"
+                icon={<Mail className="w-4 h-4 text-muted" />}
+              />
+              <p className="text-[10px] text-muted mt-1">Primary sign-in and security recovery email</p>
+            </div>
+          </div>
+
+          {/* About / Bio Field */}
           <div>
-            <label className="text-xs font-bold text-ink mb-1.5 block">Bio</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-bold text-ink">About & Bio</label>
+              <span className="text-[10px] text-muted">{160 - bio.length} chars left</span>
+            </div>
             <textarea
               value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              placeholder="Write a short bio about yourself..."
+              onChange={(e) => setBio(e.target.value.slice(0, 160))}
+              placeholder="Write a short about or status quote..."
               rows={3}
               maxLength={160}
               className="w-full p-3 bg-cream border border-line rounded-2xl text-xs text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition"
             />
           </div>
 
-          {/* Privacy & Discoverability Settings */}
+          {/* Privacy & Presence Settings (WhatsApp / Instagram style) */}
           <div className="pt-4 border-t border-line/60 space-y-4">
             <h4 className="text-sm font-bold text-ink flex items-center gap-2">
               <Lock className="w-4 h-4 text-primary" />
-              <span>Privacy & Discoverability</span>
+              <span>Presence & Privacy Visibility</span>
             </h4>
 
+            {/* Select Dropdowns for Last Seen & Profile Photo */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3.5 rounded-2xl bg-cream border border-line space-y-1.5">
+                <label className="text-xs font-bold text-ink block">Last Seen & Online Presence</label>
+                <p className="text-[11px] text-muted leading-tight">Control who sees when you were last online or active</p>
+                <select
+                  value={privacy.lastSeen}
+                  onChange={(e) => setPrivacy({ ...privacy, lastSeen: e.target.value })}
+                  className="w-full mt-1 p-2 bg-card border border-line rounded-xl text-xs font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                >
+                  <option value="everyone">Everyone</option>
+                  <option value="contacts">My Contacts</option>
+                  <option value="nobody">Nobody</option>
+                </select>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-cream border border-line space-y-1.5">
+                <label className="text-xs font-bold text-ink block">Profile Photo Visibility</label>
+                <p className="text-[11px] text-muted leading-tight">Control who sees your profile avatar</p>
+                <select
+                  value={privacy.profilePhoto}
+                  onChange={(e) => setPrivacy({ ...privacy, profilePhoto: e.target.value })}
+                  className="w-full mt-1 p-2 bg-card border border-line rounded-xl text-xs font-semibold text-ink focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary"
+                >
+                  <option value="everyone">Everyone</option>
+                  <option value="contacts">My Contacts</option>
+                  <option value="nobody">Nobody</option>
+                </select>
+              </div>
+            </div>
+
             <div className="space-y-3">
-              <label className="flex items-center justify-between p-3.5 rounded-2xl bg-cream border border-line cursor-pointer">
-                <div>
-                  <p className="text-xs font-bold text-ink">Let people find me by phone</p>
-                  <p className="text-[11px] text-muted">Allow your contacts to link you via your phone number</p>
-                </div>
-                <Switch checked={discoverableByPhone} onChange={setDiscoverableByPhone} />
-              </label>
-
-              <label className="flex items-center justify-between p-3.5 rounded-2xl bg-cream border border-line cursor-pointer">
-                <div>
-                  <p className="text-xs font-bold text-ink">Let people find me by email</p>
-                  <p className="text-[11px] text-muted">Allow contacts who have your email to discover you on Flash Chat</p>
-                </div>
-                <Switch checked={discoverableByEmail} onChange={setDiscoverableByEmail} />
-              </label>
-
               <label className="flex items-center justify-between p-3.5 rounded-2xl bg-cream border border-line cursor-pointer">
                 <div>
                   <p className="text-xs font-bold text-ink">Read Receipts (Blue Ticks)</p>
@@ -392,6 +663,22 @@ export const ProfilePage = () => {
                   <p className="text-[11px] text-muted">Require approval for new followers before they view posts & stories</p>
                 </div>
                 <Switch checked={isPrivateAccount} onChange={setIsPrivateAccount} />
+              </label>
+
+              <label className="flex items-center justify-between p-3.5 rounded-2xl bg-cream border border-line cursor-pointer">
+                <div>
+                  <p className="text-xs font-bold text-ink">Discoverable by Phone</p>
+                  <p className="text-[11px] text-muted">Allow contacts who have your phone number to find you on Flash Chat</p>
+                </div>
+                <Switch checked={discoverableByPhone} onChange={setDiscoverableByPhone} />
+              </label>
+
+              <label className="flex items-center justify-between p-3.5 rounded-2xl bg-cream border border-line cursor-pointer">
+                <div>
+                  <p className="text-xs font-bold text-ink">Discoverable by Email</p>
+                  <p className="text-[11px] text-muted">Allow contacts who have your email to discover you on Flash Chat</p>
+                </div>
+                <Switch checked={discoverableByEmail} onChange={setDiscoverableByEmail} />
               </label>
             </div>
           </div>
@@ -532,6 +819,7 @@ export const ProfilePage = () => {
               type="submit"
               variant="primary"
               isLoading={isSaving}
+              disabled={isSaving || (usernameStatus.available === false)}
               className="w-full sm:w-auto px-6 py-2.5"
             >
               Save Profile Changes
