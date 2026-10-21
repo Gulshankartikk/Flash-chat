@@ -176,7 +176,7 @@ export const Sidebar = ({ onOpenSearch }) => {
               src={user?.avatar}
               alt={user?.name || 'User'}
               size="sm"
-              isOnline={user?.isOnline}
+              isOnline={Boolean(user)}
               showStatus
             />
             <div className="min-w-0">

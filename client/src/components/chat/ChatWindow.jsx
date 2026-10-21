@@ -18,6 +18,7 @@ import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
 import { GroupInfoPanel } from './GroupInfoPanel';
 import { EmptyState } from '../EmptyState';
+import { ForwardModal } from './ForwardModal';
 import { useChatStore } from '../../store/useChatStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useCall } from '../../features/calls';
@@ -28,6 +29,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
   const navigate = useNavigate();
   const { startCall, callState } = useCall();
   const {
+    conversations,
     activeConversation,
     selectConversation,
     messages,
@@ -43,7 +45,8 @@ export const ChatWindow = ({ conversationId, onBack }) => {
     forwardMessage,
     startTyping,
     stopTyping,
-    typingUsers
+    typingUsers,
+    onlineUsers
   } = useChatStore();
 
   const { user } = useAuthStore();
@@ -54,6 +57,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
   const [inChatSearch, setInChatSearch] = useState('');
   const [showInChatSearch, setShowInChatSearch] = useState(false);
   const [saveTarget, setSaveTarget] = useState(null);
+  const [forwardTargetMessage, setForwardTargetMessage] = useState(null);
   const [isProcessingRequest, setIsProcessingRequest] = useState(false);
   const [requestError, setRequestError] = useState(null);
 
@@ -151,6 +155,11 @@ export const ChatWindow = ({ conversationId, onBack }) => {
 
   const isGroup = activeConversation.type === 'group';
   const otherUser = activeConversation.otherUser;
+  const otherUserId = otherUser?._id ? String(otherUser._id) : null;
+  const isOtherOnline =
+    otherUserId && (onlineUsers instanceof Set ? onlineUsers.has(otherUserId) : false)
+      ? true
+      : Boolean(otherUser?.isOnline);
 
   // Typing state for this conversation
   const typers = typingUsers[activeConversation._id] || [];
@@ -161,11 +170,11 @@ export const ChatWindow = ({ conversationId, onBack }) => {
   const getSubheader = () => {
     if (isTyping) return `${typerName} is typing...`;
     if (isGroup) return `${activeConversation.members?.length || 0} participants`;
-    if (otherUser?.isOnline) return 'Online';
+    if (isOtherOnline) return 'Active now';
     if (otherUser?.lastSeen && otherUser.privacy?.lastSeen !== 'nobody') {
       return `Last seen ${format(new Date(otherUser.lastSeen), 'p')}`;
     }
-    return 'Flash Chat Direct';
+    return 'Offline';
   };
 
   // Filter messages if in-chat search active
@@ -200,7 +209,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
               src={activeConversation.displayAvatar}
               alt={activeConversation.displayName}
               size="md"
-              isOnline={otherUser?.isOnline}
+              isOnline={isOtherOnline}
               showStatus={!isGroup}
             />
           </div>
@@ -217,7 +226,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
               className={`text-[11px] truncate font-medium ${
                 isTyping
                   ? 'text-primary animate-pulse font-bold'
-                  : otherUser?.isOnline
+                  : isOtherOnline
                   ? 'text-primary font-medium'
                   : 'text-muted'
               }`}
@@ -442,10 +451,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
                 onDelete={(msgId, scope) => deleteMessage(msgId, scope)}
                 onReact={(msgId, emoji) => reactToMessage(msgId, emoji)}
                 onStar={(msgId) => toggleStar(msgId)}
-                onForward={(m) => {
-                  const targetId = window.prompt('Enter target conversation ID to forward:');
-                  if (targetId) forwardMessage(m._id, [targetId]);
-                }}
+                onForward={(m) => setForwardTargetMessage(m)}
                 onSaveToPocket={(m) => {
                   setSaveTarget({
                     from: 'chat_message',
@@ -466,6 +472,15 @@ export const ChatWindow = ({ conversationId, onBack }) => {
         isOpen={!!saveTarget}
         onClose={() => setSaveTarget(null)}
         target={saveTarget}
+      />
+
+      {/* Message Forward Modal */}
+      <ForwardModal
+        isOpen={!!forwardTargetMessage}
+        message={forwardTargetMessage}
+        conversations={conversations}
+        onClose={() => setForwardTargetMessage(null)}
+        onForward={(msgId, convIds) => forwardMessage(msgId, convIds)}
       />
 
       {/* AI Assistant Sheet for Summaries & Message Explanations */}

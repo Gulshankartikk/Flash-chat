@@ -1,6 +1,7 @@
 const contactService = require('../services/contactService');
 const chatService = require('../services/chatService');
 const Contact = require('../models/Contact');
+const Conversation = require('../models/Conversation');
 const asyncHandler = require('../middleware/asyncHandler');
 
 exports.getContacts = asyncHandler(async (req, res) => {

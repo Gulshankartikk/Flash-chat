@@ -18,6 +18,7 @@ import { Avatar } from '../../components/Avatar';
 import { Skeleton } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { Button } from '../../components/Button';
+import { useChatStore } from '../../store/useChatStore';
 import { formatDisplayPhone } from './phoneUtils';
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('');
@@ -243,7 +244,16 @@ export const ContactList = ({
 };
 
 const ContactRow = ({ contact, onSelect, onMessage, onInvite }) => {
+  const { onlineUsers } = useChatStore();
   const isLinked = Boolean(contact.linkedUser);
+  const linkedUserId = contact.linkedUser?._id
+    ? String(contact.linkedUser._id)
+    : contact.linkedUser
+    ? String(contact.linkedUser)
+    : null;
+  const isOnline = linkedUserId
+    ? (onlineUsers instanceof Set ? onlineUsers.has(linkedUserId) : false) || Boolean(contact.linkedUser?.isOnline)
+    : false;
   const subtitle = [
     contact.phone ? formatDisplayPhone(contact.phone) : null,
     contact.email
@@ -259,6 +269,8 @@ const ContactRow = ({ contact, onSelect, onMessage, onInvite }) => {
           src={contact.avatar || contact.linkedUser?.avatar}
           name={contact.name}
           size="md"
+          isOnline={isOnline}
+          showStatus={isLinked}
         />
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">

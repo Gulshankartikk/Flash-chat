@@ -266,6 +266,15 @@ const startServer = async () => {
     // 1. Connect MongoDB
     await connectDB();
 
+    // Clean up any stale online presence flags from previous crashes/restarts
+    try {
+      const User = require('./models/User');
+      await User.updateMany({ isOnline: true }, { isOnline: false });
+      logger.info('Cleaned up stale online presence flags on server start');
+    } catch (e) {
+      logger.warn({ err: e.message }, 'Failed to reset stale online flags');
+    }
+
     // 2. Verify Nodemailer SMTP at server startup (Item 4 Requirement)
     await mailer.verifyConnection();
 

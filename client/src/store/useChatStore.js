@@ -683,18 +683,82 @@ export const useChatStore = create((set, get) => ({
     });
 
     // Presence update
-    socket.on('presence:update', ({ userId, isOnline }) => {
+    socket.on('presence:update', ({ userId, isOnline, lastSeen }) => {
       set((state) => {
         const updated = new Set(state.onlineUsers);
         if (isOnline) updated.add(userId);
         else updated.delete(userId);
-        return { onlineUsers: updated };
+
+        const updatedConvs = state.conversations.map((c) => {
+          if (c.otherUser && String(c.otherUser._id) === String(userId)) {
+            return {
+              ...c,
+              otherUser: {
+                ...c.otherUser,
+                isOnline,
+                ...(lastSeen ? { lastSeen } : {})
+              }
+            };
+          }
+          return c;
+        });
+
+        const activeConv = state.activeConversation;
+        const updatedActive =
+          activeConv && activeConv.otherUser && String(activeConv.otherUser._id) === String(userId)
+            ? {
+                ...activeConv,
+                otherUser: {
+                  ...activeConv.otherUser,
+                  isOnline,
+                  ...(lastSeen ? { lastSeen } : {})
+                }
+              }
+            : activeConv;
+
+        return {
+          onlineUsers: updated,
+          conversations: updatedConvs,
+          chats: updatedConvs,
+          activeConversation: updatedActive
+        };
       });
     });
 
     // Online list on connect
     socket.on('users:online_list', (users) => {
-      set({ onlineUsers: new Set(users) });
+      const userSet = new Set(users);
+      set((state) => {
+        const updatedConvs = state.conversations.map((c) => {
+          if (c.otherUser?._id) {
+            const isUserOnline = userSet.has(String(c.otherUser._id));
+            return {
+              ...c,
+              otherUser: { ...c.otherUser, isOnline: isUserOnline }
+            };
+          }
+          return c;
+        });
+
+        const activeConv = state.activeConversation;
+        const updatedActive =
+          activeConv && activeConv.otherUser?._id
+            ? {
+                ...activeConv,
+                otherUser: {
+                  ...activeConv.otherUser,
+                  isOnline: userSet.has(String(activeConv.otherUser._id))
+                }
+              }
+            : activeConv;
+
+        return {
+          onlineUsers: userSet,
+          conversations: updatedConvs,
+          chats: updatedConvs,
+          activeConversation: updatedActive
+        };
+      });
     });
 
     // Conversation Updated

@@ -7,6 +7,12 @@ import { UserSearchModal } from '../features/search/UserSearchModal';
 import { ToastProvider, useToast } from '../components/Toast';
 import { useAuthStore } from '../store/useAuthStore';
 import { useChatStore } from '../store/useChatStore';
+import { useSocialStore } from '../features/social/store/useSocialStore';
+import { getSocket } from '../services/socket';
+import { StoryViewerModal } from '../features/social/components/StoryViewerModal';
+import { CreateSocialModal } from '../features/social/components/CreateSocialModal';
+import { ShareSheet } from '../features/social/components/ShareSheet';
+import { CommentsSheet } from '../features/social/components/CommentsSheet';
 
 const AppLayoutInner = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -15,14 +21,34 @@ const AppLayoutInner = () => {
   const toast = useToast();
   const { user } = useAuthStore();
   const { initSocketEvents, fetchConversations } = useChatStore();
+  const { fetchUnreadNotifications, incrementUnreadNotifications } = useSocialStore();
 
-  // Initialize socket listeners & fetch active conversations across all routes
+  // Initialize socket listeners & fetch active conversations & notifications across all routes
   useEffect(() => {
     if (user) {
       initSocketEvents();
       fetchConversations();
+      fetchUnreadNotifications();
     }
-  }, [user, initSocketEvents, fetchConversations]);
+  }, [user, initSocketEvents, fetchConversations, fetchUnreadNotifications]);
+
+  // Global real-time notification listener
+  useEffect(() => {
+    const s = getSocket();
+    if (!s) return;
+
+    const handleNewNotif = (notif) => {
+      incrementUnreadNotifications();
+      const actorName = notif.actor?.name || notif.actor?.username || 'Someone';
+      const actionText = notif.message || notif.text || 'sent you a notification';
+      toast.info(`${actorName} ${actionText}`);
+    };
+
+    s.on('notification:new', handleNewNotif);
+    return () => {
+      s.off('notification:new', handleNewNotif);
+    };
+  }, [incrementUnreadNotifications, toast]);
 
   // Global in-app message notification listener
   useEffect(() => {
@@ -114,6 +140,12 @@ const AppLayoutInner = () => {
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
       />
+
+      {/* Global Modals for Stories, Social Creation & Content Sharing */}
+      <StoryViewerModal />
+      <CreateSocialModal />
+      <ShareSheet />
+      <CommentsSheet />
     </div>
   );
 };

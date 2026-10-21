@@ -7,10 +7,6 @@ import {
   ExplorePage,
   HashtagPage,
   PostDetailPage,
-  StoryViewerModal,
-  CreateSocialModal,
-  CommentsSheet,
-  ShareSheet,
   NotificationsPage
 } from '../features/social';
 
@@ -46,12 +42,6 @@ export const SocialPage = () => {
           </>
         )}
       </main>
-
-      {/* Global Modals for Social Engine */}
-      <StoryViewerModal />
-      <CreateSocialModal />
-      <CommentsSheet />
-      <ShareSheet />
     </div>
   );
 };

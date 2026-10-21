@@ -139,14 +139,25 @@ const initSocketIO = (io) => {
 
     // 3. Mark user online & broadcast presence
     try {
-      await User.findByIdAndUpdate(userId, { isOnline: true });
+      const lastSeen = new Date();
+      await User.findByIdAndUpdate(userId, { isOnline: true, lastSeen });
       const shouldBroadcast = socket.user.privacy?.lastSeen !== 'nobody';
       if (shouldBroadcast) {
-        socket.broadcast.volatile.emit('presence:update', { userId, isOnline: true });
+        socket.broadcast.emit('presence:update', { userId, isOnline: true, lastSeen });
       }
     } catch (e) {
       logger.error({ err: e.message }, 'Failed to update online status');
     }
+
+    // Heartbeat to keep presence active
+    socket.on('presence:heartbeat', async () => {
+      try {
+        const lastSeen = new Date();
+        await User.findByIdAndUpdate(userId, { isOnline: true, lastSeen });
+      } catch (e) {
+        // silent
+      }
+    });
 
     // Send online users list to connecting client
     const onlineList = Array.from(onlineUserSockets.keys());

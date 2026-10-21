@@ -22,6 +22,7 @@ import { Avatar } from '../Avatar';
 import { useChatStore } from '../../store/useChatStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { CallHistoryList } from '../../features/calls';
+import { StoriesTray } from '../../features/social/components/StoriesTray';
 import { AddContactModal } from '../../features/contacts/AddContactModal';
 import { getDisplayName } from '../../utils/getDisplayName';
 
@@ -34,11 +35,12 @@ export const ConversationList = ({
     conversations,
     activeConversation,
     pendingConversations,
-    fetchPendingConversations
+    fetchPendingConversations,
+    onlineUsers
   } = useChatStore();
   const { user } = useAuthStore();
 
-  const [activeSection, setActiveSection] = useState('chats'); // 'chats' | 'calls'
+  const [activeSection, setActiveSection] = useState('chats'); // 'chats' | 'stories' | 'calls'
   const [searchFilter, setSearchFilter] = useState('');
   const [filterTab, setFilterTab] = useState('all'); // 'all' | 'unread' | 'groups' | 'requests' | 'support' | 'archived'
   const [showPlusMenu, setShowPlusMenu] = useState(false);
@@ -106,7 +108,11 @@ export const ConversationList = ({
 
   const renderConversationItem = (conv) => {
     const isSelected = activeConversation && String(activeConversation._id) === String(conv._id);
-    const isOnline = conv.type === 'direct' ? conv.otherUser?.isOnline : false;
+    const otherUserId = conv.otherUser?._id ? String(conv.otherUser._id) : null;
+    const isOnline =
+      conv.type === 'direct' && otherUserId
+        ? (onlineUsers instanceof Set ? onlineUsers.has(otherUserId) : false) || Boolean(conv.otherUser?.isOnline)
+        : false;
     const isSupport = conv.type === 'support';
     const isRequest = conv.status === 'request';
     const title = isSupport
@@ -186,12 +192,12 @@ export const ConversationList = ({
     <div className="flex flex-col h-full bg-card border-r border-line w-full md:w-80 lg:w-96 select-none shrink-0">
       {/* Header Bar */}
       <div className="p-4 border-b border-line space-y-3">
-        {/* Chats | Calls Switcher */}
+        {/* Chats | Stories | Calls Switcher */}
         <div className="flex items-center gap-1 p-1 bg-cream rounded-xl border border-line">
           <button
             type="button"
             onClick={() => setActiveSection('chats')}
-            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
               activeSection === 'chats'
                 ? 'bg-card text-primary shadow-xs'
                 : 'text-muted hover:text-ink'
@@ -202,8 +208,20 @@ export const ConversationList = ({
           </button>
           <button
             type="button"
+            onClick={() => setActiveSection('stories')}
+            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+              activeSection === 'stories'
+                ? 'bg-card text-primary shadow-xs'
+                : 'text-muted hover:text-ink'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-secondary" />
+            <span>Stories</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setActiveSection('calls')}
-            className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+            className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
               activeSection === 'calls'
                 ? 'bg-card text-primary shadow-xs'
                 : 'text-muted hover:text-ink'
@@ -318,6 +336,14 @@ export const ConversationList = ({
       {/* Main Body */}
       {activeSection === 'calls' ? (
         <CallHistoryList />
+      ) : activeSection === 'stories' ? (
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-ink uppercase tracking-wider">Status & Stories</h3>
+            <span className="text-[10px] text-muted font-medium">Expires after 24h</span>
+          </div>
+          <StoriesTray />
+        </div>
       ) : (
         <div className="flex-1 overflow-y-auto divide-y divide-line/30">
           {/* Message Requests Banner (if any exist and not on archived/groups filter) */}

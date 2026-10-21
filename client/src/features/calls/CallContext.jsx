@@ -7,8 +7,8 @@ import { ringtone } from './ringtone';
 const CallContext = createContext(null);
 
 export const CallProvider = ({ children }) => {
-  const { socket } = useSocketStore();
-  const currentSocket = socket || getSocket();
+  const { socket: storeSocket } = useSocketStore();
+  const socket = storeSocket || getSocket();
   const { user } = useAuthStore();
   const currentUserId = user?._id;
 
