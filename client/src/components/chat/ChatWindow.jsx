@@ -33,6 +33,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
     activeConversation,
     selectConversation,
     messages,
+    messagesByConv,
     fetchMessages,
     hasMore,
     nextCursor,
@@ -113,8 +114,10 @@ export const ChatWindow = ({ conversationId, onBack }) => {
   useEffect(() => {
     if (conversationId && String(activeConversation?._id) !== String(conversationId)) {
       selectConversation(conversationId);
+    } else if (conversationId && (!messages || messages.length === 0)) {
+      fetchMessages(conversationId);
     }
-  }, [conversationId, activeConversation?._id, selectConversation]);
+  }, [conversationId, activeConversation?._id, selectConversation, fetchMessages]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -142,6 +145,14 @@ export const ChatWindow = ({ conversationId, onBack }) => {
   };
 
   if (!activeConversation) {
+    if (conversationId || isLoadingMessages) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full flex-1 bg-[#FFF7ED]/30 text-center p-8">
+          <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="text-xs text-[#6B7280]">Loading conversation...</p>
+        </div>
+      );
+    }
     return (
       <div className="hidden md:flex flex-col items-center justify-center h-full flex-1 bg-[#FFF7ED]/30 text-center p-8">
         <EmptyState
@@ -182,12 +193,18 @@ export const ChatWindow = ({ conversationId, onBack }) => {
     return 'Offline';
   };
 
+  // Messages for active conversation
+  const conversationMessages =
+    (activeConversation?._id && messagesByConv?.[activeConversation._id]) ||
+    messages ||
+    [];
+
   // Filter messages if in-chat search active
   const displayedMessages = inChatSearch.trim()
-    ? messages.filter((m) =>
+    ? conversationMessages.filter((m) =>
         (m.text || '').toLowerCase().includes(inChatSearch.toLowerCase().trim())
       )
-    : messages;
+    : conversationMessages;
 
   return (
     <div className="relative flex flex-col h-full flex-1 bg-[#FFF7ED]/20 overflow-hidden">
@@ -451,13 +468,28 @@ export const ChatWindow = ({ conversationId, onBack }) => {
 
           // Check if date changed between consecutive messages
           const showDateSeparator =
-            !prevMsg || !isSameDay(new Date(msg.createdAt), new Date(prevMsg.createdAt));
+            !prevMsg ||
+            !msg.createdAt ||
+            !prevMsg.createdAt ||
+            (() => {
+              try {
+                return !isSameDay(new Date(msg.createdAt), new Date(prevMsg.createdAt));
+              } catch {
+                return false;
+              }
+            })();
 
           const getDateLabel = (dateStr) => {
-            const date = new Date(dateStr);
-            if (isToday(date)) return 'Today';
-            if (isYesterday(date)) return 'Yesterday';
-            return format(date, 'MMMM d, yyyy');
+            if (!dateStr) return 'Today';
+            try {
+              const date = new Date(dateStr);
+              if (isNaN(date.getTime())) return 'Today';
+              if (isToday(date)) return 'Today';
+              if (isYesterday(date)) return 'Yesterday';
+              return format(date, 'MMMM d, yyyy');
+            } catch {
+              return 'Today';
+            }
           };
 
           return (

@@ -103,9 +103,12 @@ export const AddContactModal = ({
   }, [fullPhone]);
 
   const isOwnNumber = useMemo(() => {
-    if (!user?.phone || !fullPhone) return false;
-    return user.phone.trim() === fullPhone.trim();
-  }, [user?.phone, fullPhone]);
+    const myPhone = user?.phoneNumber || user?.phone;
+    if (!myPhone || !fullPhone) return false;
+    const my10 = myPhone.replace(/\D/g, '').slice(-10);
+    const full10 = fullPhone.replace(/\D/g, '').slice(-10);
+    return myPhone.trim() === fullPhone.trim() || (my10 && my10 === full10);
+  }, [user?.phoneNumber, user?.phone, fullPhone]);
 
   const debouncedPhone = useDebounce(fullPhone, 400);
   const debouncedEmail = useDebounce(email, 400);

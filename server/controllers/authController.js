@@ -7,6 +7,7 @@ const mailer = require('../services/mailer/mailerService');
 const contactService = require('../services/contactService');
 const config = require('../config/env');
 const logger = require('../utils/logger');
+const { normalizePhone, buildPhoneSearchQuery } = require('../utils/phoneUtils');
 
 const redis = require('../services/redisService');
 
@@ -91,7 +92,8 @@ const sendOtp = async (req, res, next) => {
       type = identifier.includes('@') ? 'email' : 'phone';
     }
 
-    const result = await otpService.sendOtp(identifier, type);
+    const finalIdentifier = type === 'phone' ? normalizePhone(identifier) : identifier.toLowerCase().trim();
+    const result = await otpService.sendOtp(finalIdentifier, type);
     return res.status(200).json(result);
   } catch (error) {
     logger.error({ err: error.message }, 'sendOtp error');
@@ -117,12 +119,13 @@ const verifyOtp = async (req, res, next) => {
 
     const { identifier, otp } = parsed.data;
     const isEmail = identifier.includes('@');
+    const finalIdentifier = isEmail ? identifier.toLowerCase().trim() : normalizePhone(identifier);
     const query = isEmail
-      ? { email: identifier.toLowerCase().trim() }
-      : { phoneNumber: identifier.trim() };
+      ? { email: finalIdentifier }
+      : buildPhoneSearchQuery(finalIdentifier);
 
     // Verify OTP via service
-    await otpService.verifyOtp(identifier, otp);
+    await otpService.verifyOtp(finalIdentifier, otp);
 
     // Find or create provisional user
     let user = await User.findOne(query);
@@ -135,9 +138,9 @@ const verifyOtp = async (req, res, next) => {
       const defaultAvatar = `https://api.dicebear.com/7.x/bottts/svg?seed=${provisionalSeed}`;
 
       user = new User({
-        ...(isEmail ? { email: identifier.toLowerCase().trim() } : { phoneNumber: identifier.trim() }),
+        ...(isEmail ? { email: finalIdentifier } : { phoneNumber: finalIdentifier }),
         username: provisionalUsername,
-        name: isEmail ? identifier.split('@')[0] : `User ${identifier.slice(-4)}`,
+        name: isEmail ? finalIdentifier.split('@')[0] : `User ${finalIdentifier.slice(-4)}`,
         avatar: defaultAvatar,
         isVerified: true,
         isOnboarded: false,
@@ -148,6 +151,10 @@ const verifyOtp = async (req, res, next) => {
       user.isVerified = true;
       user.isOnline = true;
       user.lastSeen = new Date();
+      // If user had un-normalized phone, standardize it to E.164
+      if (!isEmail && (!user.phoneNumber || !user.phoneNumber.startsWith('+'))) {
+        user.phoneNumber = finalIdentifier;
+      }
     }
 
     // Generate Access (15m) and Refresh (7d) tokens
@@ -528,8 +535,9 @@ const signup = async (req, res, next) => {
     }
 
     // Check duplicate phone if provided
-    if (phoneNumber) {
-      const existingPhone = await User.findOne({ phoneNumber });
+    let normalizedPhone = phoneNumber ? normalizePhone(phoneNumber) : undefined;
+    if (normalizedPhone) {
+      const existingPhone = await User.findOne(buildPhoneSearchQuery(normalizedPhone));
       if (existingPhone) {
         return res.status(400).json({
           success: false,
@@ -543,7 +551,7 @@ const signup = async (req, res, next) => {
       name,
       username: finalUsername,
       email,
-      ...(phoneNumber ? { phoneNumber } : {}),
+      ...(normalizedPhone ? { phoneNumber: normalizedPhone } : {}),
       passwordHash,
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
       isVerified: true,
@@ -614,8 +622,7 @@ const login = async (req, res, next) => {
     if (rawTarget.includes('@')) {
       query = { email: rawTarget.toLowerCase() };
     } else if (/^\+?\d{7,15}$/.test(rawTarget.replace(/[\s-()]/g, ''))) {
-      const cleanPhone = rawTarget.replace(/[\s-()]/g, '');
-      query = { phoneNumber: cleanPhone };
+      query = buildPhoneSearchQuery(rawTarget);
     } else {
       query = { username: rawTarget.toLowerCase() };
     }

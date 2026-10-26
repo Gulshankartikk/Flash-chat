@@ -3,6 +3,7 @@ const ContactInvite = require('../models/ContactInvite');
 const User = require('../models/User');
 const Block = require('../models/Block');
 const logger = require('../utils/logger');
+const { normalizePhone, buildPhoneSearchQuery } = require('../utils/phoneUtils');
 
 // Strip HTML and dangerous script tags
 const sanitizeText = (str) => {
@@ -27,8 +28,9 @@ class ContactService {
       let candidate = null;
 
       if (phone && phone.trim()) {
+        const phoneQuery = buildPhoneSearchQuery(phone);
         candidate = await User.findOne({
-          phoneNumber: phone.trim(),
+          ...phoneQuery,
           discoverableByPhone: { $ne: false },
           _id: { $ne: ownerId }
         }).select('_id name username avatar isOnline lastSeen isPrivate isVerified');
@@ -135,7 +137,14 @@ class ContactService {
 
     // Duplicate check for this owner
     if (phone) {
-      const existingPhone = await Contact.findOne({ owner: ownerId, phone });
+      const cleanDigits = phone.replace(/\D/g, '').slice(-10);
+      const existingPhone = await Contact.findOne({
+        owner: ownerId,
+        $or: [
+          { phone },
+          ...(cleanDigits ? [{ phone: new RegExp(`${cleanDigits}$`) }] : [])
+        ]
+      });
       if (existingPhone) {
         const err = new Error(`A contact with phone number "${phone}" already exists (${existingPhone.name}).`);
         err.statusCode = 409;
@@ -466,7 +475,11 @@ class ContactService {
     try {
       const queries = [];
       if (newUser.phoneNumber && newUser.discoverableByPhone !== false) {
+        const last10 = newUser.phoneNumber.replace(/\D/g, '').slice(-10);
         queries.push({ phone: newUser.phoneNumber });
+        if (last10) {
+          queries.push({ phone: new RegExp(`${last10}$`) });
+        }
       }
       if (newUser.email && newUser.discoverableByEmail !== false) {
         queries.push({ email: newUser.email.toLowerCase() });

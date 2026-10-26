@@ -7,6 +7,7 @@ import { UserSearchModal } from '../features/search/UserSearchModal';
 import { ToastProvider, useToast } from '../components/Toast';
 import { useAuthStore } from '../store/useAuthStore';
 import { useChatStore } from '../store/useChatStore';
+import { useContactsStore } from '../features/contacts/useContacts';
 import { useSocialStore } from '../features/social/store/useSocialStore';
 import { getSocket } from '../services/socket';
 import { StoryViewerModal } from '../features/social/components/StoryViewerModal';
@@ -21,16 +22,18 @@ const AppLayoutInner = () => {
   const toast = useToast();
   const { user } = useAuthStore();
   const { initSocketEvents, fetchConversations } = useChatStore();
+  const { fetchContacts } = useContactsStore();
   const { fetchUnreadNotifications, incrementUnreadNotifications } = useSocialStore();
 
-  // Initialize socket listeners & fetch active conversations & notifications across all routes
+  // Initialize socket listeners & fetch active conversations, contacts & notifications across all routes
   useEffect(() => {
     if (user) {
       initSocketEvents();
       fetchConversations();
+      fetchContacts();
       fetchUnreadNotifications();
     }
-  }, [user, initSocketEvents, fetchConversations, fetchUnreadNotifications]);
+  }, [user, initSocketEvents, fetchConversations, fetchContacts, fetchUnreadNotifications]);
 
   // Global real-time notification listener
   useEffect(() => {

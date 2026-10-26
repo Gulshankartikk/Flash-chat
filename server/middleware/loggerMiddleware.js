@@ -3,7 +3,7 @@ const logger = require('../utils/logger');
 
 const loggerMiddleware = pinoHttp({
   logger,
-  customLogLevel: function (res, err) {
+  customLogLevel: function (req, res, err) {
     if (res.statusCode >= 500 || err) return 'error';
     if (res.statusCode >= 400) return 'warn';
     return 'info';
@@ -12,7 +12,7 @@ const loggerMiddleware = pinoHttp({
     return `${req.method} ${req.url} -> ${res.statusCode}`;
   },
   customErrorMessage: function (req, res, err) {
-    return `${req.method} ${req.url} -> ${res.statusCode} [${err.message}]`;
+    return `${req.method} ${req.url} -> ${res.statusCode} [${err ? err.message : 'Error'}]`;
   },
   autoLogging: {
     ignore: (req) => req.url === '/api/health' || req.url === '/health'

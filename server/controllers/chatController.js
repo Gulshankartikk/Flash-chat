@@ -423,7 +423,7 @@ const searchMessages = async (req, res, next) => {
     }
 
     const query = {
-      deletedForEveryone: false,
+      deletedForEveryone: { $ne: true },
       deletedFor: { $ne: req.user._id },
       text: { $regex: q.trim(), $options: 'i' }
     };
@@ -431,11 +431,12 @@ const searchMessages = async (req, res, next) => {
     if (conversationId) {
       const isMember = await chatService.isMember(conversationId, req.user._id);
       if (!isMember) return res.status(403).json({ success: false, message: 'Access denied.' });
-      query.conversation = conversationId;
+      query.$or = [{ conversation: conversationId }, { chatId: conversationId }];
     } else {
       // Find conversations user is a part of
       const userConvs = await Conversation.find({ 'members.user': req.user._id }).select('_id');
-      query.conversation = { $in: userConvs.map((c) => c._id) };
+      const convIds = userConvs.map((c) => c._id);
+      query.$or = [{ conversation: { $in: convIds } }, { chatId: { $in: convIds } }];
     }
 
     const messages = await Message.find(query)

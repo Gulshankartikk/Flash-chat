@@ -122,7 +122,7 @@ export const ChatPage = () => {
           />
         ) : (
           <ChatWindow
-            conversationId={activeConversation?._id}
+            conversationId={conversationId || activeConversation?._id}
             onBack={handleBackToMobileList}
           />
         )}

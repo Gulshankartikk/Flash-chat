@@ -59,21 +59,32 @@ async function runPhoneChatAndPendingSuite() {
   const phoneB = '+14155550200';
   const phoneC = '+14155550300';
   const phoneD = '+14155550400';
-  const phoneUnregistered = '+919876543210';
+  const phoneUnregistered = '+19998887766';
 
-  // Seed users in MongoDB
+  // Seed users in MongoDB - clean only test users data, NEVER real user data
+  const testUserIds = [userA_id, userB_id, userC_id, userD_id];
   await User.deleteMany({
     $or: [
-      { _id: { $in: [userA_id, userB_id, userC_id, userD_id] } },
+      { _id: { $in: testUserIds } },
       { phoneNumber: { $in: [phoneA, phoneB, phoneC, phoneD, phoneUnregistered] } },
       { username: { $in: ['alice_phone', 'bob_phone', 'charlie_phone', 'david_phone', 'sam_new'] } }
     ]
   });
-  await Conversation.deleteMany({});
-  await Message.deleteMany({});
-  await Contact.deleteMany({});
-  await PendingConversation.deleteMany({});
-  await Block.deleteMany({});
+  await Conversation.deleteMany({ 'members.user': { $in: testUserIds } });
+  await Message.deleteMany({ sender: { $in: testUserIds } });
+  await Contact.deleteMany({
+    $or: [
+      { owner: { $in: testUserIds } },
+      { phone: { $in: [phoneA, phoneB, phoneC, phoneD, phoneUnregistered] } }
+    ]
+  });
+  await PendingConversation.deleteMany({
+    $or: [
+      { creator: { $in: testUserIds } },
+      { phone: { $in: [phoneA, phoneB, phoneC, phoneD, phoneUnregistered] } }
+    ]
+  });
+  await Block.deleteMany({ blocker: { $in: testUserIds } });
 
   await User.create([
     {
@@ -143,7 +154,9 @@ async function runPhoneChatAndPendingSuite() {
       assert.strictEqual(String(r.conversationId), firstConvId);
     });
 
-    const totalConvs = await Conversation.countDocuments({ type: 'direct' });
+    const totalConvs = await Conversation.countDocuments({
+      memberKey: chatService.getMemberKey(userA_id, userB_id)
+    });
     assert.strictEqual(totalConvs, 1, 'Exactly one conversation must exist');
   });
 

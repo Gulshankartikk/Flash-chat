@@ -169,4 +169,7 @@ if (typeof window !== 'undefined') {
   window.addEventListener('online', () => {
     useContactsStore.getState().syncOfflineContacts();
   });
+  window.addEventListener('flash_chat_auth_logout', () => {
+    useContactsStore.setState({ contacts: [], offlineQueue: [] });
+  });
 }

@@ -55,16 +55,24 @@ export const MessageBubble = React.memo(function MessageBubble({
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [audioElement, setAudioElement] = useState(null);
 
-  const formattedTime = message.createdAt
-    ? format(new Date(message.createdAt), 'h:mm a')
-    : '';
+  const formattedTime = (() => {
+    if (!message.createdAt) return '';
+    try {
+      const d = new Date(message.createdAt);
+      return isNaN(d.getTime()) ? '' : format(d, 'h:mm a');
+    } catch {
+      return '';
+    }
+  })();
 
   // Receipts status
   const isRead = message.readBy && message.readBy.length > 1;
   const isDelivered = message.deliveredTo && message.deliveredTo.length > 1;
 
   // Starred by current user
-  const isStarred = Array.isArray(message.starredBy) && message.starredBy.includes(currentUserId);
+  const isStarred =
+    Array.isArray(message.starredBy) &&
+    message.starredBy.some((id) => String(id?._id || id) === String(currentUserId));
 
   // Group reactions by emoji: { [emoji]: count }
   const reactionCounts = (message.reactions || []).reduce((acc, r) => {

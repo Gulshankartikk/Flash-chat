@@ -258,12 +258,15 @@ export const useChatStore = create((set, get) => ({
         }
       }
 
+      const activeConvObj = conversation || (convId ? { _id: convId } : null) || state.activeConversation;
+      const cachedMessages = state.messagesByConv[convId] || [];
+
       return {
         conversations: updatedConvs,
         chats: updatedConvs,
-        activeConversation: conversation || state.activeConversation,
-        activeChat: conversation || state.activeChat,
-        messages: state.messagesByConv[convId] || [],
+        activeConversation: activeConvObj,
+        activeChat: activeConvObj,
+        messages: cachedMessages,
         nextCursor: null,
         hasMore: false
       };
@@ -315,9 +318,13 @@ export const useChatStore = create((set, get) => ({
           }
         }
 
+        const isCurrentActive =
+          !state.activeConversation ||
+          String(state.activeConversation._id) === String(targetId);
+
         return {
           messagesByConv: { ...state.messagesByConv, [targetId]: deduplicated },
-          messages: String(state.activeConversation?._id) === String(targetId) ? deduplicated : state.messages,
+          messages: isCurrentActive ? deduplicated : state.messages,
           nextCursor,
           hasMore: !!nextCursor,
           isLoadingMessages: false

@@ -4,6 +4,7 @@ const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const User = require('../models/User');
 const Contact = require('../models/Contact');
+const { buildPhoneSearchQuery, normalizePhone } = require('../utils/phoneUtils');
 
 class ChatService {
   /**
@@ -138,6 +139,7 @@ class ChatService {
    * Check if a user is a member of a conversation
    */
   async isMember(conversationId, userId) {
+    if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) return false;
     const conv = await Conversation.findOne({
       _id: conversationId,
       'members.user': userId
@@ -346,6 +348,7 @@ class ChatService {
    * Get single formatted conversation by ID and user ID
    */
   async getFormattedConversation(conversationId, userId) {
+    if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) return null;
     const conv = await Conversation.findOne({
       _id: conversationId,
       'members.user': userId
@@ -417,6 +420,12 @@ class ChatService {
    * Get messages with cursor pagination
    */
   async getMessages(conversationId, userId, { cursor, limit = 30 }) {
+    if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) {
+      const err = new Error('Invalid conversation ID.');
+      err.statusCode = 400;
+      throw err;
+    }
+
     const isMember = await this.isMember(conversationId, userId);
     if (!isMember) {
       const err = new Error('Not authorized to access messages in this conversation.');
@@ -435,9 +444,12 @@ class ChatService {
     }
 
     const query = {
-      conversation: conversationId,
+      $or: [
+        { conversation: conversationId },
+        { chatId: conversationId }
+      ],
       deletedFor: { $ne: userId },
-      deletedForEveryone: false
+      deletedForEveryone: { $ne: true }
     };
 
     if (cursor) {
@@ -763,7 +775,7 @@ class ChatService {
     const PendingConversation = require('../models/PendingConversation');
 
     // Look for existing registered user with this phone number
-    const candidate = await User.findOne({ phoneNumber: cleanPhone });
+    const candidate = await User.findOne(buildPhoneSearchQuery(cleanPhone));
 
     let isEligible = false;
     if (candidate) {
