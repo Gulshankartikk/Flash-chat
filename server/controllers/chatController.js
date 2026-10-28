@@ -378,14 +378,18 @@ const getChatMedia = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { type } = req.query;
+    if (typeof id !== 'string' || !mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid conversation ID.' });
+    }
+    const conversationObjectId = new mongoose.Types.ObjectId(id);
 
-    const isMember = await chatService.isMember(id, req.user._id);
+    const isMember = await chatService.isMember(conversationObjectId, req.user._id);
     if (!isMember) {
       return res.status(403).json({ success: false, message: 'Access denied.' });
     }
 
     const query = {
-      conversation: id,
+      conversation: conversationObjectId,
       deletedForEveryone: false,
       'media.0': { $exists: true }
     };
