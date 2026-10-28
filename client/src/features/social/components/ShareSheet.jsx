@@ -142,23 +142,23 @@ export const ShareSheet = () => {
 
   return (
     <BottomSheet isOpen={isOpen} onClose={closeShareSheet} title="Share to Direct Chat">
-      <div className="flex flex-col h-[75vh] sm:h-[65vh] bg-white">
+      <div className="flex flex-col h-[75vh] sm:h-[65vh] bg-card text-ink">
         {/* Search input */}
-        <div className="p-3 border-b border-[#FED7AA]/50">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-[#FFF7ED] border border-[#FED7AA]">
-            <Search className="w-3.5 h-3.5 text-[#6B7280]" />
+        <div className="p-3 border-b border-line">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-full bg-canvas border border-line">
+            <Search className="w-3.5 h-3.5 text-muted" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search recent chats or people..."
-              className="w-full text-xs text-[#1F2937] bg-transparent focus:outline-hidden"
+              className="w-full text-xs text-ink bg-transparent focus:outline-hidden"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="text-[#6B7280] hover:text-[#1F2937]"
+                className="text-muted hover:text-ink"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -172,16 +172,16 @@ export const ShareSheet = () => {
             <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
               {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
                 <div key={i} className="flex flex-col items-center gap-1.5 animate-pulse">
-                  <div className="w-12 h-12 rounded-full bg-[#FED7AA]/40" />
-                  <div className="w-12 h-2.5 rounded-full bg-[#FED7AA]/30" />
+                  <div className="w-12 h-12 rounded-full bg-line/40" />
+                  <div className="w-12 h-2.5 rounded-full bg-line/30" />
                 </div>
               ))}
             </div>
           ) : suggestions.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-[#6B7280]">
-              <Users className="w-10 h-10 stroke-1 text-[#FED7AA] mb-2" />
-              <p className="text-xs font-bold text-[#1F2937]">No recipients found</p>
-              <p className="text-[11px] text-[#6B7280] mt-0.5">
+            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-muted">
+              <Users className="w-10 h-10 stroke-1 text-muted mb-2" />
+              <p className="text-xs font-bold text-ink">No recipients found</p>
+              <p className="text-[11px] text-muted mt-0.5">
                 Start conversations in Chats to share here!
               </p>
             </div>
@@ -204,16 +204,16 @@ export const ShareSheet = () => {
                       />
                       {/* Check badge */}
                       <div
-                        className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ring-2 ring-white text-white transition ${
+                        className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center ring-2 ring-card text-white transition ${
                           isSelected
-                            ? 'bg-[#F97316] scale-110 shadow-xs'
+                            ? 'bg-primary scale-110 shadow-xs'
                             : 'bg-black/20 group-hover:bg-black/40'
                         }`}
                       >
                         {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
                       </div>
                     </div>
-                    <span className="text-[11px] font-semibold text-[#1F2937] truncate max-w-[68px]">
+                    <span className="text-[11px] font-semibold text-ink truncate max-w-[68px]">
                       {item.name || item.username}
                     </span>
                   </div>
@@ -224,7 +224,7 @@ export const ShareSheet = () => {
         </div>
 
         {/* Optional note + Send action */}
-        <div className="p-3 border-t border-[#FED7AA]/60 bg-[#FFF7ED]/30 space-y-2">
+        <div className="p-3 border-t border-line bg-canvas space-y-2">
           {selectedIds.length > 0 && (
             <div className="flex items-center gap-2">
               <input
@@ -232,13 +232,13 @@ export const ShareSheet = () => {
                 value={noteText}
                 onChange={(e) => setNoteText(e.target.value)}
                 placeholder="Write a message..."
-                className="flex-1 px-4 py-2 rounded-full border border-[#FED7AA] bg-white text-xs text-[#1F2937] focus:outline-hidden focus:border-[#F97316]"
+                className="flex-1 px-4 py-2 rounded-full border border-line bg-card text-xs text-ink focus:outline-hidden focus:border-primary"
               />
               <button
                 type="button"
                 disabled={isSending}
                 onClick={handleSend}
-                className="px-5 py-2 rounded-full bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-xs font-bold shadow-md shadow-orange-500/15 hover:opacity-95 disabled:opacity-50 transition cursor-pointer flex items-center gap-1.5"
+                className="px-5 py-2 rounded-full bg-brand-gradient text-white text-xs font-bold shadow-md hover:opacity-95 disabled:opacity-50 transition cursor-pointer flex items-center gap-1.5"
               >
                 <Send className="w-3.5 h-3.5" />
                 <span>Send ({selectedIds.length})</span>
@@ -247,13 +247,13 @@ export const ShareSheet = () => {
           )}
 
           {/* Quick Actions Row */}
-          <div className="flex items-center justify-around pt-2 border-t border-[#FED7AA]/40 text-xs font-semibold text-[#1F2937]">
+          <div className="flex items-center justify-around pt-2 border-t border-line text-xs font-semibold text-ink">
             <button
               type="button"
               onClick={handleCopyLink}
-              className="flex items-center gap-1.5 hover:text-[#F97316] transition cursor-pointer"
+              className="flex items-center gap-1.5 hover:text-primary transition cursor-pointer"
             >
-              <Link2 className="w-4 h-4 text-[#F97316]" />
+              <Link2 className="w-4 h-4 text-primary" />
               <span>Copy Link</span>
             </button>
 
@@ -269,18 +269,18 @@ export const ShareSheet = () => {
                 });
                 closeShareSheet();
               }}
-              className="flex items-center gap-1.5 hover:text-[#F97316] transition cursor-pointer text-[#1F2937]"
+              className="flex items-center gap-1.5 hover:text-primary transition cursor-pointer text-ink"
             >
-              <Bookmark className="w-4 h-4 text-[#F97316]" />
+              <Bookmark className="w-4 h-4 text-primary" />
               <span>Add to Pocket</span>
             </button>
 
             <button
               type="button"
               onClick={handleNativeShare}
-              className="flex items-center gap-1.5 hover:text-[#EC4899] transition cursor-pointer"
+              className="flex items-center gap-1.5 hover:text-secondary transition cursor-pointer"
             >
-              <Share2 className="w-4 h-4 text-[#EC4899]" />
+              <Share2 className="w-4 h-4 text-secondary" />
               <span>Share Via...</span>
             </button>
           </div>

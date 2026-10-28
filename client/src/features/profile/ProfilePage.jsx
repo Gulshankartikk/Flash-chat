@@ -411,7 +411,7 @@ export const ProfilePage = () => {
         <button
           type="button"
           onClick={() => navigate('/contacts')}
-          className="p-3.5 bg-card hover:bg-orange-50/40 border border-line rounded-2xl transition flex items-center gap-3 text-left shadow-xs group cursor-pointer"
+          className="p-3.5 bg-card hover:bg-primary/10 border border-line rounded-2xl transition flex items-center gap-3 text-left shadow-xs group cursor-pointer"
         >
           <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center group-hover:scale-105 transition-transform">
             <Users className="w-5 h-5" />
@@ -425,7 +425,7 @@ export const ProfilePage = () => {
         <button
           type="button"
           onClick={() => navigate('/support')}
-          className="p-3.5 bg-card hover:bg-orange-50/40 border border-line rounded-2xl transition flex items-center gap-3 text-left shadow-xs group cursor-pointer"
+          className="p-3.5 bg-card hover:bg-primary/10 border border-line rounded-2xl transition flex items-center gap-3 text-left shadow-xs group cursor-pointer"
         >
           <div className="w-10 h-10 rounded-xl bg-secondary/15 text-secondary flex items-center justify-center group-hover:scale-105 transition-transform">
             <HelpCircle className="w-5 h-5" />
@@ -440,7 +440,7 @@ export const ProfilePage = () => {
           <button
             type="button"
             onClick={() => navigate('/dev/ui')}
-            className="p-3.5 bg-card hover:bg-orange-50/40 border border-line rounded-2xl transition flex items-center gap-3 text-left shadow-xs group cursor-pointer"
+            className="p-3.5 bg-card hover:bg-primary/10 border border-line rounded-2xl transition flex items-center gap-3 text-left shadow-xs group cursor-pointer"
           >
             <div className="w-10 h-10 rounded-xl bg-amber-500/15 text-amber-600 flex items-center justify-center group-hover:scale-105 transition-transform">
               <Palette className="w-5 h-5" />
@@ -758,7 +758,7 @@ export const ProfilePage = () => {
               <button
                 type="button"
                 onClick={() => setShowNotificationModal(true)}
-                className="flex-1 py-2.5 px-4 rounded-2xl bg-cream border border-line hover:bg-orange-100/60 text-xs font-bold text-ink flex items-center justify-between transition cursor-pointer"
+                className="flex-1 py-2.5 px-4 rounded-2xl bg-cream border border-line hover:bg-primary/10 text-xs font-bold text-ink flex items-center justify-between transition cursor-pointer"
               >
                 <div className="flex items-center gap-2">
                   <Bell className="w-4 h-4 text-primary" />
@@ -792,7 +792,7 @@ export const ProfilePage = () => {
                 onClick={() => setTheme('light')}
                 className={`flex-1 py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer ${
                   theme === 'light'
-                    ? 'border-primary bg-orange-50 text-primary'
+                    ? 'border-primary bg-primary/15 text-primary'
                     : 'border-line bg-card text-muted'
                 }`}
               >
@@ -804,7 +804,7 @@ export const ProfilePage = () => {
                 onClick={() => setTheme('dark')}
                 className={`flex-1 py-2 px-3 rounded-xl border text-xs font-semibold flex items-center justify-center gap-1.5 transition cursor-pointer ${
                   theme === 'dark'
-                    ? 'border-primary bg-orange-50 text-primary'
+                    ? 'border-primary bg-primary/15 text-primary'
                     : 'border-line bg-card text-muted'
                 }`}
               >

@@ -67,45 +67,45 @@ export const HashtagPage = () => {
   return (
     <div className="w-full max-w-2xl mx-auto space-y-4 pb-20">
       {/* Top Header */}
-      <div className="bg-white rounded-3xl border border-[#FED7AA]/60 p-4 shadow-xs flex items-center gap-3">
+      <div className="bg-card rounded-3xl border border-line p-4 shadow-xs flex items-center gap-3">
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="p-2 rounded-full hover:bg-orange-50 text-[#1F2937] transition cursor-pointer"
+          className="p-2 rounded-full hover:bg-primary/10 text-ink transition cursor-pointer"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
 
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#F97316] to-[#EC4899] text-white flex items-center justify-center font-black text-xl shadow-md shadow-orange-500/15">
+        <div className="w-12 h-12 rounded-2xl bg-brand-gradient text-white flex items-center justify-center font-black text-xl shadow-md">
           #
         </div>
 
         <div>
-          <h2 className="text-base font-extrabold text-[#1F2937]">#{tag}</h2>
-          <p className="text-xs text-[#6B7280]">
+          <h2 className="text-base font-extrabold text-ink">#{tag}</h2>
+          <p className="text-xs text-muted">
             {totalCount} {totalCount === 1 ? 'post' : 'posts'}
           </p>
         </div>
       </div>
 
       {/* Grid of Posts */}
-      <div className="bg-white rounded-3xl border border-[#FED7AA]/60 p-2 sm:p-3 shadow-xs">
+      <div className="bg-card rounded-3xl border border-line p-2 sm:p-3 shadow-xs">
         {loading ? (
           <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
             {Array.from({ length: 9 }).map((_, i) => (
               <div
                 key={i}
-                className="aspect-square rounded-2xl bg-[#FED7AA]/30 animate-pulse"
+                className="aspect-square rounded-2xl bg-line/30 animate-pulse"
               />
             ))}
           </div>
         ) : posts.length === 0 ? (
-          <div className="py-16 text-center text-[#6B7280] space-y-2">
-            <div className="w-12 h-12 rounded-full bg-orange-100 text-[#F97316] flex items-center justify-center mx-auto text-xl font-bold">
+          <div className="py-16 text-center text-muted space-y-2">
+            <div className="w-12 h-12 rounded-full bg-primary/20 text-primary flex items-center justify-center mx-auto text-xl font-bold">
               #
             </div>
-            <p className="text-xs font-bold text-[#1F2937]">No posts with #{tag} yet</p>
-            <p className="text-[11px] text-[#6B7280]">
+            <p className="text-xs font-bold text-ink">No posts with #{tag} yet</p>
+            <p className="text-[11px] text-muted">
               Be the first to share a post with this hashtag!
             </p>
           </div>
@@ -157,7 +157,7 @@ export const HashtagPage = () => {
 
         {fetchingMore && (
           <div className="flex justify-center py-4">
-            <div className="w-6 h-6 border-2 border-[#F97316] border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         )}
       </div>

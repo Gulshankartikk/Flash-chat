@@ -63,7 +63,7 @@ export const UsageMeter = ({ compact = false, className = '' }) => {
         </span>
       </div>
 
-      <div className="w-full h-2 bg-orange-100 dark:bg-zinc-700 rounded-full overflow-hidden">
+      <div className="w-full h-2 bg-primary/20 dark:bg-zinc-700 rounded-full overflow-hidden">
         <div
           className={`h-full transition-all duration-500 rounded-full ${
             isNearLimit

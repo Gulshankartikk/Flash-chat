@@ -33,3 +33,4 @@ pino-*.log
 Thumbs.db
 .vscode/
 .idea/
+.mongo_data/

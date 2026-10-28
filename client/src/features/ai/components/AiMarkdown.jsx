@@ -93,7 +93,7 @@ export const AiMarkdown = React.memo(({ content = '', className = '' }) => {
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       // Inline code
-      .replace(/`([^`]+)`/g, '<code class="bg-orange-100/80 dark:bg-zinc-800 text-orange-700 dark:text-pink-400 px-1.5 py-0.5 rounded text-[13px] font-mono">$1</code>')
+      .replace(/`([^`]+)`/g, '<code class="bg-primary/15 dark:bg-zinc-800 text-primary dark:text-pink-400 px-1.5 py-0.5 rounded text-[13px] font-mono">$1</code>')
       // Unordered list items
       .replace(/^\s*[\-\*]\s+(.*$)/gim, '<li class="ml-4 list-disc my-0.5">$1</li>')
       // Ordered list items

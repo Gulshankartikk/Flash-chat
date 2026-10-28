@@ -133,7 +133,7 @@ export const AiSheet = ({
                   type="button"
                   onClick={handleSaveToPocket}
                   disabled={savingPocket || pocketSaved}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium bg-card dark:bg-zinc-800 border border-line dark:border-zinc-700 text-ink dark:text-cream hover:bg-orange-50 transition-colors disabled:opacity-60"
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-medium bg-card dark:bg-zinc-800 border border-line dark:border-zinc-700 text-ink dark:text-cream hover:bg-primary/10 transition-colors disabled:opacity-60"
                   title="Save to Pocket"
                 >
                   {pocketSaved ? (

@@ -10,8 +10,8 @@ export const MediaCarousel = ({ media = [], onDoubleTapLike, aspectRatio = 'aspe
 
   if (!media || media.length === 0) {
     return (
-      <div className={`w-full bg-[#FED7AA]/30 flex items-center justify-center ${aspectRatio}`}>
-        <span className="text-xs text-[#6B7280]">No media available</span>
+      <div className={`w-full bg-card/60 border border-line flex items-center justify-center ${aspectRatio}`}>
+        <span className="text-xs text-muted">No media available</span>
       </div>
     );
   }

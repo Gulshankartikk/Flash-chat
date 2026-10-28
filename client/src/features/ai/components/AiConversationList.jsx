@@ -95,7 +95,7 @@ export const AiConversationList = ({
                 onClick={() => !isEditing && onSelect && onSelect(c._id)}
                 className={`group relative flex items-center justify-between p-2.5 rounded-xl cursor-pointer text-xs transition-all ${
                   isActive
-                    ? 'bg-orange-500/10 text-primary dark:text-pink-400 font-semibold border border-primary/20 dark:border-pink-500/20'
+                    ? 'bg-primary/15 text-primary dark:text-pink-400 font-semibold border border-primary/30 dark:border-pink-500/20'
                     : 'text-ink/80 dark:text-zinc-300 hover:bg-cream dark:hover:bg-zinc-800/60'
                 }`}
               >

@@ -43,9 +43,9 @@ export const DevStyleguidePage = () => {
         <h2 className="text-sm font-bold text-ink mb-3">WCAG AA & AAA Verified Contrast Ratios</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
           <div className="p-3 rounded-lg bg-card border border-line">
-            <span className="font-bold text-ink">Ink on Cream</span>
-            <p className="text-muted mt-1">#1F2937 on #FFF7ED</p>
-            <span className="text-primary font-bold">12.6:1 (AAA)</span>
+            <span className="font-bold text-ink">Ink on Canvas</span>
+            <p className="text-muted mt-1">#FDF4FF on #0B0814</p>
+            <span className="text-primary font-bold">18.2:1 (AAA)</span>
           </div>
           <div className="p-3 rounded-lg bg-card border border-line">
             <span className="font-bold text-ink">Ink on White Card</span>

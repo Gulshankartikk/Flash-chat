@@ -4,40 +4,40 @@
  */
 
 :root {
-  /* --- Light Mode Tokens --- */
-  --cream: #FFF7ED;       /* Warm Cream Background */
+  /* --- Light Mode Tokens (Lavender-Magenta Palette) --- */
+  --cream: #FAF5FF;       /* Soft Lavender Cream Background */
   --card: #FFFFFF;        /* Pure White Elevated Card */
-  --primary: #F97316;     /* Brand Orange Primary Action */
-  --secondary: #EC4899;   /* Brand Pink Secondary Highlight */
-  --accent: #F43F5E;      /* Rose/Red Danger & Badges */
-  --ink: #1F2937;         /* Dark Navy Typography */
-  --muted: #6B7280;       /* Muted Subtext & Icons */
-  --line: #FED7AA;        /* Light Orange Crisp Border */
+  --primary: #E879F9;     /* Brand Magenta-Violet Action */
+  --secondary: #EC4899;   /* Brand Pink Highlight */
+  --accent: #F43F5E;      /* Rose Danger & Badges */
+  --ink: #1E1035;         /* Deep Rich Purple Typography */
+  --muted: #6B5B82;       /* Muted Violet-Slate Subtext & Icons */
+  --line: #E9D5FF;        /* Soft Lavender Crisp Border */
 
   /* Gradients & Shadows */
-  --brand-gradient: linear-gradient(135deg, #F97316 0%, #EC4899 100%);
-  --brand-gradient-hover: linear-gradient(135deg, #EA580C 0%, #DB2777 100%);
-  --soft-shadow: 0 8px 30px rgba(249, 115, 22, 0.12);
+  --brand-gradient: linear-gradient(135deg, #A855F7 0%, #D946EF 50%, #EC4899 100%);
+  --brand-gradient-hover: linear-gradient(135deg, #9333EA 0%, #C026D3 50%, #DB2777 100%);
+  --soft-shadow: 0 8px 30px rgba(217, 70, 239, 0.12);
   --focus-ring: 2px solid var(--primary);
   --focus-offset: 2px;
 }
 
 .dark {
-  /* --- Dark Mode System Tokens --- */
-  --cream: #18110D;       /* Deep Navy-Brown Canvas */
-  --card: #241A14;        /* Slightly Lighter Card Surface */
-  --ink: #FFF7ED;         /* Warm Cream Typography */
-  --muted: #9CA3AF;       /* Light Muted Gray (WCAG AA compliant on #241A14) */
-  --line: #3D2B20;        /* Subtle Deep Brown Border */
+  /* --- Premium Dark Purple / Magenta Mode System Tokens --- */
+  --cream: #0B0814;       /* Deep Night Purple Canvas */
+  --card: #17112A;        /* Elevated Royal Violet Surface */
+  --ink: #FDF4FF;         /* Crisp High-Contrast Violet-White Typography */
+  --muted: #A78BFA;       /* Light Muted Lavender (WCAG AA compliant on #17112A) */
+  --line: #2E224F;        /* Deep Violet Subtle Border */
 
-  /* Accents Remain Consistent in Dark Mode */
-  --primary: #F97316;
-  --secondary: #EC4899;
-  --accent: #F43F5E;
+  /* Accents */
+  --primary: #D946EF;     /* Electric Vibrant Magenta */
+  --secondary: #A855F7;   /* Neon Violet Accent */
+  --accent: #F43F5E;      /* Rose Alert */
 
-  --brand-gradient: linear-gradient(135deg, #F97316 0%, #EC4899 100%);
-  --brand-gradient-hover: linear-gradient(135deg, #EA580C 0%, #DB2777 100%);
-  --soft-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+  --brand-gradient: linear-gradient(135deg, #A855F7 0%, #D946EF 50%, #EC4899 100%);
+  --brand-gradient-hover: linear-gradient(135deg, #9333EA 0%, #C026D3 50%, #DB2777 100%);
+  --soft-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
 }
 
 /* Base Body Application */
@@ -61,11 +61,11 @@ body {
 /* Global scrollbar styling for all elements (vertical & horizontal) */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(249, 115, 22, 0.45) transparent;
+  scrollbar-color: rgba(217, 70, 239, 0.45) transparent;
 }
 
 .dark * {
-  scrollbar-color: rgba(254, 215, 170, 0.35) transparent;
+  scrollbar-color: rgba(168, 85, 247, 0.35) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -77,19 +77,19 @@ body {
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(249, 115, 22, 0.4);
+  background-color: rgba(217, 70, 239, 0.4);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(249, 115, 22, 0.75);
+  background-color: rgba(217, 70, 239, 0.75);
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 .dark ::-webkit-scrollbar-thumb {
-  background-color: rgba(254, 215, 170, 0.3);
+  background-color: rgba(168, 85, 247, 0.35);
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(254, 215, 170, 0.6);
+  background-color: rgba(168, 85, 247, 0.65);
 }
 

@@ -120,7 +120,7 @@ export const PostCard = ({ post, onPostDeleted }) => {
               e.stopPropagation();
               navigate(`/social/hashtag/${tag}`);
             }}
-            className="text-[#F97316] font-semibold hover:underline cursor-pointer"
+            className="text-primary font-semibold hover:underline cursor-pointer"
           >
             {word}
           </span>
@@ -135,7 +135,7 @@ export const PostCard = ({ post, onPostDeleted }) => {
               e.stopPropagation();
               navigate(`/u/${username}`);
             }}
-            className="text-[#EC4899] font-semibold hover:underline cursor-pointer"
+            className="text-secondary font-semibold hover:underline cursor-pointer"
           >
             {word}
           </span>
@@ -148,7 +148,7 @@ export const PostCard = ({ post, onPostDeleted }) => {
   const isLongCaption = (post.caption || '').length > 90;
 
   return (
-    <article className="w-full bg-white rounded-3xl border border-[#FED7AA]/60 shadow-xs overflow-hidden transition-all">
+    <article className="w-full bg-card rounded-3xl border border-line shadow-xs overflow-hidden transition-all">
       {/* 1. Author Row Header */}
       <div className="flex items-center justify-between p-3.5">
         <div
@@ -162,18 +162,18 @@ export const PostCard = ({ post, onPostDeleted }) => {
           />
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-[#1F2937] group-hover:text-[#F97316] transition">
+              <span className="text-xs font-bold text-ink group-hover:text-primary transition">
                 {post.author?.username || post.author?.name}
               </span>
               {post.author?.isVerified && (
-                <span className="w-3.5 h-3.5 rounded-full bg-[#F97316] text-white text-[9px] flex items-center justify-center font-bold">
+                <span className="w-3.5 h-3.5 rounded-full bg-primary text-white text-[9px] flex items-center justify-center font-bold">
                   ✓
                 </span>
               )}
             </div>
             {post.location && (
-              <div className="flex items-center gap-0.5 text-[10px] text-[#6B7280]">
-                <MapPin className="w-2.5 h-2.5 text-[#F97316]" />
+              <div className="flex items-center gap-0.5 text-[10px] text-muted">
+                <MapPin className="w-2.5 h-2.5 text-primary" />
                 <span className="truncate max-w-[140px]">{post.location}</span>
               </div>
             )}
@@ -185,19 +185,19 @@ export const PostCard = ({ post, onPostDeleted }) => {
           <button
             type="button"
             onClick={() => setShowMenu(!showMenu)}
-            className="p-1.5 rounded-full hover:bg-orange-50 text-[#6B7280] hover:text-[#1F2937] transition cursor-pointer"
+            className="p-1.5 rounded-full hover:bg-primary/10 text-muted hover:text-ink transition cursor-pointer"
           >
             <MoreHorizontal className="w-4 h-4" />
           </button>
 
           {showMenu && (
-            <div className="absolute right-0 top-8 z-40 w-40 bg-white rounded-2xl border border-[#FED7AA] shadow-lg p-1.5 text-xs font-semibold text-[#1F2937] space-y-0.5">
+            <div className="absolute right-0 top-8 z-40 w-40 bg-card rounded-2xl border border-line shadow-lg p-1.5 text-xs font-semibold text-ink space-y-0.5">
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="w-full px-2.5 py-1.5 rounded-xl hover:bg-orange-50 flex items-center gap-2 text-left cursor-pointer"
+                className="w-full px-2.5 py-1.5 rounded-xl hover:bg-primary/10 flex items-center gap-2 text-left cursor-pointer"
               >
-                <Link2 className="w-3.5 h-3.5 text-[#6B7280]" />
+                <Link2 className="w-3.5 h-3.5 text-muted" />
                 <span>Copy Link</span>
               </button>
               <button
@@ -210,9 +210,9 @@ export const PostCard = ({ post, onPostDeleted }) => {
                   });
                   setShowMenu(false);
                 }}
-                className="w-full px-2.5 py-1.5 rounded-xl hover:bg-orange-50 flex items-center gap-2 text-left cursor-pointer text-[#F97316]"
+                className="w-full px-2.5 py-1.5 rounded-xl hover:bg-primary/10 flex items-center gap-2 text-left cursor-pointer text-primary"
               >
-                <Bookmark className="w-3.5 h-3.5 text-[#F97316]" />
+                <Bookmark className="w-3.5 h-3.5 text-primary" />
                 <span>Save to Pocket</span>
               </button>
               {isOwner ? (
@@ -220,7 +220,7 @@ export const PostCard = ({ post, onPostDeleted }) => {
                   type="button"
                   disabled={isDeleting}
                   onClick={handleDeletePost}
-                  className="w-full px-2.5 py-1.5 rounded-xl hover:bg-rose-50 text-[#F43F5E] flex items-center gap-2 text-left cursor-pointer"
+                  className="w-full px-2.5 py-1.5 rounded-xl hover:bg-rose-500/10 text-accent flex items-center gap-2 text-left cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                   <span>Delete Post</span>
@@ -233,7 +233,7 @@ export const PostCard = ({ post, onPostDeleted }) => {
                       alert('Post reported for review. Thank you for keeping our community safe.');
                       setShowMenu(false);
                     }}
-                    className="w-full px-2.5 py-1.5 rounded-xl hover:bg-orange-50 text-[#F43F5E] flex items-center gap-2 text-left cursor-pointer"
+                    className="w-full px-2.5 py-1.5 rounded-xl hover:bg-primary/10 text-accent flex items-center gap-2 text-left cursor-pointer"
                   >
                     <Flag className="w-3.5 h-3.5" />
                     <span>Report Post</span>
@@ -244,7 +244,7 @@ export const PostCard = ({ post, onPostDeleted }) => {
                       alert(`User @${post.author?.username} blocked.`);
                       setShowMenu(false);
                     }}
-                    className="w-full px-2.5 py-1.5 rounded-xl hover:bg-orange-50 text-[#F43F5E] flex items-center gap-2 text-left cursor-pointer"
+                    className="w-full px-2.5 py-1.5 rounded-xl hover:bg-primary/10 text-accent flex items-center gap-2 text-left cursor-pointer"
                   >
                     <UserX className="w-3.5 h-3.5" />
                     <span>Block User</span>
@@ -276,8 +276,8 @@ export const PostCard = ({ post, onPostDeleted }) => {
               <Heart
                 className={`w-5 h-5 transition-colors ${
                   isLiked
-                    ? 'fill-[#F43F5E] text-[#F43F5E]'
-                    : 'text-[#1F2937] hover:text-[#F43F5E]'
+                    ? 'fill-accent text-accent'
+                    : 'text-ink hover:text-accent'
                 }`}
               />
             </button>
@@ -286,7 +286,7 @@ export const PostCard = ({ post, onPostDeleted }) => {
             <button
               type="button"
               onClick={() => openCommentsSheet('post', post._id, post.author?._id)}
-              className="p-1 hover:scale-110 active:scale-95 transition-transform text-[#1F2937] hover:text-[#F97316] cursor-pointer"
+              className="p-1 hover:scale-110 active:scale-95 transition-transform text-ink hover:text-primary cursor-pointer"
               title="Comment"
             >
               <MessageCircle className="w-5 h-5" />
@@ -296,7 +296,7 @@ export const PostCard = ({ post, onPostDeleted }) => {
             <button
               type="button"
               onClick={handleOpenShare}
-              className="p-1 hover:scale-110 active:scale-95 transition-transform text-[#1F2937] hover:text-[#F97316] cursor-pointer"
+              className="p-1 hover:scale-110 active:scale-95 transition-transform text-ink hover:text-primary cursor-pointer"
               title="Share"
             >
               <Send className="w-5 h-5" />
@@ -313,8 +313,8 @@ export const PostCard = ({ post, onPostDeleted }) => {
             <Bookmark
               className={`w-5 h-5 transition-colors ${
                 isSaved
-                  ? 'fill-[#F97316] text-[#F97316]'
-                  : 'text-[#1F2937] hover:text-[#F97316]'
+                  ? 'fill-primary text-primary'
+                  : 'text-ink hover:text-primary'
               }`}
             />
           </button>
@@ -322,14 +322,14 @@ export const PostCard = ({ post, onPostDeleted }) => {
 
         {/* Likes Count */}
         {likesCount > 0 && (
-          <p className="text-xs font-bold text-[#1F2937]">
+          <p className="text-xs font-bold text-ink">
             {likesCount} {likesCount === 1 ? 'like' : 'likes'}
           </p>
         )}
 
         {/* Caption */}
         {post.caption && (
-          <div className="text-xs text-[#1F2937] leading-relaxed">
+          <div className="text-xs text-ink leading-relaxed">
             <span
               onClick={() => navigate(`/u/${post.author?.username}`)}
               className="font-bold mr-1.5 cursor-pointer hover:underline"
@@ -345,7 +345,7 @@ export const PostCard = ({ post, onPostDeleted }) => {
               <button
                 type="button"
                 onClick={() => setIsCaptionExpanded(!isCaptionExpanded)}
-                className="text-xs text-[#6B7280] font-semibold ml-1 hover:text-[#1F2937] cursor-pointer"
+                className="text-xs text-muted font-semibold ml-1 hover:text-ink cursor-pointer"
               >
                 {isCaptionExpanded ? 'less' : '...more'}
               </button>
@@ -358,7 +358,7 @@ export const PostCard = ({ post, onPostDeleted }) => {
           <button
             type="button"
             onClick={() => openCommentsSheet('post', post._id, post.author?._id)}
-            className="text-xs text-[#6B7280] hover:text-[#1F2937] transition font-medium cursor-pointer block"
+            className="text-xs text-muted hover:text-ink transition font-medium cursor-pointer block"
           >
             {post.commentsCount > 0
               ? `View all ${post.commentsCount} comments`
@@ -368,7 +368,7 @@ export const PostCard = ({ post, onPostDeleted }) => {
 
         {/* Timestamp */}
         <div>
-          <RelativeTime date={post.createdAt} className="text-[10px] uppercase font-medium text-[#6B7280]" />
+          <RelativeTime date={post.createdAt} className="text-[10px] uppercase font-medium text-muted" />
         </div>
       </div>
     </article>

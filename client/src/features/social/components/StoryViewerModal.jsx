@@ -444,7 +444,7 @@ export const StoryViewerModal = () => {
                   type="button"
                   disabled={!replyText.trim() || isSendingReply}
                   onClick={() => handleSendReply()}
-                  className="w-8 h-8 rounded-full bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white flex items-center justify-center disabled:opacity-50 transition cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-brand-gradient text-white flex items-center justify-center disabled:opacity-50 transition cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5" />
                 </button>
@@ -465,7 +465,7 @@ export const StoryViewerModal = () => {
             >
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-[#F97316]" />
+                  <Eye className="w-4 h-4 text-primary" />
                   <span className="text-sm font-bold">
                     Viewers ({currentStory.viewers?.length || 0})
                   </span>
@@ -525,10 +525,10 @@ export const StoryViewerModal = () => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="absolute top-16 inset-x-4 z-50 p-3 rounded-2xl bg-white text-[#1F2937] shadow-xl flex items-center justify-between gap-3 border border-[#FED7AA]"
+              className="absolute top-16 inset-x-4 z-50 p-3 rounded-2xl bg-card text-ink shadow-xl flex items-center justify-between gap-3 border border-line"
             >
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-full bg-cream text-primary border border-line flex items-center justify-center flex-shrink-0">
+                <div className="w-7 h-7 rounded-full bg-canvas text-primary border border-line flex items-center justify-center flex-shrink-0">
                   <MessageCircle className="w-4 h-4" />
                 </div>
                 <span className="text-xs font-bold">{replyToast.message}</span>
@@ -539,7 +539,7 @@ export const StoryViewerModal = () => {
                   closeStoryViewer();
                   navigate(`/chats/${replyToast.conversationId}`);
                 }}
-                className="px-3 py-1 rounded-full bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-xs font-bold shadow-xs hover:opacity-95 transition cursor-pointer"
+                className="px-3 py-1 rounded-full bg-brand-gradient text-white text-xs font-bold shadow-xs hover:opacity-95 transition cursor-pointer"
               >
                 Open Chat
               </button>

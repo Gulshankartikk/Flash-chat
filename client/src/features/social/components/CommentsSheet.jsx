@@ -387,7 +387,7 @@ export const CommentsSheet = () => {
               closeCommentsSheet();
               navigate(`/u/${u}`);
             }}
-            className="text-[#EC4899] font-bold hover:underline cursor-pointer"
+            className="text-secondary font-bold hover:underline cursor-pointer"
           >
             {word}
           </span>
@@ -403,7 +403,7 @@ export const CommentsSheet = () => {
               closeCommentsSheet();
               navigate(`/social/hashtag/${t}`);
             }}
-            className="text-[#F97316] font-bold hover:underline cursor-pointer"
+            className="text-primary font-bold hover:underline cursor-pointer"
           >
             {word}
           </span>
@@ -415,26 +415,26 @@ export const CommentsSheet = () => {
 
   return (
     <BottomSheet isOpen={isOpen} onClose={closeCommentsSheet} title="Comments">
-      <div className="flex flex-col h-[70vh] sm:h-[60vh] bg-white">
+      <div className="flex flex-col h-[70vh] sm:h-[60vh] bg-card text-ink">
         {/* Comment list */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {loading && comments.length === 0 ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="flex items-start gap-3 animate-pulse">
-                  <div className="w-8 h-8 rounded-full bg-[#FED7AA]/40" />
+                  <div className="w-8 h-8 rounded-full bg-line/40" />
                   <div className="flex-1 space-y-1.5">
-                    <div className="w-24 h-2.5 rounded-full bg-[#FED7AA]/40" />
-                    <div className="w-48 h-2 rounded-full bg-[#FED7AA]/30" />
+                    <div className="w-24 h-2.5 rounded-full bg-line/40" />
+                    <div className="w-48 h-2 rounded-full bg-line/30" />
                   </div>
                 </div>
               ))}
             </div>
           ) : comments.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-[#6B7280]">
-              <MessageSquare className="w-10 h-10 stroke-1 text-[#FED7AA] mb-2" />
-              <p className="text-xs font-bold text-[#1F2937]">No comments yet</p>
-              <p className="text-[11px] text-[#6B7280] mt-0.5">Start the conversation!</p>
+            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-muted">
+              <MessageSquare className="w-10 h-10 stroke-1 text-muted mb-2" />
+              <p className="text-xs font-bold text-ink">No comments yet</p>
+              <p className="text-[11px] text-muted mt-0.5">Start the conversation!</p>
             </div>
           ) : (
             comments.map((comment) => {
@@ -463,18 +463,18 @@ export const CommentsSheet = () => {
                               closeCommentsSheet();
                               navigate(`/u/${comment.author?.username}`);
                             }}
-                            className="font-bold text-[#1F2937] hover:text-[#F97316] cursor-pointer"
+                            className="font-bold text-ink hover:text-primary cursor-pointer"
                           >
                             {comment.author?.username}
                           </span>
                           <RelativeTime date={comment.createdAt} className="text-[10px]" />
                         </div>
-                        <p className="text-[#1F2937] mt-0.5 leading-relaxed break-words">
+                        <p className="text-ink mt-0.5 leading-relaxed break-words">
                           {renderRichText(comment.text)}
                         </p>
 
                         {/* Reply & Delete actions */}
-                        <div className="flex items-center gap-3 mt-1 text-[11px] font-semibold text-[#6B7280]">
+                        <div className="flex items-center gap-3 mt-1 text-[11px] font-semibold text-muted">
                           <button
                             type="button"
                             onClick={() => {
@@ -484,7 +484,7 @@ export const CommentsSheet = () => {
                               });
                               inputRef.current?.focus();
                             }}
-                            className="hover:text-[#F97316] cursor-pointer"
+                            className="hover:text-primary cursor-pointer"
                           >
                             Reply
                           </button>
@@ -494,7 +494,7 @@ export const CommentsSheet = () => {
                               type="button"
                               onClick={() => handleSuggestReply(comment)}
                               disabled={loadingReplyFor === comment._id}
-                              className="flex items-center gap-1 text-[#F97316] hover:text-[#EC4899] transition cursor-pointer font-bold disabled:opacity-50"
+                              className="flex items-center gap-1 text-primary hover:text-secondary transition cursor-pointer font-bold disabled:opacity-50"
                             >
                               <Sparkles className="w-3 h-3" />
                               <span>{loadingReplyFor === comment._id ? 'Thinking...' : 'AI Reply'}</span>
@@ -505,7 +505,7 @@ export const CommentsSheet = () => {
                             <button
                               type="button"
                               onClick={() => handleDeleteComment(comment._id, false)}
-                              className="text-rose-500 hover:text-rose-700 cursor-pointer"
+                              className="text-accent hover:opacity-80 cursor-pointer"
                             >
                               Delete
                             </button>
@@ -518,11 +518,11 @@ export const CommentsSheet = () => {
                     <button
                       type="button"
                       onClick={() => handleToggleLike(comment._id, false)}
-                      className="flex flex-col items-center gap-0.5 text-[#6B7280] hover:text-[#F43F5E] p-1 cursor-pointer"
+                      className="flex flex-col items-center gap-0.5 text-muted hover:text-accent p-1 cursor-pointer"
                     >
                       <Heart
                         className={`w-3.5 h-3.5 ${
-                          comment.isLiked ? 'fill-[#F43F5E] text-[#F43F5E]' : ''
+                          comment.isLiked ? 'fill-accent text-accent' : ''
                         }`}
                       />
                       {comment.likesCount > 0 && (
@@ -537,9 +537,9 @@ export const CommentsSheet = () => {
                       <button
                         type="button"
                         onClick={() => handleToggleReplies(comment)}
-                        className="flex items-center gap-1.5 text-[11px] font-bold text-[#6B7280] hover:text-[#F97316] cursor-pointer"
+                        className="flex items-center gap-1.5 text-[11px] font-bold text-muted hover:text-primary cursor-pointer"
                       >
-                        <div className="w-5 h-[1px] bg-[#FED7AA]" />
+                        <div className="w-5 h-[1px] bg-line" />
                         <span>
                           {comment.repliesOpen
                             ? 'Hide replies'
@@ -556,7 +556,7 @@ export const CommentsSheet = () => {
 
                       {/* 1 level nested replies list */}
                       {comment.repliesOpen && (
-                        <div className="mt-2 space-y-3 pl-2 border-l border-[#FED7AA]/60">
+                        <div className="mt-2 space-y-3 pl-2 border-l border-line">
                           {comment.replies?.map((reply) => {
                             const canDeleteReply =
                               String(reply.author?._id) === String(currentUser?._id) ||
@@ -575,12 +575,12 @@ export const CommentsSheet = () => {
                                   />
                                   <div className="flex-1 text-xs">
                                     <div className="flex items-baseline gap-1.5">
-                                      <span className="font-bold text-[#1F2937]">
+                                      <span className="font-bold text-ink">
                                         {reply.author?.username}
                                       </span>
                                       <RelativeTime date={reply.createdAt} className="text-[9px]" />
                                     </div>
-                                    <p className="text-[#1F2937] mt-0.5 leading-relaxed break-words">
+                                    <p className="text-ink mt-0.5 leading-relaxed break-words">
                                       {renderRichText(reply.text)}
                                     </p>
                                     {canDeleteReply && (
@@ -589,7 +589,7 @@ export const CommentsSheet = () => {
                                         onClick={() =>
                                           handleDeleteComment(reply._id, true, comment._id)
                                         }
-                                        className="text-[10px] text-rose-500 font-semibold mt-1 hover:underline cursor-pointer"
+                                        className="text-[10px] text-accent font-semibold mt-1 hover:underline cursor-pointer"
                                       >
                                         Delete
                                       </button>
@@ -602,11 +602,11 @@ export const CommentsSheet = () => {
                                   onClick={() =>
                                     handleToggleLike(reply._id, true, comment._id)
                                   }
-                                  className="flex flex-col items-center gap-0.5 text-[#6B7280] hover:text-[#F43F5E] p-1 cursor-pointer"
+                                  className="flex flex-col items-center gap-0.5 text-muted hover:text-accent p-1 cursor-pointer"
                                 >
                                   <Heart
                                     className={`w-3 h-3 ${
-                                      reply.isLiked ? 'fill-[#F43F5E] text-[#F43F5E]' : ''
+                                      reply.isLiked ? 'fill-accent text-accent' : ''
                                     }`}
                                   />
                                   {reply.likesCount > 0 && (
@@ -631,32 +631,32 @@ export const CommentsSheet = () => {
 
         {/* Autocomplete Popup */}
         {mentionQuery && userSuggestions.length > 0 && (
-          <div className="px-4 py-2 border-t border-[#FED7AA]/50 bg-white max-h-32 overflow-y-auto space-y-1">
+          <div className="px-4 py-2 border-t border-line bg-card max-h-32 overflow-y-auto space-y-1">
             {userSuggestions.map((u) => (
               <div
                 key={u._id}
                 onClick={() => handleSelectMention(u.username)}
-                className="p-1.5 rounded-xl hover:bg-orange-50 flex items-center gap-2 text-xs font-semibold cursor-pointer"
+                className="p-1.5 rounded-xl hover:bg-primary/10 flex items-center gap-2 text-xs font-semibold cursor-pointer"
               >
                 <SocialAvatar src={u.avatar} alt={u.username} size="xs" />
-                <span className="text-[#EC4899]">@{u.username}</span>
-                <span className="text-[10px] text-[#6B7280]">{u.name}</span>
+                <span className="text-secondary">@{u.username}</span>
+                <span className="text-[10px] text-muted">{u.name}</span>
               </div>
             ))}
           </div>
         )}
 
         {/* Sticky Input Footer */}
-        <div className="p-3 border-t border-[#FED7AA]/60 bg-[#FFF7ED]/30 space-y-2">
+        <div className="p-3 border-t border-line bg-card space-y-2">
           {/* AI Reply Suggestion Chips */}
           {suggestedReplies.replies.length > 0 && (
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-[#6B7280]">AI Suggested Replies:</span>
+                <span className="text-[10px] font-bold text-muted">AI Suggested Replies:</span>
                 <button
                   type="button"
                   onClick={() => setSuggestedReplies({ commentId: null, replies: [] })}
-                  className="text-[10px] text-[#6B7280] hover:text-rose-500 font-semibold cursor-pointer"
+                  className="text-[10px] text-muted hover:text-accent font-semibold cursor-pointer"
                 >
                   Dismiss
                 </button>
@@ -671,7 +671,7 @@ export const CommentsSheet = () => {
                       setSuggestedReplies({ commentId: null, replies: [] });
                       inputRef.current?.focus();
                     }}
-                    className="px-2.5 py-1 rounded-xl bg-white border border-[#FED7AA] text-xs font-semibold text-[#1F2937] hover:bg-orange-50 hover:border-[#F97316] transition cursor-pointer shadow-xs text-left"
+                    className="px-2.5 py-1 rounded-xl bg-card border border-line text-xs font-semibold text-ink hover:bg-primary/10 hover:border-primary transition cursor-pointer shadow-xs text-left"
                   >
                     {replyText}
                   </button>
@@ -682,14 +682,14 @@ export const CommentsSheet = () => {
 
           {/* Replying-to chip */}
           {replyingTo && (
-            <div className="flex items-center justify-between px-3 py-1 rounded-full bg-orange-100 text-xs text-[#1F2937]">
+            <div className="flex items-center justify-between px-3 py-1 rounded-full bg-primary/20 text-xs text-ink">
               <span>
-                Replying to <span className="font-bold text-[#F97316]">@{replyingTo.username}</span>
+                Replying to <span className="font-bold text-primary">@{replyingTo.username}</span>
               </span>
               <button
                 type="button"
                 onClick={() => setReplyingTo(null)}
-                className="p-0.5 hover:bg-orange-200 rounded-full cursor-pointer"
+                className="p-0.5 hover:bg-primary/30 rounded-full cursor-pointer"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -710,7 +710,7 @@ export const CommentsSheet = () => {
                 </button>
               ))}
             </div>
-            <span className="text-[10px] text-[#6B7280] font-semibold">{text.length}/500</span>
+            <span className="text-[10px] text-muted font-semibold">{text.length}/500</span>
           </div>
 
           {/* Input Form */}
@@ -721,12 +721,12 @@ export const CommentsSheet = () => {
               value={text}
               onChange={handleTextChange}
               placeholder={replyingTo ? `Reply to @${replyingTo.username}...` : 'Add a comment...'}
-              className="flex-1 px-4 py-2 rounded-full border border-[#FED7AA] bg-white text-xs text-[#1F2937] placeholder-[#6B7280] focus:outline-hidden focus:border-[#F97316]"
+              className="flex-1 px-4 py-2 rounded-full border border-line bg-canvas text-xs text-ink placeholder-muted focus:outline-hidden focus:border-primary"
             />
             <button
               type="submit"
               disabled={!text.trim() || submitting}
-              className="px-4 py-2 rounded-full bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-xs font-bold disabled:opacity-40 transition cursor-pointer flex items-center gap-1 shadow-xs"
+              className="px-4 py-2 rounded-full bg-brand-gradient text-white text-xs font-bold disabled:opacity-40 transition cursor-pointer flex items-center gap-1 shadow-xs"
             >
               <Send className="w-3 h-3" />
               <span>Post</span>

@@ -131,7 +131,7 @@ export const VideoPlayer = ({
       {/* Progress bar at bottom */}
       <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-10">
         <div
-          className="h-full bg-gradient-to-r from-[#F97316] to-[#EC4899] transition-all duration-150"
+          className="h-full bg-brand-gradient transition-all duration-150"
           style={{ width: `${progress}%` }}
         />
       </div>

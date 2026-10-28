@@ -482,13 +482,13 @@ export const CreateSocialModal = () => {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="w-full max-w-lg bg-white rounded-3xl border border-[#FED7AA] shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
+        className="w-full max-w-lg bg-card rounded-3xl border border-line shadow-2xl overflow-hidden flex flex-col max-h-[92vh]"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[#FED7AA]/60">
+        <div className="flex items-center justify-between p-4 border-b border-line">
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-bold text-[#1F2937]">Create New</h3>
-            <div className="flex items-center gap-1 bg-[#FFF7ED] p-1 rounded-full border border-[#FED7AA]/60">
+            <h3 className="text-base font-bold text-ink">Create New</h3>
+            <div className="flex items-center gap-1 bg-canvas p-1 rounded-full border border-line">
               <button
                 type="button"
                 onClick={() => {
@@ -497,8 +497,8 @@ export const CreateSocialModal = () => {
                 }}
                 className={`px-2.5 py-1 rounded-full text-xs font-bold transition cursor-pointer ${
                   activeType === 'post'
-                    ? 'bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white shadow-xs'
-                    : 'text-[#6B7280]'
+                    ? 'bg-brand-gradient text-white shadow-xs'
+                    : 'text-muted'
                 }`}
               >
                 Post
@@ -511,8 +511,8 @@ export const CreateSocialModal = () => {
                 }}
                 className={`px-2.5 py-1 rounded-full text-xs font-bold transition cursor-pointer ${
                   activeType === 'reel'
-                    ? 'bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white shadow-xs'
-                    : 'text-[#6B7280]'
+                    ? 'bg-brand-gradient text-white shadow-xs'
+                    : 'text-muted'
                 }`}
               >
                 Reel
@@ -525,8 +525,8 @@ export const CreateSocialModal = () => {
                 }}
                 className={`px-2.5 py-1 rounded-full text-xs font-bold transition cursor-pointer ${
                   activeType === 'story'
-                    ? 'bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white shadow-xs'
-                    : 'text-[#6B7280]'
+                    ? 'bg-brand-gradient text-white shadow-xs'
+                    : 'text-muted'
                 }`}
               >
                 Story
@@ -537,7 +537,7 @@ export const CreateSocialModal = () => {
           <button
             type="button"
             onClick={closeCreateModal}
-            className="p-1.5 rounded-full hover:bg-orange-50 text-[#6B7280] hover:text-[#1F2937] transition cursor-pointer"
+            className="p-1.5 rounded-full hover:bg-primary/10 text-muted hover:text-ink transition cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -547,7 +547,7 @@ export const CreateSocialModal = () => {
         <div className="p-4 overflow-y-auto space-y-4 flex-1">
           {/* Error Banner */}
           {uploadError && (
-            <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-[#F43F5E] flex items-center gap-2">
+            <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-accent flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{uploadError}</span>
             </div>
@@ -555,14 +555,14 @@ export const CreateSocialModal = () => {
 
           {/* Story Sub-type Toggle (Media vs Text Status) */}
           {activeType === 'story' && (
-            <div className="flex items-center gap-2 p-1 bg-[#FFF7ED] rounded-2xl border border-[#FED7AA]/60">
+            <div className="flex items-center gap-2 p-1 bg-canvas rounded-2xl border border-line">
               <button
                 type="button"
                 onClick={() => setStoryTab('media')}
                 className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                   storyTab === 'media'
-                    ? 'bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white shadow-xs'
-                    : 'text-[#6B7280]'
+                    ? 'bg-brand-gradient text-white shadow-xs'
+                    : 'text-muted'
                 }`}
               >
                 Photo / Video Story
@@ -572,8 +572,8 @@ export const CreateSocialModal = () => {
                 onClick={() => setStoryTab('text')}
                 className={`flex-1 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                   storyTab === 'text'
-                    ? 'bg-gradient-to-r from-[#10B981] to-[#059669] text-white shadow-xs'
-                    : 'text-[#6B7280]'
+                    ? 'bg-brand-gradient text-white shadow-xs'
+                    : 'text-muted'
                 }`}
               >
                 WhatsApp Text Status
@@ -611,7 +611,7 @@ export const CreateSocialModal = () => {
 
               {/* Background Colors Palette */}
               <div className="space-y-1.5">
-                <span className="text-xs font-bold text-[#6B7280]">Background Color:</span>
+                <span className="text-xs font-bold text-muted">Background Color:</span>
                 <div className="flex items-center gap-2 overflow-x-auto py-1">
                   {['#10B981', '#059669', '#6366F1', '#EC4899', '#F59E0B', '#8B5CF6', '#3B82F6', '#EF4444', '#1F2937'].map((c) => (
                     <button
@@ -630,7 +630,7 @@ export const CreateSocialModal = () => {
               {/* Font Style & Text Align */}
               <div className="flex items-center justify-between gap-2 pt-1">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-[#6B7280]">Font:</span>
+                  <span className="text-xs font-bold text-muted">Font:</span>
                   {['sans', 'serif', 'mono', 'cursive'].map((f) => (
                     <button
                       key={f}
@@ -664,13 +664,13 @@ export const CreateSocialModal = () => {
           ) : selectedFiles.length === 0 ? (
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="w-full aspect-video rounded-2xl border-2 border-dashed border-[#FED7AA] bg-[#FFF7ED]/50 hover:bg-[#FFF7ED] transition flex flex-col items-center justify-center p-6 text-center cursor-pointer group"
+              className="w-full aspect-video rounded-2xl border-2 border-dashed border-line bg-canvas/50 hover:bg-canvas transition flex flex-col items-center justify-center p-6 text-center cursor-pointer group"
             >
-              <div className="w-12 h-12 rounded-2xl bg-white border border-[#FED7AA] flex items-center justify-center text-[#F97316] mb-2 group-hover:scale-110 transition shadow-xs">
+              <div className="w-12 h-12 rounded-2xl bg-card border border-line flex items-center justify-center text-primary mb-2 group-hover:scale-110 transition shadow-xs">
                 <Upload className="w-6 h-6" />
               </div>
-              <p className="text-xs font-bold text-[#1F2937]">Click to upload media</p>
-              <p className="text-[11px] text-[#6B7280] mt-1">
+              <p className="text-xs font-bold text-ink">Click to upload media</p>
+              <p className="text-[11px] text-muted mt-1">
                 {activeType === 'post'
                   ? 'Up to 10 photos or videos'
                   : activeType === 'reel'
@@ -725,7 +725,7 @@ export const CreateSocialModal = () => {
               {/* Crop Aspect selector for images */}
               {selectedFiles[0]?.type === 'image' && (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-[#6B7280]">Ratio:</span>
+                  <span className="text-xs font-bold text-muted">Ratio:</span>
                   <div className="flex items-center gap-1.5">
                     {['square', 'portrait', 'original'].map((mode) => (
                       <button
@@ -734,8 +734,8 @@ export const CreateSocialModal = () => {
                         onClick={() => setCropAspect(mode)}
                         className={`px-2.5 py-1 rounded-lg text-[11px] font-bold capitalize transition cursor-pointer ${
                           cropAspect === mode
-                            ? 'bg-[#F97316] text-white shadow-xs'
-                            : 'bg-[#FFF7ED] text-[#6B7280] hover:text-[#1F2937]'
+                            ? 'bg-primary text-white shadow-xs'
+                            : 'bg-canvas text-muted hover:text-ink'
                         }`}
                       >
                         {mode}
@@ -749,7 +749,7 @@ export const CreateSocialModal = () => {
 
           {/* Caption Textarea with live Autocomplete */}
           <div className="relative space-y-1">
-            <label className="text-xs font-bold text-[#1F2937]">Caption</label>
+            <label className="text-xs font-bold text-ink">Caption</label>
             <textarea
               rows={3}
               value={caption}
@@ -759,26 +759,26 @@ export const CreateSocialModal = () => {
                   ? 'Add text on story (optional)...'
                   : 'Write a caption with #hashtags and @mentions...'
               }
-              className="w-full p-3 rounded-2xl border border-[#FED7AA] bg-[#FFF7ED]/30 text-xs text-[#1F2937] placeholder-[#6B7280] focus:outline-hidden focus:border-[#F97316] transition"
+              className="w-full p-3 rounded-2xl border border-line bg-canvas text-xs text-ink placeholder-muted focus:outline-hidden focus:border-primary transition"
             />
 
             {/* Autocomplete dropdown suggestions */}
             {autocompleteQuery && (
-              <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-white rounded-2xl border border-[#FED7AA] shadow-xl p-2 max-h-36 overflow-y-auto space-y-1">
+              <div className="absolute left-0 right-0 top-full mt-1 z-30 bg-card rounded-2xl border border-line shadow-xl p-2 max-h-36 overflow-y-auto space-y-1">
                 {autocompleteQuery.type === 'tag' &&
                   (autocompleteResults.tags?.length > 0 ? (
                     autocompleteResults.tags.map((tag) => (
                       <div
                         key={tag.tag}
                         onClick={() => handleApplyAutocomplete(tag.tag)}
-                        className="p-1.5 rounded-xl hover:bg-orange-50 cursor-pointer flex items-center justify-between text-xs font-semibold text-[#1F2937]"
+                        className="p-1.5 rounded-xl hover:bg-primary/10 cursor-pointer flex items-center justify-between text-xs font-semibold text-ink"
                       >
-                        <span className="text-[#F97316]">#{tag.tag}</span>
-                        <span className="text-[10px] text-[#6B7280]">{tag.count} posts</span>
+                        <span className="text-primary">#{tag.tag}</span>
+                        <span className="text-[10px] text-muted">{tag.count} posts</span>
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-[#6B7280] p-1">No matching tags</p>
+                    <p className="text-xs text-muted p-1">No matching tags</p>
                   ))}
 
                 {autocompleteQuery.type === 'user' &&
@@ -787,14 +787,14 @@ export const CreateSocialModal = () => {
                       <div
                         key={u._id}
                         onClick={() => handleApplyAutocomplete(u.username)}
-                        className="p-1.5 rounded-xl hover:bg-orange-50 cursor-pointer flex items-center gap-2 text-xs font-semibold text-[#1F2937]"
+                        className="p-1.5 rounded-xl hover:bg-primary/10 cursor-pointer flex items-center gap-2 text-xs font-semibold text-ink"
                       >
-                        <span className="text-[#EC4899]">@{u.username}</span>
-                        <span className="text-[10px] text-[#6B7280]">{u.name}</span>
+                        <span className="text-secondary">@{u.username}</span>
+                        <span className="text-[10px] text-muted">{u.name}</span>
                       </div>
                     ))
                   ) : (
-                    <p className="text-xs text-[#6B7280] p-1">No matching users</p>
+                    <p className="text-xs text-muted p-1">No matching users</p>
                   ))}
               </div>
             )}
@@ -802,7 +802,7 @@ export const CreateSocialModal = () => {
 
           {/* AI Assistant Tools (Caption, Tone, Hashtags, Alt-Text) */}
           {aiEnabled && (
-            <div className="p-3 bg-[#FFF7ED] rounded-2xl border border-[#FED7AA]/80 space-y-2.5">
+            <div className="p-3 bg-canvas rounded-2xl border border-line space-y-2.5">
               <div className="flex items-center justify-between">
                 <AiBadge label="Flash AI Assistant" size="xs" />
                 {selectedFiles.length > 0 && selectedFiles[0]?.type === 'image' && (
@@ -810,7 +810,7 @@ export const CreateSocialModal = () => {
                     type="button"
                     onClick={handleDescribeImage}
                     disabled={isDescribingImage}
-                    className="text-[11px] font-bold text-[#F97316] hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                    className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
                   >
                     <Sparkles className="w-3 h-3" />
                     <span>{isDescribingImage ? 'Describing...' : 'Describe Image'}</span>
@@ -821,7 +821,7 @@ export const CreateSocialModal = () => {
               {/* Tone chips + Generate caption */}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-1">
-                  <span className="text-[10px] font-bold text-[#6B7280]">Tone:</span>
+                  <span className="text-[10px] font-bold text-muted">Tone:</span>
                   {['fun', 'professional', 'short', 'poetic'].map((tone) => (
                     <button
                       key={tone}
@@ -829,8 +829,8 @@ export const CreateSocialModal = () => {
                       onClick={() => setSelectedTone(tone)}
                       className={`px-2 py-0.5 rounded-lg text-[10px] font-bold capitalize transition cursor-pointer ${
                         selectedTone === tone
-                          ? 'bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white shadow-xs'
-                          : 'bg-white text-[#6B7280] border border-[#FED7AA]/60 hover:text-[#1F2937]'
+                          ? 'bg-brand-gradient text-white shadow-xs'
+                          : 'bg-card text-muted border border-line hover:text-ink'
                       }`}
                     >
                       {tone}
@@ -862,15 +862,15 @@ export const CreateSocialModal = () => {
 
               {/* Suggested Hashtag Chips */}
               {suggestedHashtags.length > 0 && (
-                <div className="space-y-1 pt-1 border-t border-[#FED7AA]/50">
-                  <span className="text-[10px] font-bold text-[#6B7280]">Suggested Hashtags (tap to append):</span>
+                <div className="space-y-1 pt-1 border-t border-line">
+                  <span className="text-[10px] font-bold text-muted">Suggested Hashtags (tap to append):</span>
                   <div className="flex flex-wrap gap-1.5">
                     {suggestedHashtags.map((tag) => (
                       <button
                         key={tag}
                         type="button"
                         onClick={() => handleAddHashtag(tag)}
-                        className="px-2 py-0.5 rounded-lg bg-white border border-[#FED7AA] text-[10px] font-bold text-[#F97316] hover:bg-orange-50 transition cursor-pointer"
+                        className="px-2 py-0.5 rounded-lg bg-card border border-line text-[10px] font-bold text-primary hover:bg-primary/10 transition cursor-pointer"
                       >
                         {tag.startsWith('#') ? tag : `#${tag}`}
                       </button>
@@ -884,13 +884,13 @@ export const CreateSocialModal = () => {
           {/* Reel Audio Track */}
           {activeType === 'reel' && (
             <div className="space-y-1">
-              <label className="text-xs font-bold text-[#1F2937]">Audio Name</label>
+              <label className="text-xs font-bold text-ink">Audio Name</label>
               <input
                 type="text"
                 value={audioName}
                 onChange={(e) => setAudioName(e.target.value)}
                 placeholder="Original Audio or Track Title"
-                className="w-full px-3 py-2 rounded-xl border border-[#FED7AA] bg-[#FFF7ED]/30 text-xs text-[#1F2937] focus:outline-hidden focus:border-[#F97316]"
+                className="w-full px-3 py-2 rounded-xl border border-line bg-canvas text-xs text-ink focus:outline-hidden focus:border-primary"
               />
             </div>
           )}
@@ -898,34 +898,34 @@ export const CreateSocialModal = () => {
           {/* Location Input (posts & reels) */}
           {activeType !== 'story' && (
             <div className="space-y-1">
-              <label className="text-xs font-bold text-[#1F2937]">Location</label>
-              <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-[#FED7AA] bg-[#FFF7ED]/30">
-                <MapPin className="w-3.5 h-3.5 text-[#F97316]" />
+              <label className="text-xs font-bold text-ink">Location</label>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-line bg-canvas">
+                <MapPin className="w-3.5 h-3.5 text-primary" />
                 <input
                   type="text"
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="Add location (e.g. Mumbai, New York)"
-                  className="w-full text-xs text-[#1F2937] bg-transparent focus:outline-hidden"
+                  className="w-full text-xs text-ink bg-transparent focus:outline-hidden"
                 />
               </div>
             </div>
           )}
 
           {/* Settings Toggles */}
-          <div className="pt-2 space-y-2 border-t border-[#FED7AA]/50">
+          <div className="pt-2 space-y-2 border-t border-line">
             {activeType !== 'story' ? (
-              <label className="flex items-center justify-between text-xs text-[#1F2937] font-semibold cursor-pointer">
+              <label className="flex items-center justify-between text-xs text-ink font-semibold cursor-pointer">
                 <span>Allow comments</span>
                 <input
                   type="checkbox"
                   checked={allowComments}
                   onChange={(e) => setAllowComments(e.target.checked)}
-                  className="w-4 h-4 accent-[#F97316] rounded-sm cursor-pointer"
+                  className="w-4 h-4 accent-primary rounded-sm cursor-pointer"
                 />
               </label>
             ) : (
-              <label className="flex items-center justify-between text-xs text-[#1F2937] font-semibold cursor-pointer">
+              <label className="flex items-center justify-between text-xs text-ink font-semibold cursor-pointer">
                 <span className="flex items-center gap-1.5">
                   <Lock className="w-3.5 h-3.5 text-secondary" />
                   <span>Close Friends Only</span>
@@ -941,16 +941,16 @@ export const CreateSocialModal = () => {
 
             {/* Optional AI-Assisted tag */}
             {aiEnabled && (
-              <label className="flex items-center justify-between text-xs text-[#1F2937] font-semibold cursor-pointer">
+              <label className="flex items-center justify-between text-xs text-ink font-semibold cursor-pointer">
                 <span className="flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-[#F97316]" />
+                  <Sparkles className="w-3.5 h-3.5 text-primary" />
                   <span>Add #AIAssisted tag</span>
                 </span>
                 <input
                   type="checkbox"
                   checked={isAiAssisted}
                   onChange={(e) => setIsAiAssisted(e.target.checked)}
-                  className="w-4 h-4 accent-[#F97316] rounded-sm cursor-pointer"
+                  className="w-4 h-4 accent-primary rounded-sm cursor-pointer"
                 />
               </label>
             )}
@@ -959,13 +959,13 @@ export const CreateSocialModal = () => {
           {/* Upload Progress Bar */}
           {isUploading && (
             <div className="space-y-2 pt-2">
-              <div className="flex items-center justify-between text-xs font-bold text-[#1F2937]">
+              <div className="flex items-center justify-between text-xs font-bold text-ink">
                 <span>Uploading to Cloudinary...</span>
                 <span>{uploadProgress}%</span>
               </div>
-              <div className="w-full h-2 rounded-full bg-[#FED7AA]/40 overflow-hidden">
+              <div className="w-full h-2 rounded-full bg-line/40 overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-[#F97316] to-[#EC4899] transition-all duration-200"
+                  className="h-full bg-brand-gradient transition-all duration-200"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
@@ -974,12 +974,12 @@ export const CreateSocialModal = () => {
         </div>
 
         {/* Footer Actions */}
-        <div className="p-4 border-t border-[#FED7AA]/60 flex items-center justify-between gap-3 bg-[#FFF7ED]/40">
+        <div className="p-4 border-t border-line flex items-center justify-between gap-3 bg-canvas">
           {isUploading ? (
             <button
               type="button"
               onClick={handleCancelUpload}
-              className="px-4 py-2 rounded-xl border border-rose-300 text-[#F43F5E] text-xs font-bold hover:bg-rose-50 transition cursor-pointer"
+              className="px-4 py-2 rounded-xl border border-rose-300 text-accent text-xs font-bold hover:bg-rose-500/10 transition cursor-pointer"
             >
               Cancel
             </button>
@@ -987,7 +987,7 @@ export const CreateSocialModal = () => {
             <button
               type="button"
               onClick={closeCreateModal}
-              className="px-4 py-2 rounded-xl border border-[#FED7AA] text-[#6B7280] text-xs font-bold hover:bg-orange-50 transition cursor-pointer"
+              className="px-4 py-2 rounded-xl border border-line text-muted text-xs font-bold hover:bg-primary/10 transition cursor-pointer"
             >
               Discard
             </button>
@@ -997,7 +997,7 @@ export const CreateSocialModal = () => {
             type="button"
             disabled={isUploading || selectedFiles.length === 0}
             onClick={() => handlePublish(false)}
-            className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-xs font-bold shadow-md shadow-orange-500/20 hover:opacity-95 disabled:opacity-50 transition flex items-center gap-1.5 cursor-pointer"
+            className="px-6 py-2.5 rounded-xl bg-brand-gradient text-white text-xs font-bold shadow-md hover:opacity-95 disabled:opacity-50 transition flex items-center gap-1.5 cursor-pointer"
           >
             {isUploading ? (
               <>
@@ -1022,19 +1022,19 @@ export const CreateSocialModal = () => {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-rose-200 space-y-4"
+              className="w-full max-w-sm bg-card rounded-3xl p-6 shadow-2xl border border-rose-200/30 space-y-4"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-rose-100 text-[#F43F5E] flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-rose-500/20 text-accent flex items-center justify-center flex-shrink-0">
                   <AlertCircle className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-[#1F2937]">Safety Review Notice</h3>
-                  <p className="text-[11px] text-[#6B7280]">AI moderation feedback</p>
+                  <h3 className="text-sm font-bold text-ink">Safety Review Notice</h3>
+                  <p className="text-[11px] text-muted">AI moderation feedback</p>
                 </div>
               </div>
 
-              <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800">
+              <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-accent">
                 <p className="font-semibold">
                   {moderationWarning.reason || 'This caption might contain sensitive or controversial language.'}
                 </p>
@@ -1044,14 +1044,14 @@ export const CreateSocialModal = () => {
                 <button
                   type="button"
                   onClick={() => setModerationWarning(null)}
-                  className="px-4 py-2 rounded-xl border border-[#FED7AA] text-xs font-bold text-[#1F2937] hover:bg-orange-50 transition cursor-pointer"
+                  className="px-4 py-2 rounded-xl border border-line text-xs font-bold text-ink hover:bg-primary/10 transition cursor-pointer"
                 >
                   Edit Caption
                 </button>
                 <button
                   type="button"
                   onClick={() => handlePublish(true)}
-                  className="px-4 py-2 rounded-xl bg-rose-600 text-white text-xs font-bold shadow-md shadow-rose-500/20 hover:bg-rose-700 transition cursor-pointer"
+                  className="px-4 py-2 rounded-xl bg-accent text-white text-xs font-bold shadow-md hover:opacity-90 transition cursor-pointer"
                 >
                   Post Anyway
                 </button>

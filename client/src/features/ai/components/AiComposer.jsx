@@ -157,7 +157,7 @@ export const AiComposer = ({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={attachments.length >= 4 || isStreaming || disabled}
-          className="p-2 text-muted hover:text-primary dark:hover:text-pink-400 rounded-xl hover:bg-orange-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-40"
+          className="p-2 text-muted hover:text-primary dark:hover:text-pink-400 rounded-xl hover:bg-primary/10 dark:hover:bg-zinc-700 transition-colors disabled:opacity-40"
           title="Attach image (up to 4, max 5MB)"
           aria-label="Attach images"
         >

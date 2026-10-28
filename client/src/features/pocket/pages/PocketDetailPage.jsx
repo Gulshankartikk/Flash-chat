@@ -328,10 +328,10 @@ export const PocketDetailPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FFF7ED]">
+      <div className="min-h-screen flex items-center justify-center bg-canvas">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-[#F97316] border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-semibold text-[#6B7280]">Loading item...</span>
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-semibold text-muted">Loading item...</span>
         </div>
       </div>
     );
@@ -340,14 +340,14 @@ export const PocketDetailPage = () => {
   if (errorMessage) {
     return (
       <div className="p-6 max-w-xl mx-auto text-center space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+        <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-[#F43F5E] flex items-center justify-center mx-auto">
           <ShieldAlert className="w-6 h-6" />
         </div>
-        <h2 className="text-lg font-bold text-[#1F2937]">Unable to load Pocket item</h2>
-        <p className="text-xs text-[#6B7280]">{errorMessage}</p>
+        <h2 className="text-lg font-bold text-ink">Unable to load Pocket item</h2>
+        <p className="text-xs text-muted">{errorMessage}</p>
         <button
           onClick={() => navigate('/pocket')}
-          className="px-4 py-2 rounded-2xl bg-[#F97316] text-white text-xs font-bold"
+          className="px-4 py-2 rounded-2xl bg-brand-gradient text-white text-xs font-bold cursor-pointer"
         >
           Back to Pocket
         </button>
@@ -356,12 +356,12 @@ export const PocketDetailPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF7ED] p-4 sm:p-8 max-w-3xl mx-auto space-y-6">
+    <div className="min-h-screen bg-canvas p-4 sm:p-8 max-w-3xl mx-auto space-y-6">
       {/* Top Navbar */}
       <div className="flex items-center justify-between gap-3">
         <button
           onClick={() => navigate('/pocket')}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#FED7AA] text-xs font-bold text-[#1F2937] hover:bg-[#FED7AA]/40 transition-colors shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-line text-xs font-bold text-ink hover:bg-line/40 transition-colors shadow-sm cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back</span>
@@ -370,7 +370,7 @@ export const PocketDetailPage = () => {
         {/* Autosave status indicator */}
         <div className="flex items-center gap-2">
           {saveStatus === 'saving' && (
-            <span className="text-[11px] font-semibold text-[#6B7280] animate-pulse">Saving...</span>
+            <span className="text-[11px] font-semibold text-muted animate-pulse">Saving...</span>
           )}
           {saveStatus === 'saved' && (
             <span className="flex items-center gap-1 text-[11px] font-bold text-primary">
@@ -380,7 +380,7 @@ export const PocketDetailPage = () => {
           )}
 
           {/* Privacy badge */}
-          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-cream border border-line text-[10px] font-bold text-primary">
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-card border border-line text-[10px] font-bold text-primary">
             <ShieldCheck className="w-3 h-3" />
             <span>Only you can see this</span>
           </div>
@@ -395,9 +395,9 @@ export const PocketDetailPage = () => {
               triggerAutosave({ isFavorite: nextFav });
             }}
             aria-label="Toggle Favorite"
-            className="p-2 rounded-xl bg-white border border-[#FED7AA] text-[#6B7280] hover:text-amber-500 shadow-sm"
+            className="p-2 rounded-xl bg-card border border-line text-muted hover:text-amber-400 shadow-sm cursor-pointer"
           >
-            <Star className={`w-4 h-4 ${isFavorite ? 'fill-amber-400 text-amber-500' : ''}`} />
+            <Star className={`w-4 h-4 ${isFavorite ? 'fill-amber-400 text-amber-400' : ''}`} />
           </button>
 
           <button
@@ -407,9 +407,9 @@ export const PocketDetailPage = () => {
               triggerAutosave({ isPinned: nextPin });
             }}
             aria-label="Toggle Pin"
-            className="p-2 rounded-xl bg-white border border-[#FED7AA] text-[#6B7280] hover:text-[#F97316] shadow-sm"
+            className="p-2 rounded-xl bg-card border border-line text-muted hover:text-primary shadow-sm cursor-pointer"
           >
-            <Pin className={`w-4 h-4 ${isPinned ? 'fill-[#F97316] text-[#F97316]' : ''}`} />
+            <Pin className={`w-4 h-4 ${isPinned ? 'fill-primary text-primary' : ''}`} />
           </button>
 
           <button
@@ -419,22 +419,22 @@ export const PocketDetailPage = () => {
               triggerAutosave({ isLocked: nextLock });
             }}
             aria-label="Toggle Lock"
-            className="p-2 rounded-xl bg-white border border-[#FED7AA] text-[#6B7280] hover:text-[#F97316] shadow-sm"
+            className="p-2 rounded-xl bg-card border border-line text-muted hover:text-primary shadow-sm cursor-pointer"
           >
-            {isLocked ? <Lock className="w-4 h-4 text-[#F97316]" /> : <Unlock className="w-4 h-4" />}
+            {isLocked ? <Lock className="w-4 h-4 text-primary" /> : <Unlock className="w-4 h-4" />}
           </button>
 
           {/* AI Feature Buttons */}
           {aiEnabled && (
-            <div className="flex items-center gap-1 ml-1 pl-1 border-l border-[#FED7AA]">
+            <div className="flex items-center gap-1 ml-1 pl-1 border-l border-line">
               <button
                 onClick={handleSummarize}
                 disabled={isAiDisabled}
                 title={aiDisabledTooltip || "Summarize with Flash AI"}
                 aria-label="Summarize with AI"
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-orange-50 to-pink-50 border border-[#FED7AA] text-xs font-bold text-[#F97316] hover:from-orange-100 hover:to-pink-100 transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary/20 border border-primary/30 text-xs font-bold text-primary hover:bg-primary/30 transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5 text-[#F97316]" />
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
                 <span className="hidden sm:inline">Summarize</span>
               </button>
 
@@ -443,9 +443,9 @@ export const PocketDetailPage = () => {
                 disabled={isAiDisabled}
                 title={aiDisabledTooltip || "Auto-tag with Flash AI"}
                 aria-label="Auto-tag with AI"
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-orange-50 to-pink-50 border border-[#FED7AA] text-xs font-bold text-[#EC4899] hover:from-orange-100 hover:to-pink-100 transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary/20 border border-primary/30 text-xs font-bold text-secondary hover:bg-primary/30 transition shadow-xs disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
-                <Tag className="w-3.5 h-3.5 text-[#EC4899]" />
+                <Tag className="w-3.5 h-3.5 text-secondary" />
                 <span className="hidden sm:inline">Auto-Tag</span>
               </button>
             </div>
@@ -454,7 +454,7 @@ export const PocketDetailPage = () => {
           <button
             onClick={handleDelete}
             aria-label="Delete item"
-            className="p-2 rounded-xl bg-white border border-[#FED7AA] text-[#6B7280] hover:text-rose-600 shadow-sm cursor-pointer"
+            className="p-2 rounded-xl bg-card border border-line text-muted hover:text-rose-400 shadow-sm cursor-pointer"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -462,7 +462,7 @@ export const PocketDetailPage = () => {
       </div>
 
       {/* Main Item Container */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#FED7AA] shadow-sm space-y-6">
+      <div className="bg-card rounded-3xl p-6 sm:p-8 border border-line shadow-sm space-y-6">
         {/* Title Input */}
         <div>
           <input
@@ -473,21 +473,21 @@ export const PocketDetailPage = () => {
               triggerAutosave({ title: e.target.value });
             }}
             placeholder="Item title..."
-            className="w-full text-xl sm:text-2xl font-black text-[#1F2937] placeholder:text-[#6B7280]/60 focus:outline-none"
+            className="w-full text-xl sm:text-2xl font-black text-ink placeholder:text-muted/60 focus:outline-none"
           />
         </div>
 
         {/* Metadata Bar (Folder picker & Date) */}
-        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-[#FED7AA]/50 text-xs">
+        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-line text-xs">
           <div className="flex items-center gap-1.5">
-            <Folder className="w-3.5 h-3.5 text-[#F97316]" />
+            <Folder className="w-3.5 h-3.5 text-primary" />
             <select
               value={selectedFolder}
               onChange={(e) => {
                 setSelectedFolder(e.target.value);
                 triggerAutosave({ folder: e.target.value || null });
               }}
-              className="bg-[#FFF7ED] border border-[#FED7AA] rounded-xl px-2.5 py-1 text-xs font-semibold text-[#1F2937] focus:outline-none"
+              className="bg-canvas border border-line rounded-xl px-2.5 py-1 text-xs font-semibold text-ink focus:outline-none"
             >
               <option value="">No Folder (General)</option>
               {folders.map((f) => (
@@ -498,7 +498,7 @@ export const PocketDetailPage = () => {
             </select>
           </div>
 
-          <span className="text-[#6B7280] text-[11px]">
+          <span className="text-muted text-[11px]">
             Created on {new Date(item.createdAt).toLocaleString(undefined, {
               dateStyle: 'medium',
               timeStyle: 'short'
@@ -510,7 +510,7 @@ export const PocketDetailPage = () => {
           {item.source?.snapshot?.conversationId && (
             <button
               onClick={() => navigate(`/chats/${item.source.snapshot.conversationId}`)}
-              className="ml-auto text-xs font-bold text-[#F97316] hover:underline flex items-center gap-1"
+              className="ml-auto text-xs font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
             >
               <span>Open in Chat</span>
               <ExternalLink className="w-3 h-3" />
@@ -520,7 +520,7 @@ export const PocketDetailPage = () => {
           {item.source?.kind === 'social_post' && item.source?.refId && (
             <button
               onClick={() => navigate(`/social/post/${item.source.refId}`)}
-              className="ml-auto text-xs font-bold text-[#EC4899] hover:underline flex items-center gap-1"
+              className="ml-auto text-xs font-bold text-secondary hover:underline flex items-center gap-1 cursor-pointer"
             >
               <span>Open Original Post</span>
               <ExternalLink className="w-3 h-3" />
@@ -530,7 +530,7 @@ export const PocketDetailPage = () => {
 
         {/* AI Summary Highlight Card (if generated) */}
         {item.aiSummary && (
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-orange-50 to-pink-50 border border-[#FED7AA] space-y-2">
+          <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1.5">
                 <AiBadge label="Flash AI Summary" size="xs" />
@@ -540,13 +540,13 @@ export const PocketDetailPage = () => {
                   navigator.clipboard.writeText(item.aiSummary);
                   alert('AI Summary copied to clipboard!');
                 }}
-                className="text-[11px] font-bold text-[#F97316] hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
               >
                 <Copy className="w-3 h-3" />
                 <span>Copy</span>
               </button>
             </div>
-            <div className="text-xs text-[#1F2937] leading-relaxed">
+            <div className="text-xs text-ink leading-relaxed">
               <AiMarkdown content={item.aiSummary} />
             </div>
           </div>
@@ -573,7 +573,7 @@ export const PocketDetailPage = () => {
               />
               <button
                 onClick={handleDecrypt}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-brand text-white text-xs font-bold shadow-sm hover:brightness-105 transition-all whitespace-nowrap"
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-brand text-white text-xs font-bold shadow-sm hover:brightness-105 transition-all whitespace-nowrap cursor-pointer"
               >
                 Decrypt
               </button>
@@ -591,23 +591,23 @@ export const PocketDetailPage = () => {
               }}
               rows={12}
               placeholder="Start writing or typing markdown here..."
-              className="w-full text-sm leading-relaxed p-4 rounded-2xl bg-[#FFF7ED]/50 border border-[#FED7AA]/60 text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#F97316]/40 resize-y font-sans placeholder:text-[#6B7280]"
+              className="w-full text-sm leading-relaxed p-4 rounded-2xl bg-canvas border border-line text-ink focus:outline-none focus:ring-2 focus:ring-primary/40 resize-y font-sans placeholder:text-muted/60"
             />
           </div>
         )}
 
         {/* Media Attachments Viewer */}
         {item.media && item.media.length > 0 && (
-          <div className="space-y-3 pt-4 border-t border-[#FED7AA]/50">
-            <h4 className="text-xs font-bold text-[#1F2937]">Attachments ({item.media.length})</h4>
+          <div className="space-y-3 pt-4 border-t border-line">
+            <h4 className="text-xs font-bold text-ink">Attachments ({item.media.length})</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {item.media.map((m, idx) => (
-                <div key={idx} className="p-3 bg-[#FFF7ED] rounded-2xl border border-[#FED7AA]/60 space-y-2">
+                <div key={idx} className="p-3 bg-canvas rounded-2xl border border-line space-y-2">
                   {m.mimeType?.startsWith('image/') ? (
                     <img
                       src={m.url}
                       alt="Attachment"
-                      className="w-full h-40 object-cover rounded-xl border border-[#FED7AA]/40"
+                      className="w-full h-40 object-cover rounded-xl border border-line"
                     />
                   ) : m.mimeType?.startsWith('video/') ? (
                     <video src={m.url} controls className="w-full h-40 rounded-xl bg-black" />
@@ -615,15 +615,15 @@ export const PocketDetailPage = () => {
                     <audio src={m.url} controls className="w-full" />
                   ) : (
                     <div className="flex items-center gap-2">
-                      <FileCheck className="w-6 h-6 text-amber-600" />
-                      <span className="text-xs font-bold truncate text-[#1F2937]">Document</span>
+                      <FileCheck className="w-6 h-6 text-amber-400" />
+                      <span className="text-xs font-bold truncate text-ink">Document</span>
                     </div>
                   )}
                   <a
                     href={m.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-[11px] font-bold text-[#F97316] hover:underline"
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline cursor-pointer"
                   >
                     <span>View full file</span>
                     <ExternalLink className="w-3 h-3" />
@@ -636,7 +636,7 @@ export const PocketDetailPage = () => {
 
         {/* Link Preview Card */}
         {item.type === 'link' && item.linkPreview && (
-          <div className="p-4 bg-[#FFF7ED] rounded-2xl border border-[#FED7AA] flex items-start gap-4">
+          <div className="p-4 bg-canvas rounded-2xl border border-line flex items-start gap-4">
             {item.linkPreview.image && (
               <img
                 src={item.linkPreview.image}
@@ -645,13 +645,13 @@ export const PocketDetailPage = () => {
               />
             )}
             <div className="min-w-0 flex-1 space-y-1">
-              <h5 className="text-xs font-bold text-[#1F2937] truncate">{item.linkPreview.title}</h5>
-              <p className="text-[11px] text-[#6B7280] line-clamp-2">{item.linkPreview.description}</p>
+              <h5 className="text-xs font-bold text-ink truncate">{item.linkPreview.title}</h5>
+              <p className="text-[11px] text-muted line-clamp-2">{item.linkPreview.description}</p>
               <a
                 href={item.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-bold text-[#F97316] hover:underline pt-1"
+                className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:underline pt-1 cursor-pointer"
               >
                 <span>Open Link</span>
                 <ExternalLink className="w-3 h-3" />
@@ -661,9 +661,9 @@ export const PocketDetailPage = () => {
         )}
 
         {/* Tags Section */}
-        <div className="space-y-2 pt-4 border-t border-[#FED7AA]/50">
-          <div className="flex items-center gap-1.5 text-xs font-bold text-[#1F2937]">
-            <Tag className="w-3.5 h-3.5 text-[#F97316]" />
+        <div className="space-y-2 pt-4 border-t border-line">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-ink">
+            <Tag className="w-3.5 h-3.5 text-primary" />
             <span>Tags</span>
           </div>
 
@@ -671,12 +671,12 @@ export const PocketDetailPage = () => {
             {tags.map((t) => (
               <span
                 key={t}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-[#FFF7ED] text-xs font-bold text-[#F97316] border border-[#FED7AA]"
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-primary/20 text-xs font-bold text-primary border border-primary/30"
               >
                 #{t}
                 <button
                   onClick={() => handleRemoveTag(t)}
-                  className="hover:text-rose-600 transition-colors ml-0.5"
+                  className="hover:text-rose-400 transition-colors ml-0.5 cursor-pointer"
                 >
                   &times;
                 </button>
@@ -694,19 +694,19 @@ export const PocketDetailPage = () => {
                 }
               }}
               placeholder="+ Add tag..."
-              className="text-xs px-2.5 py-1 rounded-xl bg-transparent border border-dashed border-[#FED7AA] focus:outline-none focus:border-[#F97316] text-[#1F2937]"
+              className="text-xs px-2.5 py-1 rounded-xl bg-transparent border border-dashed border-line focus:outline-none focus:border-primary text-ink"
             />
           </div>
 
           {/* Tag suggestions */}
           {availableTags.length > 0 && (
             <div className="flex flex-wrap items-center gap-1 pt-1">
-              <span className="text-[10px] text-[#6B7280]">Suggestions:</span>
+              <span className="text-[10px] text-muted">Suggestions:</span>
               {availableTags.slice(0, 6).map((t) => (
                 <button
                   key={t.name}
                   onClick={() => handleAddTag(t.name)}
-                  className="text-[10px] font-semibold text-[#6B7280] hover:text-[#F97316] px-1.5 py-0.5 rounded bg-white border border-[#FED7AA]/60"
+                  className="text-[10px] font-semibold text-muted hover:text-primary px-1.5 py-0.5 rounded bg-card border border-line cursor-pointer"
                 >
                   #{t.name}
                 </button>
@@ -717,10 +717,10 @@ export const PocketDetailPage = () => {
 
         {/* Encrypt item button if not already encrypted */}
         {!isEncrypted && (
-          <div className="pt-4 border-t border-[#FED7AA]/50">
+          <div className="pt-4 border-t border-line">
             <button
               onClick={() => setShowEncryptModal(true)}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors border border-primary/20"
+              className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-primary/10 hover:bg-primary/20 text-primary text-xs font-bold transition-colors border border-primary/20 cursor-pointer"
             >
               <KeyRound className="w-4 h-4" />
               <span>Enable Client-Side Encryption for this item</span>
@@ -845,17 +845,17 @@ export const PocketDetailPage = () => {
           ) : (
             <div className="space-y-4">
               {aiSheet.type === 'summary' ? (
-                <div className="p-4 rounded-2xl bg-[#FFF7ED] border border-[#FED7AA] text-xs text-[#1F2937] leading-relaxed max-h-[50vh] overflow-y-auto">
+                <div className="p-4 rounded-2xl bg-canvas border border-line text-xs text-ink leading-relaxed max-h-[50vh] overflow-y-auto">
                   <AiMarkdown content={aiSheet.content} />
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <span className="text-xs font-bold text-[#1F2937]">Suggested Tags:</span>
+                  <span className="text-xs font-bold text-ink">Suggested Tags:</span>
                   <div className="flex flex-wrap gap-2">
                     {aiSheet.tags.map((t) => (
                       <span
                         key={t}
-                        className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-orange-50 to-pink-50 text-[#F97316] font-bold text-xs border border-[#FED7AA]"
+                        className="px-3 py-1.5 rounded-xl bg-primary/20 text-primary font-bold text-xs border border-primary/30"
                       >
                         #{t}
                       </span>
@@ -865,11 +865,11 @@ export const PocketDetailPage = () => {
               )}
 
               {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#FED7AA]/60">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">
                 <button
                   type="button"
                   onClick={aiSheet.type === 'summary' ? handleSummarize : handleAutoTag}
-                  className="px-3 py-2 rounded-xl border border-[#FED7AA] text-xs font-bold text-[#6B7280] hover:text-[#1F2937] hover:bg-orange-50 transition cursor-pointer"
+                  className="px-3 py-2 rounded-xl border border-line text-xs font-bold text-muted hover:text-ink hover:bg-line/40 transition cursor-pointer"
                 >
                   Regenerate
                 </button>
@@ -881,7 +881,7 @@ export const PocketDetailPage = () => {
                     navigator.clipboard.writeText(textToCopy);
                     alert('Copied to clipboard!');
                   }}
-                  className="px-3 py-2 rounded-xl border border-[#FED7AA] text-xs font-bold text-[#6B7280] hover:text-[#1F2937] hover:bg-orange-50 transition cursor-pointer"
+                  className="px-3 py-2 rounded-xl border border-line text-xs font-bold text-muted hover:text-ink hover:bg-line/40 transition cursor-pointer"
                 >
                   Copy
                 </button>

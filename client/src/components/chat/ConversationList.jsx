@@ -191,8 +191,8 @@ export const ConversationList = ({
       <div
         key={conv._id}
         onClick={() => onSelectConversation(conv)}
-        className={`group flex items-center gap-3 p-3.5 hover:bg-orange-50/40 transition cursor-pointer relative ${
-          isSelected ? 'bg-orange-50/70 border-l-4 border-l-primary' : ''
+        className={`group flex items-center gap-3 p-3.5 hover:bg-primary/10 transition cursor-pointer relative ${
+          isSelected ? 'bg-primary/20 border-l-4 border-l-primary' : ''
         }`}
       >
         {/* Avatar */}
@@ -339,7 +339,7 @@ export const ConversationList = ({
                       setShowPlusMenu(false);
                       if (onOpenNewChat) onOpenNewChat('direct');
                     }}
-                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-orange-50/60 text-ink transition font-bold flex items-center gap-2.5 cursor-pointer"
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-primary/10 text-ink transition font-bold flex items-center gap-2.5 cursor-pointer"
                   >
                     <MessageSquare className="w-4 h-4 text-primary" />
                     <span>New chat</span>
@@ -351,7 +351,7 @@ export const ConversationList = ({
                       setShowPlusMenu(false);
                       if (onOpenNewChat) onOpenNewChat('group');
                     }}
-                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-orange-50/60 text-ink transition font-bold flex items-center gap-2.5 cursor-pointer"
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-primary/10 text-ink transition font-bold flex items-center gap-2.5 cursor-pointer"
                   >
                     <Users className="w-4 h-4 text-secondary" />
                     <span>New group</span>
@@ -363,7 +363,7 @@ export const ConversationList = ({
                       setShowPlusMenu(false);
                       setIsAddContactOpen(true);
                     }}
-                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-orange-50/60 text-ink transition font-bold flex items-center gap-2.5 cursor-pointer"
+                    className="w-full text-left px-3 py-2 rounded-xl hover:bg-primary/10 text-ink transition font-bold flex items-center gap-2.5 cursor-pointer"
                   >
                     <UserPlus className="w-4 h-4 text-accent" />
                     <span>New contact</span>
@@ -475,7 +475,7 @@ export const ConversationList = ({
           {messageRequests.length > 0 && filterTab !== 'archived' && filterTab !== 'groups' && filterTab !== 'requests' && (
             <div
               onClick={() => setFilterTab('requests')}
-              className="p-3 bg-gradient-to-r from-primary/10 via-secondary/10 to-transparent hover:bg-orange-50/50 cursor-pointer flex items-center justify-between transition border-b border-line/60"
+              className="p-3 bg-gradient-to-r from-primary/10 via-secondary/10 to-transparent hover:bg-primary/10 cursor-pointer flex items-center justify-between transition border-b border-line/60"
             >
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">
@@ -557,7 +557,7 @@ export const ConversationList = ({
                     <div
                       key={c._id}
                       onClick={() => handleStartChatWithContact(c)}
-                      className="flex items-center justify-between p-3.5 hover:bg-orange-50/40 transition cursor-pointer"
+                      className="flex items-center justify-between p-3.5 hover:bg-primary/10 transition cursor-pointer"
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <Avatar
@@ -625,9 +625,9 @@ export const ConversationList = ({
                         onSelectConversation({ ...pending, isPending: true });
                       }
                     }}
-                    className="flex items-center gap-3 p-3.5 hover:bg-orange-50/40 transition cursor-pointer relative"
+                    className="flex items-center gap-3 p-3.5 hover:bg-primary/10 transition cursor-pointer relative"
                   >
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-500 to-orange-400 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-brand-gradient text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
                       <Clock className="w-5 h-5" />
                     </div>
                     <div className="flex-1 min-w-0">

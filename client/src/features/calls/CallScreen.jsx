@@ -97,7 +97,7 @@ export const CallScreen = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[#111827] text-white overflow-hidden select-none">
+    <div className="fixed inset-0 z-50 flex flex-col bg-canvas text-white overflow-hidden select-none">
       {/* Top Bar: Caller Info, Duration, Quality */}
       <div className="absolute top-0 left-0 right-0 p-4 sm:p-6 z-20 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/40 to-transparent">
         <div className="flex items-center gap-3">
@@ -106,7 +106,7 @@ export const CallScreen = () => {
             <h3 className="text-base font-bold tracking-tight text-white drop-shadow-sm">
               {displayName}
             </h3>
-            <p className="text-xs font-semibold text-orange-400 drop-shadow-sm">
+            <p className="text-xs font-semibold text-primary drop-shadow-sm">
               {callState === 'outgoing-ringing' && 'Ringing...'}
               {callState === 'connecting' && 'Connecting...'}
               {callState === 'connected' && formatTimer(duration)}
@@ -155,19 +155,19 @@ export const CallScreen = () => {
         {!isVideoCall ? (
           <div className="flex flex-col items-center justify-center p-8 text-center relative w-full h-full">
             {/* Ambient Background Glow */}
-            <div className="absolute inset-0 bg-gradient-to-b from-[#F97316]/30 via-[#EC4899]/20 to-[#111827] pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-b from-primary/30 via-secondary/20 to-canvas pointer-events-none" />
 
             <div className="relative mb-6">
               {/* Concentric pulsing rings */}
               <motion.div
                 animate={{ scale: [1, 1.4, 1], opacity: [0.4, 0.1, 0.4] }}
                 transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
-                className="absolute -inset-8 rounded-full bg-gradient-to-r from-[#F97316] to-[#EC4899] blur-md"
+                className="absolute -inset-8 rounded-full bg-brand-gradient blur-md"
               />
               <motion.div
                 animate={{ scale: [1, 1.2, 1], opacity: [0.6, 0.2, 0.6] }}
                 transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-                className="absolute -inset-4 rounded-full bg-gradient-to-r from-[#F97316] to-[#F43F5E] blur-xs"
+                className="absolute -inset-4 rounded-full bg-brand-gradient blur-xs"
               />
               <Avatar
                 src={displayAvatar}
@@ -180,7 +180,7 @@ export const CallScreen = () => {
             <h2 className="text-2xl font-black tracking-tight text-white mb-2 relative z-10">
               {displayName}
             </h2>
-            <p className="text-sm font-semibold text-orange-300 relative z-10">
+            <p className="text-sm font-semibold text-primary relative z-10">
               {callState === 'outgoing-ringing'
                 ? 'Ringing...'
                 : callState === 'connecting'
@@ -211,7 +211,7 @@ export const CallScreen = () => {
             {remoteUserIds.length === 0 ? (
               <div className="flex flex-col items-center justify-center text-center p-8 space-y-4">
                 <Avatar src={displayAvatar} alt={displayName} size="2xl" className="shadow-2xl" />
-                <p className="text-sm font-semibold text-orange-300 animate-pulse">
+                <p className="text-sm font-semibold text-primary animate-pulse">
                   {callState === 'outgoing-ringing'
                     ? 'Calling video...'
                     : 'Connecting video stream...'}
@@ -341,7 +341,7 @@ export const CallScreen = () => {
             onClick={toggleScreenShare}
             className={`hidden sm:flex p-3.5 rounded-full transition cursor-pointer ${
               isScreenSharing
-                ? 'bg-[#F97316] text-white hover:bg-orange-600'
+                ? 'bg-brand-gradient text-white hover:opacity-90 shadow-soft'
                 : 'bg-white/15 text-white hover:bg-white/25'
             }`}
             title={isScreenSharing ? 'Stop sharing screen' : 'Share screen'}

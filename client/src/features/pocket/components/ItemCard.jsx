@@ -48,15 +48,15 @@ export const ItemCard = ({
     return (
       <div
         onClick={() => onRequireUnlock?.(item)}
-        className="relative overflow-hidden rounded-3xl bg-white border border-[#FED7AA] p-5 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col items-center justify-center min-h-[160px] text-center"
+        className="relative overflow-hidden rounded-3xl bg-card border border-line p-5 shadow-sm hover:shadow-md transition-all cursor-pointer group flex flex-col items-center justify-center min-h-[160px] text-center"
       >
-        <div className="absolute inset-0 bg-[#FFF7ED]/70 backdrop-blur-md z-0" />
+        <div className="absolute inset-0 bg-card/70 backdrop-blur-md z-0" />
         <div className="relative z-10 flex flex-col items-center gap-2">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#F97316] to-[#EC4899] flex items-center justify-center text-white shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform">
+          <div className="w-12 h-12 rounded-2xl bg-brand-gradient flex items-center justify-center text-white shadow-md group-hover:scale-105 transition-transform">
             <Lock className="w-6 h-6" />
           </div>
-          <span className="text-xs font-bold text-[#1F2937]">Locked Private Item</span>
-          <span className="text-[11px] text-[#6B7280]">Enter Vault PIN to view content</span>
+          <span className="text-xs font-bold text-ink">Locked Private Item</span>
+          <span className="text-[11px] text-muted">Enter Vault PIN to view content</span>
         </div>
       </div>
     );
@@ -91,10 +91,10 @@ export const ItemCard = ({
           onOpenDetail ? onOpenDetail(item) : navigate(`/pocket/item/${item._id}`);
         }
       }}
-      className={`relative group rounded-3xl bg-white border transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer flex flex-col justify-between overflow-hidden ${
+      className={`relative group rounded-3xl bg-card border transition-all duration-200 shadow-sm hover:shadow-md cursor-pointer flex flex-col justify-between overflow-hidden ${
         isSelected
-          ? 'border-[#F97316] ring-2 ring-[#F97316]/30 bg-[#FFF7ED]/30'
-          : 'border-[#FED7AA]/80 hover:border-[#F97316]/50'
+          ? 'border-primary ring-2 ring-primary/30 bg-primary/10'
+          : 'border-line hover:border-primary/50'
       }`}
     >
       {/* Top Banner & Header info */}
@@ -108,21 +108,21 @@ export const ItemCard = ({
                 checked={isSelected}
                 onChange={() => toggleSelectItem(item._id)}
                 onClick={(e) => e.stopPropagation()}
-                className="w-4 h-4 rounded text-[#F97316] focus:ring-[#F97316] cursor-pointer"
+                className="w-4 h-4 rounded text-primary focus:ring-primary cursor-pointer"
               />
             ) : (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#FFF7ED] text-[10px] font-bold text-[#F97316] border border-[#FED7AA]">
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-primary/10 text-[10px] font-bold text-primary border border-primary/20">
                 {item.type === 'note' && <FileText className="w-3 h-3" />}
                 {item.type === 'link' && <LinkIcon className="w-3 h-3" />}
-                {item.type === 'image' && <ImageIcon className="w-3 h-3 text-[#EC4899]" />}
-                {item.type === 'video' && <Play className="w-3 h-3 text-[#EC4899]" />}
-                {item.type === 'audio' && <Music className="w-3 h-3 text-[#F43F5E]" />}
-                {item.type === 'document' && <FileCheck className="w-3 h-3 text-[#F97316]" />}
-                {item.type === 'snippet' && <Code2 className="w-3 h-3 text-[#F97316]" />}
-                {item.type === 'message' && <MessageSquare className="w-3 h-3 text-[#F97316]" />}
-                {item.type === 'post' && <ImageIcon className="w-3 h-3 text-[#EC4899]" />}
-                {item.type === 'reel' && <Play className="w-3 h-3 text-[#EC4899]" />}
-                {item.type === 'ai_answer' && <Sparkles className="w-3 h-3 text-[#F97316]" />}
+                {item.type === 'image' && <ImageIcon className="w-3 h-3 text-secondary" />}
+                {item.type === 'video' && <Play className="w-3 h-3 text-secondary" />}
+                {item.type === 'audio' && <Music className="w-3 h-3 text-accent" />}
+                {item.type === 'document' && <FileCheck className="w-3 h-3 text-primary" />}
+                {item.type === 'snippet' && <Code2 className="w-3 h-3 text-primary" />}
+                {item.type === 'message' && <MessageSquare className="w-3 h-3 text-primary" />}
+                {item.type === 'post' && <ImageIcon className="w-3 h-3 text-secondary" />}
+                {item.type === 'reel' && <Play className="w-3 h-3 text-secondary" />}
+                {item.type === 'ai_answer' && <Sparkles className="w-3 h-3 text-primary" />}
                 <span className="capitalize">{item.type.replace('_', ' ')}</span>
               </div>
             )}
@@ -135,8 +135,8 @@ export const ItemCard = ({
             )}
 
             {item.isPinned && (
-              <span className="text-[#F97316]">
-                <Pin className="w-3.5 h-3.5 fill-[#F97316]" />
+              <span className="text-primary">
+                <Pin className="w-3.5 h-3.5 fill-primary" />
               </span>
             )}
           </div>
@@ -146,7 +146,7 @@ export const ItemCard = ({
             <button
               onClick={() => onToggleFavorite?.(item)}
               aria-label="Toggle Favorite"
-              className="p-1 rounded-lg text-[#6B7280] hover:text-amber-500 transition-colors"
+              className="p-1 rounded-lg text-muted hover:text-amber-500 transition-colors"
             >
               <Star
                 className={`w-3.5 h-3.5 ${
@@ -157,11 +157,11 @@ export const ItemCard = ({
             <button
               onClick={() => onTogglePin?.(item)}
               aria-label="Toggle Pin"
-              className="p-1 rounded-lg text-[#6B7280] hover:text-[#F97316] transition-colors"
+              className="p-1 rounded-lg text-muted hover:text-primary transition-colors"
             >
               <Pin
                 className={`w-3.5 h-3.5 ${
-                  item.isPinned ? 'fill-[#F97316] text-[#F97316]' : ''
+                  item.isPinned ? 'fill-primary text-primary' : ''
                 }`}
               />
             </button>
@@ -170,7 +170,7 @@ export const ItemCard = ({
 
         {/* Title */}
         {item.title && (
-          <h3 className="text-xs font-bold text-[#1F2937] line-clamp-1 group-hover:text-[#F97316] transition-colors">
+          <h3 className="text-xs font-bold text-ink line-clamp-1 group-hover:text-primary transition-colors">
             {item.title}
           </h3>
         )}
@@ -179,7 +179,7 @@ export const ItemCard = ({
 
         {/* NOTE or SNIPPET */}
         {(item.type === 'note' || item.type === 'snippet') && (
-          <p className="text-[11px] text-[#6B7280] line-clamp-3 leading-relaxed font-sans">
+          <p className="text-[11px] text-muted line-clamp-3 leading-relaxed font-sans">
             {item.isEncrypted
               ? '🔒 Encrypted content. Click to decrypt in memory with passphrase.'
               : item.content || 'Empty note'}
@@ -190,7 +190,7 @@ export const ItemCard = ({
         {item.type === 'link' && (
           <div className="space-y-1.5">
             {item.linkPreview?.image ? (
-              <div className="relative rounded-2xl overflow-hidden aspect-video bg-[#FFF7ED] border border-[#FED7AA]/50">
+              <div className="relative rounded-2xl overflow-hidden aspect-video bg-canvas border border-line">
                 <img
                   src={item.linkPreview.image}
                   alt={item.title}
@@ -199,7 +199,7 @@ export const ItemCard = ({
                 />
               </div>
             ) : null}
-            <div className="flex items-center justify-between text-[11px] text-[#6B7280]">
+            <div className="flex items-center justify-between text-[11px] text-muted">
               <span className="truncate max-w-[200px]">
                 {item.linkPreview?.siteName || (item.url ? new URL(item.url).hostname : '')}
               </span>
@@ -209,7 +209,7 @@ export const ItemCard = ({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="text-[#F97316] hover:underline flex items-center gap-0.5 text-[10px] font-bold"
+                  className="text-primary hover:underline flex items-center gap-0.5 text-[10px] font-bold"
                 >
                   <span>Visit</span>
                   <ExternalLink className="w-2.5 h-2.5" />
@@ -221,7 +221,7 @@ export const ItemCard = ({
 
         {/* IMAGE */}
         {item.type === 'image' && item.media?.[0]?.url && (
-          <div className="relative rounded-2xl overflow-hidden aspect-video bg-[#FFF7ED] border border-[#FED7AA]/50">
+          <div className="relative rounded-2xl overflow-hidden aspect-video bg-canvas border border-line">
             <img
               src={item.media[0].url}
               alt={item.title || 'Image attachment'}
@@ -254,7 +254,7 @@ export const ItemCard = ({
 
         {/* AUDIO */}
         {item.type === 'audio' && item.media?.[0]?.url && (
-          <div className="p-3 bg-[#FFF7ED] rounded-2xl border border-[#FED7AA]/60 flex items-center gap-3">
+          <div className="p-3 bg-canvas rounded-2xl border border-line flex items-center gap-3">
             <audio
               ref={audioRef}
               src={item.media[0].url}
@@ -263,15 +263,15 @@ export const ItemCard = ({
             />
             <button
               onClick={handleAudioPlay}
-              className="w-8 h-8 rounded-full bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white flex items-center justify-center shadow-sm flex-shrink-0"
+              className="w-8 h-8 rounded-full bg-brand-gradient text-white flex items-center justify-center shadow-sm flex-shrink-0"
             >
               {isPlayingAudio ? <Square className="w-3.5 h-3.5 fill-white" /> : <Play className="w-3.5 h-3.5 fill-white ml-0.5" />}
             </button>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-bold text-[#1F2937] truncate">
+              <p className="text-[11px] font-bold text-ink truncate">
                 {item.title || 'Voice Memo'}
               </p>
-              <p className="text-[10px] text-[#6B7280]">
+              <p className="text-[10px] text-muted">
                 {item.media[0].duration ? `${item.media[0].duration}s` : formatBytes(item.media[0].size)}
               </p>
             </div>
@@ -280,20 +280,20 @@ export const ItemCard = ({
 
         {/* DOCUMENT */}
         {item.type === 'document' && (
-          <div className="p-3 bg-[#FFF7ED] rounded-2xl border border-[#FED7AA]/60 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-amber-100 flex items-center justify-center text-amber-700 flex-shrink-0">
+          <div className="p-3 bg-canvas rounded-2xl border border-line flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-500 flex-shrink-0">
               <FileCheck className="w-4 h-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-bold text-[#1F2937] truncate">{item.title}</p>
-              <p className="text-[10px] text-[#6B7280]">{formatBytes(item.media?.[0]?.size)}</p>
+              <p className="text-xs font-bold text-ink truncate">{item.title}</p>
+              <p className="text-[10px] text-muted">{formatBytes(item.media?.[0]?.size)}</p>
             </div>
           </div>
         )}
 
         {/* MESSAGE SNAPSHOT */}
         {item.type === 'message' && (
-          <div className="p-3 bg-[#FFF7ED] rounded-2xl border border-[#FED7AA]/60 space-y-1.5">
+          <div className="p-3 bg-canvas rounded-2xl border border-line space-y-1.5">
             <div className="flex items-center gap-2">
               {item.source?.snapshot?.senderAvatar && (
                 <img
@@ -302,11 +302,11 @@ export const ItemCard = ({
                   className="w-5 h-5 rounded-full object-cover"
                 />
               )}
-              <span className="text-[11px] font-bold text-[#1F2937]">
+              <span className="text-[11px] font-bold text-ink">
                 {item.source?.snapshot?.senderName || 'Chat Message'}
               </span>
             </div>
-            <p className="text-[11px] text-[#6B7280] line-clamp-2 italic">
+            <p className="text-[11px] text-muted line-clamp-2 italic">
               "{item.content}"
             </p>
             {item.source?.snapshot?.conversationId && (
@@ -315,7 +315,7 @@ export const ItemCard = ({
                   e.stopPropagation();
                   navigate(`/chats/${item.source.snapshot.conversationId}`);
                 }}
-                className="text-[10px] font-bold text-[#F97316] hover:underline flex items-center gap-1"
+                className="text-[10px] font-bold text-primary hover:underline flex items-center gap-1"
               >
                 <span>Go to Chat</span>
                 <ExternalLink className="w-2.5 h-2.5" />
@@ -326,7 +326,7 @@ export const ItemCard = ({
 
         {/* SOCIAL POST / REEL SNAPSHOT */}
         {(item.type === 'post' || item.type === 'reel') && (
-          <div className="p-3 bg-[#FFF7ED] rounded-2xl border border-[#FED7AA]/60 space-y-1.5">
+          <div className="p-3 bg-canvas rounded-2xl border border-line space-y-1.5">
             <div className="flex items-center gap-2">
               {item.source?.snapshot?.avatar && (
                 <img
@@ -335,12 +335,12 @@ export const ItemCard = ({
                   className="w-5 h-5 rounded-full object-cover"
                 />
               )}
-              <span className="text-[11px] font-bold text-[#1F2937]">
+              <span className="text-[11px] font-bold text-ink">
                 @{item.source?.snapshot?.username || 'Social Post'}
               </span>
             </div>
             {item.content && (
-              <p className="text-[11px] text-[#6B7280] line-clamp-2">{item.content}</p>
+              <p className="text-[11px] text-muted line-clamp-2">{item.content}</p>
             )}
             {item.source?.refId && (
               <button
@@ -348,7 +348,7 @@ export const ItemCard = ({
                   e.stopPropagation();
                   navigate(`/social/post/${item.source.refId}`);
                 }}
-                className="text-[10px] font-bold text-[#EC4899] hover:underline flex items-center gap-1"
+                className="text-[10px] font-bold text-secondary hover:underline flex items-center gap-1"
               >
                 <span>Open Original Post</span>
                 <ExternalLink className="w-2.5 h-2.5" />
@@ -359,26 +359,26 @@ export const ItemCard = ({
 
         {/* AI ANSWER */}
         {item.type === 'ai_answer' && (
-          <div className="p-3 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl border border-[#FED7AA]/60 space-y-1">
-            <div className="flex items-center gap-1 text-[10px] font-bold text-[#F97316]">
+          <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20 space-y-1">
+            <div className="flex items-center gap-1 text-[10px] font-bold text-primary">
               <Sparkles className="w-3 h-3" />
               <span>Flash AI Snapshot</span>
             </div>
-            <p className="text-[11px] text-[#1F2937] line-clamp-3">{item.content}</p>
+            <p className="text-[11px] text-ink line-clamp-3">{item.content}</p>
           </div>
         )}
       </div>
 
       {/* Footer Tags & Folder indicator */}
-      <div className="px-4 py-2.5 bg-[#FFF7ED]/50 border-t border-[#FED7AA]/40 flex items-center justify-between text-[10px] text-[#6B7280]">
+      <div className="px-4 py-2.5 bg-canvas/50 border-t border-line flex items-center justify-between text-[10px] text-muted">
         <div className="flex items-center gap-1 truncate max-w-[180px]">
           {item.folder ? (
-            <span className="flex items-center gap-1 font-semibold text-[#1F2937]">
-              <Folder className="w-3 h-3 text-[#F97316]" />
+            <span className="flex items-center gap-1 font-semibold text-ink">
+              <Folder className="w-3 h-3 text-primary" />
               <span className="truncate">{item.folder.name}</span>
             </span>
           ) : (
-            <span className="text-[#6B7280]">Unorganized</span>
+            <span className="text-muted">Unorganized</span>
           )}
 
           {item.tags?.length > 0 && (
@@ -390,8 +390,8 @@ export const ItemCard = ({
                     key={t}
                     className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[9px] font-bold ${
                       isAiTag
-                        ? 'bg-amber-50 text-amber-600 border border-amber-200'
-                        : 'text-[#F97316]'
+                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                        : 'text-primary'
                     }`}
                   >
                     {isAiTag && <Sparkles className="w-2.5 h-2.5 text-amber-500 fill-amber-400" />}
@@ -400,13 +400,13 @@ export const ItemCard = ({
                 );
               })}
               {item.tags.length > 2 && (
-                <span className="text-[9px] text-[#6B7280]">+{item.tags.length - 2}</span>
+                <span className="text-[9px] text-muted">+{item.tags.length - 2}</span>
               )}
             </div>
           )}
         </div>
 
-        <span className="text-[9px] text-[#6B7280]">
+        <span className="text-[9px] text-muted">
           {new Date(item.createdAt).toLocaleDateString(undefined, {
             month: 'short',
             day: 'numeric'

@@ -26,7 +26,7 @@ export const AiButton = ({
     primary:
       'bg-gradient-to-r from-primary via-secondary to-accent text-white shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35 hover:brightness-105',
     secondary:
-      'bg-cream dark:bg-zinc-800 text-ink dark:text-cream border border-line dark:border-zinc-700 hover:border-primary/50 hover:bg-orange-50 dark:hover:bg-zinc-700',
+      'bg-cream dark:bg-zinc-800 text-ink dark:text-cream border border-line dark:border-zinc-700 hover:border-primary/50 hover:bg-primary/10 dark:hover:bg-zinc-700',
     ghost:
       'text-primary hover:bg-primary/10 dark:text-pink-400 dark:hover:bg-pink-400/10',
     chip:

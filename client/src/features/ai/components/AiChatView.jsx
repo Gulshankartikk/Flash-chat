@@ -127,7 +127,7 @@ export const AiChatView = ({
                   key={idx}
                   type="button"
                   onClick={() => onSuggestionClick && onSuggestionClick(s.prompt)}
-                  className="p-3.5 rounded-2xl bg-card dark:bg-zinc-900 border border-line dark:border-zinc-800 hover:border-primary/50 hover:bg-orange-50/50 dark:hover:bg-zinc-800 transition-all text-xs text-ink/80 dark:text-zinc-200 group shadow-sm"
+                  className="p-3.5 rounded-2xl bg-card dark:bg-zinc-900 border border-line dark:border-zinc-800 hover:border-primary/50 hover:bg-primary/10 dark:hover:bg-zinc-800 transition-all text-xs text-ink/80 dark:text-zinc-200 group shadow-sm"
                 >
                   <p className="font-semibold text-ink dark:text-cream group-hover:text-primary transition-colors">
                     {s.label}

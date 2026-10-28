@@ -162,7 +162,7 @@ export const ContactImportModal = ({ isOpen, onClose, onImportCompleted }) => {
               <button
                 type="button"
                 onClick={handleNativeContactPicker}
-                className="w-full p-4 rounded-2xl bg-card border border-line hover:border-primary/50 hover:bg-orange-50/30 transition text-left flex items-center gap-4 group"
+                className="w-full p-4 rounded-2xl bg-card border border-line hover:border-primary/50 hover:bg-primary/10 transition text-left flex items-center gap-4 group"
               >
                 <div className="w-10 h-10 rounded-xl bg-primary/15 text-primary flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
                   <Smartphone className="w-5 h-5" />
@@ -177,7 +177,7 @@ export const ContactImportModal = ({ isOpen, onClose, onImportCompleted }) => {
 
             <div
               onClick={() => fileInputRef.current?.click()}
-              className="w-full p-6 border-2 border-dashed border-line rounded-2xl bg-card hover:bg-orange-50/20 hover:border-primary transition cursor-pointer flex flex-col items-center justify-center text-center group"
+              className="w-full p-6 border-2 border-dashed border-line rounded-2xl bg-card hover:bg-primary/10 hover:border-primary transition cursor-pointer flex flex-col items-center justify-center text-center group"
             >
               <input
                 ref={fileInputRef}

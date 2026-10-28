@@ -224,9 +224,9 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
                   <button
                     type="button"
                     onClick={() => setActiveTab('group')}
-                    className="w-full flex items-center gap-3.5 p-2 rounded-xl hover:bg-orange-50/60 transition cursor-pointer group"
+                    className="w-full flex items-center gap-3.5 p-2 rounded-xl hover:bg-primary/10 transition cursor-pointer group"
                   >
-                    <div className="w-10 h-10 rounded-full bg-[#22C55E] text-white flex items-center justify-center shadow-xs shrink-0 group-hover:scale-105 transition-transform">
+                    <div className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center shadow-xs shrink-0 group-hover:scale-105 transition-transform">
                       <Users className="w-5 h-5 text-white" />
                     </div>
                     <div className="text-left">
@@ -243,9 +243,9 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
                       setPrefilledPhone('');
                       setIsAddContactOpen(true);
                     }}
-                    className="w-full flex items-center gap-3.5 p-2 rounded-xl hover:bg-orange-50/60 transition cursor-pointer group"
+                    className="w-full flex items-center gap-3.5 p-2 rounded-xl hover:bg-primary/10 transition cursor-pointer group"
                   >
-                    <div className="w-10 h-10 rounded-full bg-[#22C55E] text-white flex items-center justify-center shadow-xs shrink-0 group-hover:scale-105 transition-transform">
+                    <div className="w-10 h-10 rounded-full bg-secondary text-white flex items-center justify-center shadow-xs shrink-0 group-hover:scale-105 transition-transform">
                       <UserPlus className="w-5 h-5 text-white" />
                     </div>
                     <div className="text-left">
@@ -297,7 +297,7 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
                       <div
                         key={u._id}
                         onClick={() => handleStartDirect(u._id)}
-                        className="flex items-center justify-between p-2.5 rounded-xl hover:bg-orange-50/40 transition cursor-pointer border border-transparent hover:border-line"
+                        className="flex items-center justify-between p-2.5 rounded-xl hover:bg-primary/10 transition cursor-pointer border border-transparent hover:border-line"
                       >
                         <div className="flex items-center gap-2.5">
                           <Avatar src={u.avatar} name={u.name} size="sm" isOnline={u.isOnline} showStatus />
@@ -351,7 +351,7 @@ export const NewChatModal = ({ isOpen, onClose, onChatCreated }) => {
                         <div
                           key={c._id}
                           onClick={() => handleContactClick(c)}
-                          className="flex items-center justify-between p-2.5 rounded-xl hover:bg-orange-50/40 transition cursor-pointer border border-transparent hover:border-line"
+                          className="flex items-center justify-between p-2.5 rounded-xl hover:bg-primary/10 transition cursor-pointer border border-transparent hover:border-line"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <Avatar

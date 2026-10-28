@@ -274,7 +274,7 @@ const ContactRow = ({ contact, onSelect, onMessage, onInvite }) => {
   return (
     <div
       onClick={onSelect}
-      className="flex items-center justify-between p-3 bg-card hover:bg-orange-50/40 border border-line rounded-2xl cursor-pointer transition shadow-xs group"
+      className="flex items-center justify-between p-3 bg-card hover:bg-primary/10 border border-line rounded-2xl cursor-pointer transition shadow-xs group"
     >
       <div className="flex items-center gap-3 min-w-0">
         <Avatar

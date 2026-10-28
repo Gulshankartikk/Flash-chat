@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 /**
  * SocialAvatar with Instagram-style story ring
- * - Unseen story: gradient ring (from-[#F97316] to-[#EC4899])
+ * - Unseen story: gradient ring (from-[#D946EF] to-[#A855F7])
  * - Seen story: muted ring (border-gray-300)
  * - Own / No story: clean border
  */
@@ -30,8 +30,8 @@ export const SocialAvatar = ({
 
   const ringClasses = hasStory
     ? hasUnseen
-      ? 'bg-gradient-to-tr from-[#F97316] via-[#EC4899] to-[#F43F5E] p-[2px]'
-      : 'bg-gray-300 p-[2px]'
+      ? 'bg-brand-gradient p-[2px]'
+      : 'bg-line p-[2px]'
     : 'p-0';
 
   return (
@@ -42,17 +42,17 @@ export const SocialAvatar = ({
       } ${className}`}
     >
       <div className={`rounded-full flex items-center justify-center ${ringClasses} ${dimensions.outer}`}>
-        <div className={`rounded-full bg-white p-[1.5px] w-full h-full flex items-center justify-center overflow-hidden`}>
+        <div className={`rounded-full bg-card p-[1.5px] w-full h-full flex items-center justify-center overflow-hidden`}>
           {src && !imageError ? (
             <img
               src={src}
               alt={alt}
               onError={() => setImageError(true)}
               loading="lazy"
-              className="w-full h-full object-cover rounded-full bg-[#FFF7ED]"
+              className="w-full h-full object-cover rounded-full bg-canvas"
             />
           ) : (
-            <div className="w-full h-full rounded-full bg-gradient-to-tr from-[#F97316] to-[#EC4899] text-white font-bold flex items-center justify-center">
+            <div className="w-full h-full rounded-full bg-brand-gradient text-white font-bold flex items-center justify-center">
               {initial}
             </div>
           )}

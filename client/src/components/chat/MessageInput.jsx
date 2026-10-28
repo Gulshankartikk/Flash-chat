@@ -293,22 +293,22 @@ export const MessageInput = ({
   };
 
   return (
-    <div className="relative border-t border-[#FED7AA] bg-white p-3 sm:p-4">
+    <div className="relative border-t border-line bg-card p-3 sm:p-4">
       {/* Active Quoted Reply Bar */}
       {replyingTo && (
-        <div className="mb-2 p-2.5 rounded-2xl bg-[#FFF7ED] border border-[#FED7AA] flex items-center justify-between text-xs animate-fadeIn">
-          <div className="border-l-4 border-[#F97316] pl-2.5 min-w-0">
-            <span className="font-bold text-[#F97316] block">
+        <div className="mb-2 p-2.5 rounded-2xl bg-cream border border-line flex items-center justify-between text-xs animate-fadeIn">
+          <div className="border-l-4 border-primary pl-2.5 min-w-0">
+            <span className="font-bold text-primary block">
               Replying to {replyingTo.sender?.name || 'User'}
             </span>
-            <p className="truncate text-[#6B7280] text-[11px] mt-0.5">
+            <p className="truncate text-muted text-[11px] mt-0.5">
               {replyingTo.text || 'Attachment'}
             </p>
           </div>
           <button
             type="button"
             onClick={onCancelReply}
-            className="p-1 rounded-full text-[#6B7280] hover:text-[#1F2937] hover:bg-orange-100 transition"
+            className="p-1 rounded-full text-muted hover:text-ink hover:bg-cream transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -317,9 +317,9 @@ export const MessageInput = ({
 
       {/* Attachment Menu Popup */}
       {showAttachments && (
-        <div className="absolute bottom-20 left-4 z-30 p-3 rounded-2xl bg-white border border-[#FED7AA] shadow-xl grid grid-cols-4 gap-3 text-center text-xs animate-scaleUp">
-          <label className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#FFF7ED] cursor-pointer text-[#1F2937] transition">
-            <div className="w-10 h-10 rounded-full bg-orange-100 text-[#F97316] flex items-center justify-center shadow-sm">
+        <div className="absolute bottom-20 left-4 z-30 p-3 rounded-2xl bg-card border border-line shadow-xl grid grid-cols-4 gap-3 text-center text-xs animate-scaleUp">
+          <label className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-cream cursor-pointer text-ink transition">
+            <div className="w-10 h-10 rounded-full bg-cream border border-line text-primary flex items-center justify-center shadow-xs">
               <Image className="w-5 h-5" />
             </div>
             <span className="text-[10px] font-semibold">Image</span>
@@ -331,8 +331,8 @@ export const MessageInput = ({
             />
           </label>
 
-          <label className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#FFF7ED] cursor-pointer text-[#1F2937] transition">
-            <div className="w-10 h-10 rounded-full bg-pink-100 text-[#EC4899] flex items-center justify-center shadow-sm">
+          <label className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-cream cursor-pointer text-ink transition">
+            <div className="w-10 h-10 rounded-full bg-cream border border-line text-secondary flex items-center justify-center shadow-xs">
               <Video className="w-5 h-5" />
             </div>
             <span className="text-[10px] font-semibold">Video</span>
@@ -344,8 +344,8 @@ export const MessageInput = ({
             />
           </label>
 
-          <label className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-[#FFF7ED] cursor-pointer text-[#1F2937] transition">
-            <div className="w-10 h-10 rounded-full bg-primary/15 text-primary flex items-center justify-center shadow-xs">
+          <label className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-cream cursor-pointer text-ink transition">
+            <div className="w-10 h-10 rounded-full bg-cream border border-line text-primary flex items-center justify-center shadow-xs">
               <FileText className="w-5 h-5" />
             </div>
             <span className="text-[10px] font-semibold">Document</span>
@@ -360,9 +360,9 @@ export const MessageInput = ({
           <button
             type="button"
             onClick={handleShareLocation}
-            className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-cream text-ink transition"
+            className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-cream cursor-pointer text-ink transition"
           >
-            <div className="w-10 h-10 rounded-full bg-cream text-primary border border-line flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 rounded-full bg-cream text-primary border border-line flex items-center justify-center shadow-xs">
               <MapPin className="w-5 h-5" />
             </div>
             <span className="text-[10px] font-semibold">Location</span>
@@ -373,7 +373,7 @@ export const MessageInput = ({
       {/* Smart Reply Chips Bar */}
       {allowAi && showSmartReplies && smartReplies.length > 0 && !text && (
         <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-1 animate-fadeIn">
-          <div className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold text-[#F97316]">
+          <div className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-bold text-primary">
             <Sparkles className="w-3 h-3" />
             <span>AI:</span>
           </div>
@@ -382,7 +382,7 @@ export const MessageInput = ({
               key={idx}
               type="button"
               onClick={() => setText(reply)}
-              className="shrink-0 px-3 py-1 rounded-full bg-[#FFF7ED] hover:bg-orange-100 border border-[#FED7AA] text-xs text-[#1F2937] hover:text-[#F97316] transition shadow-xs cursor-pointer font-medium"
+              className="shrink-0 px-3 py-1 rounded-full bg-cream hover:bg-cream/80 border border-line text-xs text-ink hover:text-primary transition shadow-xs cursor-pointer font-medium"
             >
               {reply}
             </button>
@@ -390,7 +390,7 @@ export const MessageInput = ({
           <button
             type="button"
             onClick={() => setShowSmartReplies(false)}
-            className="p-1 rounded-full text-[#6B7280] hover:text-[#1F2937]"
+            className="p-1 rounded-full text-muted hover:text-ink cursor-pointer"
             title="Dismiss suggestions"
           >
             <X className="w-3.5 h-3.5" />
@@ -404,18 +404,18 @@ export const MessageInput = ({
           <button
             type="button"
             onClick={() => setText('@ai ')}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-xs font-bold shadow-md shadow-orange-500/20 hover:brightness-105 transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-brand-gradient text-white text-xs font-bold shadow-md shadow-primary/20 hover:brightness-105 transition cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5" />
             <span>Ask Flash AI (@ai)</span>
           </button>
-          <span className="text-[11px] text-[#6B7280]">Type your question after @ai</span>
+          <span className="text-[11px] text-muted">Type your question after @ai</span>
         </div>
       )}
 
       {/* Undo Rewrite Notification */}
       {undoText && (
-        <div className="mb-2 flex items-center justify-between p-2 rounded-xl bg-orange-50 border border-[#FED7AA] text-xs text-[#1F2937]">
+        <div className="mb-2 flex items-center justify-between p-2 rounded-xl bg-cream border border-line text-xs text-ink">
           <span>✨ Message rewritten by Flash AI</span>
           <button
             type="button"
@@ -423,7 +423,7 @@ export const MessageInput = ({
               setText(undoText);
               setUndoText(null);
             }}
-            className="flex items-center gap-1 font-bold text-[#F97316] hover:underline"
+            className="flex items-center gap-1 font-bold text-primary hover:underline cursor-pointer"
           >
             <Undo className="w-3 h-3" />
             <span>Undo</span>
@@ -433,8 +433,8 @@ export const MessageInput = ({
 
       {/* Rewrite Tone Dropdown Popup */}
       {showRewriteMenu && (
-        <div className="absolute bottom-20 right-16 z-30 p-2 rounded-2xl bg-white border border-[#FED7AA] shadow-xl text-xs space-y-1 w-36 animate-scaleUp">
-          <p className="px-2 py-1 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">Rewrite tone</p>
+        <div className="absolute bottom-20 right-16 z-30 p-2 rounded-2xl bg-card border border-line shadow-xl text-xs space-y-1 w-36 animate-scaleUp">
+          <p className="px-2 py-1 text-[10px] font-bold text-muted uppercase tracking-wider">Rewrite tone</p>
           {['friendly', 'formal', 'short'].map((tone) => (
             <button
               key={tone}
@@ -453,7 +453,7 @@ export const MessageInput = ({
                   setIsRewriting(false);
                 }
               }}
-              className="w-full text-left px-2 py-1.5 rounded-xl hover:bg-[#FFF7ED] text-[#1F2937] capitalize font-medium transition"
+              className="w-full text-left px-2 py-1.5 rounded-xl hover:bg-cream text-ink capitalize font-medium transition cursor-pointer"
             >
               {tone}
             </button>
@@ -463,13 +463,13 @@ export const MessageInput = ({
 
       {/* Emoji Picker Popup */}
       {showEmojiPicker && (
-        <div className="absolute bottom-20 left-4 z-30 p-3 rounded-2xl bg-white border border-[#FED7AA] shadow-xl max-w-xs grid grid-cols-6 gap-2 text-xl animate-scaleUp">
+        <div className="absolute bottom-20 left-4 z-30 p-3 rounded-2xl bg-card border border-line shadow-xl max-w-xs grid grid-cols-6 gap-2 text-xl animate-scaleUp">
           {EMOJI_LIST.map((em, i) => (
             <button
               key={i}
               type="button"
               onClick={() => setText((prev) => prev + em)}
-              className="p-1 hover:scale-125 transition transform"
+              className="p-1 hover:scale-125 transition transform cursor-pointer"
             >
               {em}
             </button>
@@ -480,11 +480,11 @@ export const MessageInput = ({
       {/* Input Row */}
       {isRecording ? (
         /* Voice Note Recording Overlay */
-        <div className="flex items-center justify-between p-2 rounded-2xl bg-rose-50 border border-rose-200 text-[#F43F5E] animate-pulse">
+        <div className="flex items-center justify-between p-2 rounded-2xl bg-accent/10 border border-accent/30 text-accent animate-pulse">
           <div className="flex items-center gap-2.5">
-            <span className="w-3 h-3 rounded-full bg-rose-500 animate-ping" />
+            <span className="w-3 h-3 rounded-full bg-accent animate-ping" />
             <span className="text-xs font-bold">Recording Voice Note...</span>
-            <span className="text-xs font-mono font-bold bg-white px-2 py-0.5 rounded-md border border-rose-200">
+            <span className="text-xs font-mono font-bold bg-card px-2 py-0.5 rounded-md border border-line text-ink">
               {formatTimer(recordingDuration)}
             </span>
           </div>
@@ -493,7 +493,7 @@ export const MessageInput = ({
             <button
               type="button"
               onClick={() => stopRecording(true)}
-              className="p-2 text-[#6B7280] hover:text-[#F43F5E] hover:bg-rose-100 rounded-full transition"
+              className="p-2 text-muted hover:text-accent hover:bg-cream rounded-full transition cursor-pointer"
               title="Cancel recording"
             >
               <X className="w-4 h-4" />
@@ -501,7 +501,7 @@ export const MessageInput = ({
             <button
               type="button"
               onClick={() => stopRecording(false)}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-xs font-bold shadow-md shadow-orange-500/25 hover:opacity-90 flex items-center gap-1"
+              className="px-3.5 py-1.5 rounded-xl bg-brand-gradient text-white text-xs font-bold shadow-md shadow-primary/25 hover:opacity-90 flex items-center gap-1 cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Send</span>
@@ -515,7 +515,7 @@ export const MessageInput = ({
           <button
             type="button"
             onClick={() => setShowAttachments(!showAttachments)}
-            className="p-2.5 rounded-full text-[#6B7280] hover:text-[#F97316] hover:bg-orange-50 transition cursor-pointer"
+            className="p-2.5 rounded-full text-muted hover:text-primary hover:bg-cream transition cursor-pointer"
             title="Attach file or media"
           >
             <Paperclip className="w-5 h-5" />
@@ -525,7 +525,7 @@ export const MessageInput = ({
           <button
             type="button"
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-            className="p-2.5 rounded-full text-[#6B7280] hover:text-[#F97316] hover:bg-orange-50 transition cursor-pointer"
+            className="p-2.5 rounded-full text-muted hover:text-primary hover:bg-cream transition cursor-pointer"
             title="Emoji picker"
           >
             <Smile className="w-5 h-5" />
@@ -538,7 +538,7 @@ export const MessageInput = ({
                 <button
                   type="button"
                   onClick={handleSelectAiMention}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-orange-50/70 text-xs font-bold text-ink w-full text-left transition cursor-pointer"
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-cream text-xs font-bold text-ink w-full text-left transition cursor-pointer"
                 >
                   <FlashAiLogo size="sm" showText={false} />
                   <div>
@@ -566,7 +566,7 @@ export const MessageInput = ({
                 type="button"
                 onClick={() => setShowRewriteMenu(!showRewriteMenu)}
                 disabled={isRewriting}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 text-primary hover:text-secondary rounded-full hover:bg-orange-100/50 transition"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1.5 text-primary hover:text-secondary rounded-full hover:bg-cream/50 transition cursor-pointer"
                 title="Rewrite with Flash AI (Formal, Friendly, Short)"
               >
                 <Sparkles className={`w-4 h-4 ${isRewriting ? 'animate-spin' : ''}`} />
@@ -580,7 +580,7 @@ export const MessageInput = ({
               type="button"
               onClick={handleSend}
               disabled={disabled}
-              className="p-2.5 rounded-2xl bg-gradient-to-r from-[#F97316] to-[#EC4899] hover:from-[#EA580C] hover:to-[#DB2777] text-white shadow-md shadow-orange-500/25 transition cursor-pointer flex-shrink-0"
+              className="p-2.5 rounded-2xl bg-brand-gradient hover:opacity-95 text-white shadow-md shadow-primary/25 transition cursor-pointer flex-shrink-0"
               title="Send message"
             >
               <Send className="w-5 h-5" />
@@ -590,7 +590,7 @@ export const MessageInput = ({
               type="button"
               onClick={startRecording}
               disabled={disabled}
-              className="p-2.5 rounded-2xl bg-orange-50 hover:bg-orange-100 text-[#F97316] transition cursor-pointer flex-shrink-0"
+              className="p-2.5 rounded-2xl bg-cream hover:bg-cream/80 text-primary border border-line transition cursor-pointer flex-shrink-0"
               title="Record voice note"
             >
               <Mic className="w-5 h-5" />

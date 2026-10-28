@@ -264,23 +264,23 @@ export const PinPadModal = ({
           role="dialog"
           aria-modal="true"
           aria-labelledby="pin-pad-title"
-          className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-[#FED7AA] flex flex-col items-center relative"
+          className="w-full max-w-sm bg-card rounded-3xl p-6 shadow-2xl border border-line flex flex-col items-center relative"
         >
           {/* Close button */}
           <button
             onClick={onClose}
             aria-label="Close PIN Pad"
-            className="absolute top-4 right-4 p-2 rounded-full text-[#6B7280] hover:text-[#1F2937] hover:bg-[#FFF7ED] transition-colors"
+            className="absolute top-4 right-4 p-2 rounded-full text-muted hover:text-ink hover:bg-line/40 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
 
           {/* Header icon */}
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#F97316] to-[#EC4899] flex items-center justify-center text-white shadow-lg shadow-orange-500/20 mb-3">
+          <div className="w-14 h-14 rounded-2xl bg-brand-gradient flex items-center justify-center text-white shadow-lg shadow-primary/20 mb-3">
             {mode === 'unlock' ? <Lock className="w-7 h-7" /> : <Unlock className="w-7 h-7" />}
           </div>
 
-          <h2 id="pin-pad-title" className="text-lg font-black text-[#1F2937] text-center">
+          <h2 id="pin-pad-title" className="text-lg font-black text-ink text-center">
             {mode === 'unlock'
               ? title
               : step === 'current'
@@ -290,9 +290,9 @@ export const PinPadModal = ({
               : 'Confirm New PIN'}
           </h2>
 
-          <p className="text-xs text-[#6B7280] text-center mt-1 max-w-[260px]">
+          <p className="text-xs text-muted text-center mt-1 max-w-[260px]">
             {lockoutRemaining ? (
-              <span className="text-rose-600 font-bold">
+              <span className="text-rose-400 font-bold">
                 Vault locked. Retry in {Math.floor(lockoutRemaining / 60)}m {lockoutRemaining % 60}s.
               </span>
             ) : mode === 'unlock' ? (
@@ -315,8 +315,8 @@ export const PinPadModal = ({
                   key={idx}
                   className={`w-3.5 h-3.5 rounded-full transition-all duration-200 ${
                     isFilled
-                      ? 'bg-gradient-to-r from-[#F97316] to-[#EC4899] scale-110 shadow-sm'
-                      : 'border-2 border-[#FED7AA] bg-[#FFF7ED]'
+                      ? 'bg-brand-gradient scale-110 shadow-sm'
+                      : 'border-2 border-line bg-canvas'
                   }`}
                 />
               );
@@ -325,14 +325,14 @@ export const PinPadModal = ({
 
           {/* Error Message */}
           {error && (
-            <div className="flex items-center gap-1.5 text-xs text-rose-600 font-medium mb-3 px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200">
+            <div className="flex items-center gap-1.5 text-xs text-rose-300 font-medium mb-3 px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30">
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {attemptsRemaining !== null && attemptsRemaining < 5 && !lockoutRemaining && (
-            <p className="text-xs text-amber-600 font-semibold mb-2">
+            <p className="text-xs text-amber-400 font-semibold mb-2">
               Warning: {attemptsRemaining} incorrect attempts left before 15m lockout.
             </p>
           )}
@@ -346,7 +346,7 @@ export const PinPadModal = ({
                 disabled={!!lockoutRemaining || isLoading}
                 onClick={() => handleDigit(String(digit))}
                 aria-label={`Digit ${digit}`}
-                className="h-14 rounded-2xl bg-[#FFF7ED] hover:bg-[#FED7AA]/60 active:scale-95 text-lg font-bold text-[#1F2937] transition-all flex items-center justify-center border border-[#FED7AA]/60 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="h-14 rounded-2xl bg-canvas hover:bg-line/60 active:scale-95 text-lg font-bold text-ink transition-all flex items-center justify-center border border-line disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {digit}
               </button>
@@ -358,7 +358,7 @@ export const PinPadModal = ({
               disabled={!biometricsAvailable || !!lockoutRemaining || isLoading}
               onClick={handleBiometricUnlock}
               aria-label="Use Biometric Unlock"
-              className="h-14 rounded-2xl bg-[#FFF7ED] hover:bg-[#FED7AA]/60 active:scale-95 text-[#F97316] transition-all flex items-center justify-center border border-[#FED7AA]/60 disabled:opacity-20 disabled:cursor-not-allowed"
+              className="h-14 rounded-2xl bg-canvas hover:bg-line/60 active:scale-95 text-primary transition-all flex items-center justify-center border border-line disabled:opacity-20 disabled:cursor-not-allowed"
             >
               <Fingerprint className="w-6 h-6" />
             </button>
@@ -369,7 +369,7 @@ export const PinPadModal = ({
               disabled={!!lockoutRemaining || isLoading}
               onClick={() => handleDigit('0')}
               aria-label="Digit 0"
-              className="h-14 rounded-2xl bg-[#FFF7ED] hover:bg-[#FED7AA]/60 active:scale-95 text-lg font-bold text-[#1F2937] transition-all flex items-center justify-center border border-[#FED7AA]/60 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-14 rounded-2xl bg-canvas hover:bg-line/60 active:scale-95 text-lg font-bold text-ink transition-all flex items-center justify-center border border-line disabled:opacity-40 disabled:cursor-not-allowed"
             >
               0
             </button>
@@ -380,7 +380,7 @@ export const PinPadModal = ({
               disabled={currentPinLength === 0 || !!lockoutRemaining || isLoading}
               onClick={handleDelete}
               aria-label="Backspace"
-              className="h-14 rounded-2xl bg-[#FFF7ED] hover:bg-[#FED7AA]/60 active:scale-95 text-[#6B7280] hover:text-[#1F2937] transition-all flex items-center justify-center border border-[#FED7AA]/60 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="h-14 rounded-2xl bg-canvas hover:bg-line/60 active:scale-95 text-muted hover:text-ink transition-all flex items-center justify-center border border-line disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Delete className="w-6 h-6" />
             </button>
@@ -392,7 +392,7 @@ export const PinPadModal = ({
               type="button"
               disabled={currentPinLength < 4 || !!lockoutRemaining || isLoading}
               onClick={handleNextStep}
-              className="w-full mt-4 py-3 rounded-2xl bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white font-bold text-sm shadow-md shadow-orange-500/20 hover:opacity-95 transition-opacity disabled:opacity-40"
+              className="w-full mt-4 py-3 rounded-2xl bg-brand-gradient text-white font-bold text-sm shadow-md shadow-primary/20 hover:opacity-95 transition-opacity disabled:opacity-40"
             >
               {isLoading
                 ? 'Processing...'

@@ -106,7 +106,7 @@ export const ReelsView = () => {
     return (
       <div className="w-full max-w-sm mx-auto h-[calc(100dvh-5rem)] rounded-3xl bg-neutral-900 flex items-center justify-center text-white">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-[#F97316] border-t-transparent rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           <span className="text-xs font-semibold text-white/70">Loading Reels...</span>
         </div>
       </div>
@@ -375,7 +375,7 @@ const ReelCard = ({
           <div className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center hover:scale-110 active:scale-90 transition">
             <Bookmark
               className={`w-5 h-5 ${
-                isSaved ? 'fill-[#F97316] text-[#F97316]' : 'text-white'
+                isSaved ? 'fill-primary text-primary' : 'text-white'
               }`}
             />
           </div>
@@ -393,9 +393,9 @@ const ReelCard = ({
               text: reel.caption || ''
             });
           }}
-          className="p-2 rounded-full bg-black/40 backdrop-blur-md hover:bg-orange-500/80 transition cursor-pointer text-white"
+          className="p-2 rounded-full bg-black/40 backdrop-blur-md hover:bg-primary/80 transition cursor-pointer text-white"
         >
-          <Bookmark className="w-4 h-4 fill-orange-400 text-orange-400" />
+          <Bookmark className="w-4 h-4 fill-primary text-primary" />
         </button>
 
         {/* More / Copy link */}
@@ -470,7 +470,7 @@ const ReelCard = ({
 
         {/* Audio ticker */}
         <div className="flex items-center gap-1.5 text-[11px] text-white/90">
-          <Music className="w-3.5 h-3.5 text-[#F97316] animate-pulse" />
+          <Music className="w-3.5 h-3.5 text-primary animate-pulse" />
           <span className="truncate max-w-[160px] font-medium">
             {reel.audioName || 'Original Audio - Flash Chat'}
           </span>
@@ -480,7 +480,7 @@ const ReelCard = ({
       {/* Progress Bar at very bottom */}
       <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-30">
         <div
-          className="h-full bg-gradient-to-r from-[#F97316] to-[#EC4899] transition-all duration-100"
+          className="h-full bg-brand-gradient transition-all duration-100"
           style={{ width: `${progress}%` }}
         />
       </div>

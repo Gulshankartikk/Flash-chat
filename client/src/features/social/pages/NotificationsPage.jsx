@@ -173,8 +173,8 @@ export const NotificationsPage = () => {
                 key={notif._id}
                 onClick={() => handleRowClick(notif)}
                 className={`flex items-center justify-between p-3 rounded-2xl transition cursor-pointer ${
-                  notif.read ? 'bg-white hover:bg-orange-50/50' : 'bg-orange-50/80 hover:bg-orange-100/60'
-                } border border-[#FED7AA]/50 shadow-xs`}
+                  notif.read ? 'bg-card hover:bg-primary/5' : 'bg-primary/15 hover:bg-primary/20'
+                } border border-line shadow-xs`}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="relative flex-shrink-0">
@@ -184,16 +184,16 @@ export const NotificationsPage = () => {
                       size="sm"
                     />
                     {!notif.read && (
-                      <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[#F43F5E] ring-2 ring-white" />
+                      <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-accent ring-2 ring-card" />
                     )}
                   </div>
 
                   <div className="text-xs leading-relaxed flex-1 min-w-0 pr-2">
-                    <p className="text-[#1F2937] truncate">
+                    <p className="text-ink truncate">
                       <span className="font-bold mr-1">{notif.actor?.username || 'Someone'}</span>
-                      <span className="text-[#6B7280]">{notif.message || notif.text}</span>
+                      <span className="text-muted">{notif.message || notif.text}</span>
                     </p>
-                    <RelativeTime date={notif.createdAt} className="text-[10px] text-[#6B7280]" />
+                    <RelativeTime date={notif.createdAt} className="text-[10px] text-muted" />
                   </div>
                 </div>
 
@@ -209,8 +209,8 @@ export const NotificationsPage = () => {
                       }}
                       className={`px-3 py-1 rounded-full text-xs font-bold transition cursor-pointer ${
                         isFollowingBack
-                          ? 'bg-[#FFF7ED] border border-[#FED7AA] text-[#1F2937]'
-                          : 'bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white shadow-xs'
+                          ? 'bg-canvas border border-line text-ink'
+                          : 'bg-brand-gradient text-white shadow-xs'
                       }`}
                     >
                       {isFollowingBack ? 'Following' : 'Follow back'}
@@ -226,7 +226,7 @@ export const NotificationsPage = () => {
                           e.stopPropagation();
                           handleAcceptRequest(notif._id, notif.target?.refId || notif._id);
                         }}
-                        className="px-2.5 py-1 rounded-full bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-[11px] font-bold shadow-xs hover:opacity-95 cursor-pointer"
+                        className="px-2.5 py-1 rounded-full bg-brand-gradient text-white text-[11px] font-bold shadow-xs hover:opacity-95 cursor-pointer"
                       >
                         Confirm
                       </button>
@@ -236,7 +236,7 @@ export const NotificationsPage = () => {
                           e.stopPropagation();
                           handleRejectRequest(notif._id, notif.target?.refId || notif._id);
                         }}
-                        className="p-1 rounded-full text-[#6B7280] hover:text-[#F43F5E] cursor-pointer"
+                        className="p-1 rounded-full text-muted hover:text-accent cursor-pointer"
                       >
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -248,7 +248,7 @@ export const NotificationsPage = () => {
                     <img
                       src={notif.targetThumbnail}
                       alt="Thumbnail"
-                      className="w-10 h-10 rounded-xl object-cover border border-[#FED7AA]"
+                      className="w-10 h-10 rounded-xl object-cover border border-line"
                     />
                   )}
                 </div>
@@ -264,15 +264,15 @@ export const NotificationsPage = () => {
     <div className="w-full max-w-xl mx-auto space-y-4 pb-20">
       {/* Real-time Notification Banner / Toast */}
       {realtimeToast && (
-        <div className="fixed top-16 inset-x-4 max-w-md mx-auto z-50 p-3 rounded-2xl bg-white border border-[#FED7AA] shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
+        <div className="fixed top-16 inset-x-4 max-w-md mx-auto z-50 p-3 rounded-2xl bg-card border border-line shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
           <SocialAvatar
             src={realtimeToast.actor?.avatar}
             alt={realtimeToast.actor?.username}
             size="sm"
           />
           <div className="flex-1 text-xs">
-            <span className="font-bold text-[#1F2937]">@{realtimeToast.actor?.username} </span>
-            <span className="text-[#6B7280]">{realtimeToast.message || realtimeToast.text}</span>
+            <span className="font-bold text-ink">@{realtimeToast.actor?.username} </span>
+            <span className="text-muted">{realtimeToast.message || realtimeToast.text}</span>
           </div>
         </div>
       )}
@@ -280,15 +280,15 @@ export const NotificationsPage = () => {
       {/* Header bar */}
       <div className="flex items-center justify-between px-2">
         <div className="flex items-center gap-2">
-          <Bell className="w-4 h-4 text-[#F97316]" />
-          <h2 className="text-sm font-bold text-[#1F2937]">Activity</h2>
+          <Bell className="w-4 h-4 text-primary" />
+          <h2 className="text-sm font-bold text-ink">Activity</h2>
         </div>
 
         {notifications.some((n) => !n.read) && (
           <button
             type="button"
             onClick={handleMarkAllRead}
-            className="flex items-center gap-1 text-xs font-semibold text-[#F97316] hover:underline cursor-pointer"
+            className="flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
           >
             <CheckCheck className="w-3.5 h-3.5" />
             <span>Mark all read</span>
@@ -301,21 +301,21 @@ export const NotificationsPage = () => {
           {[1, 2, 3, 4].map((i) => (
             <div
               key={i}
-              className="bg-white rounded-2xl border border-[#FED7AA]/60 p-3 flex items-center gap-3 animate-pulse"
+              className="bg-card rounded-2xl border border-line p-3 flex items-center gap-3 animate-pulse"
             >
-              <div className="w-10 h-10 rounded-full bg-[#FED7AA]/40" />
+              <div className="w-10 h-10 rounded-full bg-line/40" />
               <div className="flex-1 space-y-1.5">
-                <div className="w-48 h-2.5 rounded-full bg-[#FED7AA]/40" />
-                <div className="w-24 h-2 rounded-full bg-[#FED7AA]/30" />
+                <div className="w-48 h-2.5 rounded-full bg-line/40" />
+                <div className="w-24 h-2 rounded-full bg-line/30" />
               </div>
             </div>
           ))}
         </div>
       ) : notifications.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-[#FED7AA]/60 p-12 text-center space-y-2 shadow-xs">
-          <Bell className="w-12 h-12 text-[#FED7AA] mx-auto stroke-1" />
-          <h3 className="text-sm font-bold text-[#1F2937]">No notifications yet</h3>
-          <p className="text-xs text-[#6B7280]">
+        <div className="bg-card rounded-3xl border border-line p-12 text-center space-y-2 shadow-xs">
+          <Bell className="w-12 h-12 text-muted mx-auto stroke-1" />
+          <h3 className="text-sm font-bold text-ink">No notifications yet</h3>
+          <p className="text-xs text-muted">
             When people like your posts, comment, follow you, or share content, you'll see it here.
           </p>
         </div>

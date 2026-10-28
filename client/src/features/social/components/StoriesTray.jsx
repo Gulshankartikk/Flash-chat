@@ -44,7 +44,7 @@ export const StoriesTray = () => {
   };
 
   return (
-    <div className="w-full bg-white rounded-2xl border border-[#FED7AA]/60 p-3 shadow-xs">
+    <div className="w-full bg-card rounded-2xl border border-line p-3 shadow-xs">
       <div className="flex items-center gap-3 overflow-x-auto no-scrollbar scroll-smooth py-1 px-1">
         {/* "Your Story" item */}
         <div className="flex flex-col items-center gap-1.5 flex-shrink-0 cursor-pointer group">
@@ -65,14 +65,14 @@ export const StoriesTray = () => {
                   e.stopPropagation();
                   openCreateModal('story');
                 }}
-                className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white flex items-center justify-center ring-2 ring-white shadow-xs group-hover:scale-110 transition cursor-pointer"
+                className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-brand-gradient text-white flex items-center justify-center ring-2 ring-card shadow-xs group-hover:scale-110 transition cursor-pointer"
                 title="Add Story"
               >
                 <Plus className="w-3 h-3 stroke-[3]" />
               </button>
             )}
           </div>
-          <span className="text-[11px] font-medium text-[#1F2937] max-w-[64px] truncate text-center">
+          <span className="text-[11px] font-medium text-ink max-w-[64px] truncate text-center">
             Your story
           </span>
         </div>
@@ -81,8 +81,8 @@ export const StoriesTray = () => {
         {loading
           ? Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex flex-col items-center gap-1.5 flex-shrink-0 animate-pulse">
-                <div className="w-12 h-12 rounded-full bg-[#FED7AA]/40" />
-                <div className="w-10 h-2 rounded-full bg-[#FED7AA]/40" />
+                <div className="w-12 h-12 rounded-full bg-line/40" />
+                <div className="w-10 h-2 rounded-full bg-line/40" />
               </div>
             ))
           : otherStoryClusters.map((cluster) => {
@@ -102,7 +102,7 @@ export const StoriesTray = () => {
                     hasStory={true}
                     hasUnseen={cluster.hasUnseen}
                   />
-                  <span className="text-[11px] font-medium text-[#1F2937] max-w-[64px] truncate text-center">
+                  <span className="text-[11px] font-medium text-ink max-w-[64px] truncate text-center">
                     {cluster.user?.username || cluster.user?.name}
                   </span>
                 </div>

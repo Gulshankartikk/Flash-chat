@@ -196,27 +196,27 @@ async function runAllClientTests() {
   console.log('\n\x1b[1m[5] WCAG AA/AAA Color Contrast Audit & Verification Table\x1b[0m');
 
   const TOKENS_LIGHT = {
-    cream: '#FFF7ED',
+    cream: '#FAF5FF',
     card: '#FFFFFF',
-    primary: '#F97316',
+    primary: '#E879F9',
     secondary: '#EC4899',
     accent: '#F43F5E',
-    ink: '#1F2937',
-    muted: '#6B7280',
-    line: '#FED7AA',
-    focus: '#1F2937' // Focus ring indicator against cream
+    ink: '#1E1035',
+    muted: '#6B5B82',
+    line: '#E9D5FF',
+    focus: '#1E1035' // Focus ring indicator against cream
   };
 
   const TOKENS_DARK = {
-    cream: '#18110D',
-    card: '#241A14',
-    primary: '#F97316',
-    secondary: '#EC4899',
+    cream: '#0B0814',
+    card: '#17112A',
+    primary: '#D946EF',
+    secondary: '#A855F7',
     accent: '#F43F5E',
-    ink: '#FFF7ED',
-    muted: '#9CA3AF',
-    line: '#3D2B20',
-    focus: '#F97316'
+    ink: '#FDF4FF',
+    muted: '#A78BFA',
+    line: '#2E224F',
+    focus: '#D946EF'
   };
 
   const contrastPairsLight = [

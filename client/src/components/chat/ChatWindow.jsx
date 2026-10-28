@@ -147,14 +147,14 @@ export const ChatWindow = ({ conversationId, onBack }) => {
   if (!activeConversation) {
     if (conversationId || isLoadingMessages) {
       return (
-        <div className="flex flex-col items-center justify-center h-full flex-1 bg-[#FFF7ED]/30 text-center p-8">
+        <div className="flex flex-col items-center justify-center h-full flex-1 bg-cream/30 text-center p-8">
           <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mb-3" />
-          <p className="text-xs text-[#6B7280]">Loading conversation...</p>
+          <p className="text-xs text-muted">Loading conversation...</p>
         </div>
       );
     }
     return (
-      <div className="hidden md:flex flex-col items-center justify-center h-full flex-1 bg-[#FFF7ED]/30 text-center p-8">
+      <div className="hidden md:flex flex-col items-center justify-center h-full flex-1 bg-cream/30 text-center p-8">
         <EmptyState
           emoji="⚡"
           title="Flash Chat Messaging"
@@ -207,16 +207,16 @@ export const ChatWindow = ({ conversationId, onBack }) => {
     : conversationMessages;
 
   return (
-    <div className="relative flex flex-col h-full flex-1 bg-[#FFF7ED]/20 overflow-hidden">
+    <div className="relative flex flex-col h-full flex-1 bg-cream/20 overflow-hidden">
       {/* Chat Header Bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-[#FED7AA] z-10 select-none shadow-xs">
+      <div className="flex items-center justify-between px-4 py-3 bg-card border-b border-line z-10 select-none shadow-xs">
         <div className="flex items-center gap-3 min-w-0">
           {/* Mobile Back Button */}
           {onBack && (
             <button
               type="button"
               onClick={onBack}
-              className="md:hidden p-1.5 rounded-full hover:bg-orange-50 text-[#6B7280] hover:text-[#1F2937]"
+              className="md:hidden p-1.5 rounded-full hover:bg-cream text-muted hover:text-ink"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -241,10 +241,10 @@ export const ChatWindow = ({ conversationId, onBack }) => {
             onClick={() => isGroup && setShowGroupInfo(true)}
             className={`min-w-0 ${isGroup ? 'cursor-pointer' : ''}`}
           >
-            <h3 className="text-sm font-bold text-[#1F2937] truncate flex items-center gap-1.5">
+            <h3 className="text-sm font-bold text-ink truncate flex items-center gap-1.5">
               <span>{activeConversation.displayName}</span>
               {!isGroup && otherUser?.username && (
-                <span className="text-[11px] font-normal text-[#6B7280] truncate">@{otherUser.username}</span>
+                <span className="text-[11px] font-normal text-muted truncate">@{otherUser.username}</span>
               )}
             </h3>
             <p
@@ -262,12 +262,12 @@ export const ChatWindow = ({ conversationId, onBack }) => {
         </div>
 
         {/* Right Header Actions */}
-        <div className="flex items-center gap-1.5 text-[#6B7280]">
+        <div className="flex items-center gap-1.5 text-muted">
           {/* In-chat search toggle */}
           <button
             type="button"
             onClick={() => setShowInChatSearch(!showInChatSearch)}
-            className="p-2 rounded-xl hover:bg-[#FFF7ED] hover:text-[#F97316] transition cursor-pointer"
+            className="p-2 rounded-xl hover:bg-cream hover:text-primary transition cursor-pointer"
             title="Search in conversation"
           >
             <Search className="w-4 h-4" />
@@ -279,35 +279,35 @@ export const ChatWindow = ({ conversationId, onBack }) => {
               <button
                 type="button"
                 onClick={() => setShowSummarizeMenu(!showSummarizeMenu)}
-                className="p-2 rounded-xl text-[#F97316] hover:bg-orange-50 transition cursor-pointer"
+                className="p-2 rounded-xl text-primary hover:bg-cream transition cursor-pointer"
                 title="Summarize conversation with AI"
               >
                 <Sparkles className="w-4 h-4" />
               </button>
 
               {showSummarizeMenu && (
-                <div className="absolute right-0 top-11 z-30 p-2 rounded-2xl bg-white border border-[#FED7AA] shadow-xl text-xs space-y-1 w-44 animate-scaleUp">
-                  <p className="px-2 py-1 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
+                <div className="absolute right-0 top-11 z-30 p-2 rounded-2xl bg-card border border-line shadow-xl text-xs space-y-1 w-44 animate-scaleUp">
+                  <p className="px-2 py-1 text-[10px] font-bold text-muted uppercase tracking-wider">
                     Summarize with AI
                   </p>
                   <button
                     type="button"
                     onClick={() => handleSummarize('unread')}
-                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[#FFF7ED] text-[#1F2937] transition font-medium cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-cream text-ink transition font-medium cursor-pointer"
                   >
                     Unread Messages
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSummarize('today')}
-                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[#FFF7ED] text-[#1F2937] transition font-medium cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-cream text-ink transition font-medium cursor-pointer"
                   >
                     Today's Discussion
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSummarize('last50')}
-                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[#FFF7ED] text-[#1F2937] transition font-medium cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-cream text-ink transition font-medium cursor-pointer"
                   >
                     Last 50 Messages
                   </button>
@@ -330,8 +330,8 @@ export const ChatWindow = ({ conversationId, onBack }) => {
                 }
                 className={`p-2 rounded-xl transition cursor-pointer ${
                   callState !== 'idle'
-                    ? 'opacity-40 cursor-not-allowed text-gray-300'
-                    : 'hover:bg-[#FFF7ED] hover:text-[#F97316]'
+                    ? 'opacity-40 cursor-not-allowed text-muted'
+                    : 'hover:bg-cream hover:text-primary'
                 }`}
                 title="Start voice call"
               >
@@ -349,8 +349,8 @@ export const ChatWindow = ({ conversationId, onBack }) => {
                 }
                 className={`p-2 rounded-xl transition cursor-pointer ${
                   callState !== 'idle'
-                    ? 'opacity-40 cursor-not-allowed text-gray-300'
-                    : 'hover:bg-[#FFF7ED] hover:text-[#F97316]'
+                    ? 'opacity-40 cursor-not-allowed text-muted'
+                    : 'hover:bg-cream hover:text-primary'
                 }`}
                 title="Start video call"
               >
@@ -364,7 +364,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
             <button
               type="button"
               onClick={() => navigate(`/u/${otherUser.username}`)}
-              className="p-2 rounded-xl hover:bg-[#FFF7ED] hover:text-[#F97316] transition cursor-pointer"
+              className="p-2 rounded-xl hover:bg-cream hover:text-primary transition cursor-pointer"
               title="View Social Profile"
             >
               <User className="w-4 h-4" />
@@ -376,7 +376,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
             <button
               type="button"
               onClick={() => setShowGroupInfo(true)}
-              className="p-2 rounded-xl hover:bg-[#FFF7ED] hover:text-[#F97316] transition cursor-pointer"
+              className="p-2 rounded-xl hover:bg-cream hover:text-primary transition cursor-pointer"
               title="Group settings & info"
             >
               <Info className="w-4 h-4" />
@@ -387,14 +387,14 @@ export const ChatWindow = ({ conversationId, onBack }) => {
 
       {/* In-Chat Message Search Drawer */}
       {showInChatSearch && (
-        <div className="p-2.5 bg-white border-b border-[#FED7AA] flex items-center gap-2 animate-slideDown">
-          <Search className="w-4 h-4 text-[#F97316]" />
+        <div className="p-2.5 bg-card border-b border-line flex items-center gap-2 animate-slideDown">
+          <Search className="w-4 h-4 text-primary" />
           <input
             type="text"
             placeholder="Search words in this chat..."
             value={inChatSearch}
             onChange={(e) => setInChatSearch(e.target.value)}
-            className="flex-1 text-xs py-1.5 px-3 rounded-xl border border-[#FED7AA] bg-[#FFF7ED]/30 focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+            className="flex-1 text-xs py-1.5 px-3 rounded-xl border border-line bg-cream/40 text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <button
             type="button"
@@ -402,7 +402,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
               setInChatSearch('');
               setShowInChatSearch(false);
             }}
-            className="p-1 text-[#6B7280] hover:text-[#1F2937]"
+            className="p-1 text-muted hover:text-ink cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -411,7 +411,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
 
       {/* Disappearing Messages Notice Banner */}
       {activeConversation.disappearAfter && (
-        <div className="bg-orange-50 border-b border-[#FED7AA]/60 py-1 px-4 text-center text-[10px] text-orange-800 font-semibold flex items-center justify-center gap-1.5">
+        <div className="bg-primary/10 border-b border-primary/20 py-1 px-4 text-center text-[10px] text-primary font-semibold flex items-center justify-center gap-1.5">
           <Clock className="w-3 h-3" />
           <span>Disappearing messages enabled ({activeConversation.disappearAfter / 86400} days)</span>
         </div>
@@ -434,7 +434,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
         className="flex-1 overflow-y-auto p-4 space-y-1"
       >
         {isLoadingMessages && (
-          <div className="p-2 text-center text-xs text-[#6B7280] animate-pulse">
+          <div className="p-2 text-center text-xs text-muted animate-pulse">
             Loading older messages...
           </div>
         )}
@@ -450,13 +450,13 @@ export const ChatWindow = ({ conversationId, onBack }) => {
                 showStatus={!isGroup}
               />
             </div>
-            <h4 className="text-sm font-bold text-[#1F2937]">
+            <h4 className="text-sm font-bold text-ink">
               {activeConversation.displayName}
             </h4>
             {!isGroup && otherUser?.username && (
-              <p className="text-xs text-[#6B7280] mb-2">@{otherUser.username}</p>
+              <p className="text-xs text-muted mb-2">@{otherUser.username}</p>
             )}
-            <p className="text-xs text-[#6B7280] max-w-xs mt-1">
+            <p className="text-xs text-muted max-w-xs mt-1">
               No messages here yet. Say hello to start the conversation!
             </p>
           </div>
@@ -496,7 +496,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
             <React.Fragment key={msg._id || index}>
               {showDateSeparator && (
                 <div className="flex items-center justify-center my-4">
-                  <span className="px-3 py-1 rounded-full bg-white border border-[#FED7AA] text-[10px] font-bold text-[#6B7280] shadow-xs select-none">
+                  <span className="px-3 py-1 rounded-full bg-card border border-line text-[10px] font-bold text-muted shadow-xs select-none">
                     {getDateLabel(msg.createdAt)}
                   </span>
                 </div>

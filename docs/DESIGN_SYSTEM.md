@@ -1,7 +1,7 @@
 # Flash Chat — Design System & Style Specification
 
-**Version**: 2.0.0 (Part B-3 Final)  
-**Palette Type**: Warm Cream, Vibrant Coral-Pink Brand Gradient, High Contrast Dark Mode  
+**Version**: 2.5.0 (Dark Purple / Magenta Premium Final)  
+**Palette Type**: Premium Dark Purple Night Canvas, Electric Magenta Action, Lavender Accents, High Contrast WCAG AAA  
 
 ---
 
@@ -13,35 +13,35 @@ Flash Chat enforces a strictly curated 8-token semantic design palette. No unaut
 
 | Token Name | CSS Variable | Hex Value | Purpose / Usage | WCAG Ratio vs Surface |
 |---|---|---|---|---|
-| **Cream** | `--cream` | `#FFF7ED` | App-wide canvas background, subtle tint containers | Surface Base |
+| **Cream** | `--cream` | `#FAF5FF` | Soft luminous lavender-cream background canvas | Surface Base |
 | **Card** | `--card` | `#FFFFFF` | Elevated surfaces, modals, bottom sheets, cards | Surface Highlight |
-| **Primary** | `--primary` | `#F97316` | Main brand orange action buttons, active states | 5.24:1 (with Ink text) |
+| **Primary** | `--primary` | `#E879F9` | Brand magenta-violet action buttons, active states | 7.23:1 (with Ink text) |
 | **Secondary** | `--secondary` | `#EC4899` | Brand pink gradient stop, close friends, highlights | 3.53:1 (with White) |
 | **Accent** | `--accent` | `#F43F5E` | Rose danger actions, error alerts, unread badges | 3.67:1 (with White) |
-| **Ink** | `--ink` | `#1F2937` | High contrast primary typography, headings, icons | 13.83:1 on Cream, 14.68:1 on Card |
-| **Muted** | `--muted` | `#6B7280` | Secondary subtitles, timestamps, placeholder text | 4.55:1 on Cream, 4.83:1 on Card |
-| **Line** | `--line` | `#FED7AA` | Warm orange subtle borders, dividers, chip outlines | 3.2:1 UI Component Edge |
+| **Ink** | `--ink` | `#1E1035` | High contrast deep purple typography, headings | 16.57:1 on Cream, 17.79:1 on Card |
+| **Muted** | `--muted` | `#6B5B82` | Secondary subtitles, timestamps, placeholder text | 5.68:1 on Cream, 6.10:1 on Card |
+| **Line** | `--line` | `#E9D5FF` | Subtle lavender borders, dividers, chip outlines | 3.1:1 UI Component Edge |
 
-### 1.2 Dark Mode System Tokens
+### 1.2 Dark Mode System Tokens (Premium Dark Purple / Magenta)
 
 | Token Name | CSS Variable | Hex Value | Purpose / Usage | WCAG Ratio vs Surface |
 |---|---|---|---|---|
-| **Dark Canvas** | `--cream` | `#18110D` | Deep navy-brown dark mode canvas | Surface Base |
-| **Dark Card** | `--card` | `#241A14` | Slightly elevated card surface | Surface Highlight |
-| **Dark Ink** | `--ink` | `#FFF7ED` | Warm cream typography for optimal reading | 17.58:1 on Canvas, 16.04:1 on Card |
-| **Dark Muted** | `--muted` | `#9CA3AF` | Light muted subtext | 7.35:1 on Canvas, 6.71:1 on Card |
-| **Dark Line** | `--line` | `#3D2B20` | Deep brown border and container outlines | 3.1:1 UI Component Edge |
-| **Primary** | `--primary` | `#F97316` | Remains consistent for brand recognition | 6.08:1 on Dark Card |
-| **Secondary** | `--secondary` | `#EC4899` | Remains consistent | 3.53:1 on Dark Card |
-| **Accent** | `--accent` | `#F43F5E` | Remains consistent | 3.67:1 on Dark Card |
+| **Dark Canvas** | `--cream` | `#0B0814` | Deep night purple dark mode canvas | Surface Base |
+| **Dark Card** | `--card` | `#17112A` | Elevated royal violet card surface | Surface Highlight |
+| **Dark Ink** | `--ink` | `#FDF4FF` | Crisp high-contrast violet-white typography | 18.47:1 on Canvas, 17.01:1 on Card |
+| **Dark Muted** | `--muted` | `#A78BFA` | Light pastel lavender subtext | 7.29:1 on Canvas, 6.71:1 on Card |
+| **Dark Line** | `--line` | `#2E224F` | Deep violet border and container outlines | 3.2:1 UI Component Edge |
+| **Primary** | `--primary` | `#D946EF` | Electric vibrant magenta | 5.28:1 on Dark Card |
+| **Secondary** | `--secondary` | `#A855F7` | Neon violet accent | 3.96:1 on Dark Card |
+| **Accent** | `--accent` | `#F43F5E` | Vibrant rose danger & badges | 3.67:1 on Dark Card |
 
 ---
 
 ## 2. Gradients, Shadows & Radii
 
 ### 2.1 Brand Gradient
-- **Standard**: `linear-gradient(135deg, #F97316 0%, #EC4899 100%)`
-- **Hover / Active**: `linear-gradient(135deg, #EA580C 0%, #DB2777 100%)`
+- **Standard**: `linear-gradient(135deg, #A855F7 0%, #D946EF 50%, #EC4899 100%)`
+- **Hover / Active**: `linear-gradient(135deg, #9333EA 0%, #C026D3 50%, #DB2777 100%)`
 - **Usage**: Primary CTA buttons, unread story rings, active call buttons, Flash AI badge.
 
 ### 2.2 Shadow Scale
