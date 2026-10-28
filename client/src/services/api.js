@@ -33,7 +33,7 @@ export const setPocketTokenGetter = (fn) => {
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('flash_chat_token');
-    if (token) {
+    if (token && token !== 'null' && token !== 'undefined') {
       config.headers.Authorization = `Bearer ${token}`;
     }
     if (pocketTokenGetter && config.url && config.url.includes('/pocket')) {
@@ -47,15 +47,26 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: auto silent refresh on TOKEN_EXPIRED
+// Response interceptor: auto silent refresh on 401
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
+    const requestUrl = originalRequest?.url || '';
+    const isAuthRoute =
+      requestUrl.includes('/auth/login') ||
+      requestUrl.includes('/auth/signup') ||
+      requestUrl.includes('/auth/verify-otp') ||
+      requestUrl.includes('/auth/send-otp') ||
+      requestUrl.includes('/auth/refresh-token') ||
+      requestUrl.includes('/auth/forgot-password') ||
+      requestUrl.includes('/auth/reset-password');
+
     if (
       error.response?.status === 401 &&
-      error.response?.data?.code === 'TOKEN_EXPIRED' &&
+      !isAuthRoute &&
+      originalRequest &&
       !originalRequest._retry
     ) {
       if (isRefreshing) {
@@ -93,8 +104,15 @@ api.interceptors.response.use(
       } catch (refreshErr) {
         processQueue(refreshErr, null);
         localStorage.removeItem('flash_chat_token');
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
+        if (typeof window !== 'undefined') {
+          try {
+            window.dispatchEvent(new CustomEvent('flash_chat_auth_logout'));
+          } catch (_) {}
+          const publicRoutes = ['/login', '/signup', '/welcome', '/forgot-password', '/reset-password'];
+          const isPublic = publicRoutes.some((p) => window.location.pathname.startsWith(p));
+          if (!isPublic && window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(refreshErr);
       } finally {

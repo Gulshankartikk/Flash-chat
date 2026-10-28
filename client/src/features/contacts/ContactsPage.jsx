@@ -27,8 +27,10 @@ export const ContactsPage = () => {
   const [undoToast, setUndoToast] = useState(null);
 
   useEffect(() => {
-    fetchContacts();
-  }, [fetchContacts]);
+    if (user) {
+      fetchContacts();
+    }
+  }, [user, fetchContacts]);
 
   const handleContactDeleted = (deletedContact) => {
     setUndoToast({

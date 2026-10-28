@@ -78,8 +78,10 @@ export const PublicProfilePage = () => {
   const { contacts, addContact, deleteContact, fetchContacts } = useContactsStore();
 
   useEffect(() => {
-    fetchContacts();
-  }, [fetchContacts]);
+    if (currentUser) {
+      fetchContacts();
+    }
+  }, [currentUser, fetchContacts]);
 
   const isMe =
     Boolean(currentUser?._id && profile?._id) &&

@@ -44,6 +44,9 @@ export const useChatStore = create((set, get) => ({
    * Fetch all conversations for current user
    */
   fetchConversations: async () => {
+    const token = localStorage.getItem('flash_chat_token');
+    if (!token || token === 'null' || token === 'undefined') return [];
+
     set({ isLoadingConversations: true });
     try {
       const res = await api.get('/chats');
@@ -76,6 +79,9 @@ export const useChatStore = create((set, get) => ({
    * Fetch pending/queued conversations for current user
    */
   fetchPendingConversations: async () => {
+    const token = localStorage.getItem('flash_chat_token');
+    if (!token || token === 'null' || token === 'undefined') return [];
+
     set({ isLoadingPending: true });
     try {
       const res = await api.get('/chats/pending');

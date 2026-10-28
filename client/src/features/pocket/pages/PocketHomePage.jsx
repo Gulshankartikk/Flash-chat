@@ -90,6 +90,9 @@ export const PocketHomePage = () => {
   // Load items
   const loadItems = useCallback(
     async (reset = true) => {
+      const token = localStorage.getItem('flash_chat_token');
+      if (!token || token === 'null' || token === 'undefined') return;
+
       try {
         if (reset) setIsLoading(true);
         else setIsLoadingMore(true);
@@ -112,7 +115,9 @@ export const PocketHomePage = () => {
         setNextCursor(res.nextCursor);
         setHasMore(!!res.hasMore);
       } catch (err) {
-        console.error('Failed to load pocket items', err);
+        if (!err.message?.includes('Authentication required')) {
+          console.error('Failed to load pocket items', err);
+        }
       } finally {
         setIsLoading(false);
         setIsLoadingMore(false);
@@ -128,6 +133,9 @@ export const PocketHomePage = () => {
 
   // Load Folders & Storage Metrics
   const loadMetadata = useCallback(async () => {
+    const token = localStorage.getItem('flash_chat_token');
+    if (!token || token === 'null' || token === 'undefined') return;
+
     try {
       const [foldersRes, storageRes] = await Promise.all([
         fetchPocketFolders(),
@@ -136,7 +144,9 @@ export const PocketHomePage = () => {
       setFolders(foldersRes.folders || []);
       setStorageData(storageRes.storage || null);
     } catch (err) {
-      console.error('Failed to load pocket metadata', err);
+      if (!err.message?.includes('Authentication required')) {
+        console.error('Failed to load pocket metadata', err);
+      }
     }
   }, []);
 

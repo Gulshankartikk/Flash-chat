@@ -7,7 +7,10 @@ const authMiddleware = async (req, res, next) => {
     let token = null;
 
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
-      token = req.headers.authorization.split(' ')[1];
+      const parts = req.headers.authorization.split(' ');
+      if (parts[1] && parts[1] !== 'null' && parts[1] !== 'undefined') {
+        token = parts[1];
+      }
     } else if (req.cookies && (req.cookies.token || req.cookies.refreshToken)) {
       token = req.cookies.token || req.cookies.refreshToken;
     }
@@ -15,6 +18,7 @@ const authMiddleware = async (req, res, next) => {
     if (!token) {
       return res.status(401).json({
         success: false,
+        code: 'AUTH_REQUIRED',
         message: 'Authentication required. No token provided.'
       });
     }
@@ -73,7 +77,10 @@ const optionalAuth = async (req, res, next) => {
     let token = null;
 
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
-      token = req.headers.authorization.split(' ')[1];
+      const parts = req.headers.authorization.split(' ');
+      if (parts[1] && parts[1] !== 'null' && parts[1] !== 'undefined') {
+        token = parts[1];
+      }
     } else if (req.cookies && (req.cookies.token || req.cookies.refreshToken)) {
       token = req.cookies.token || req.cookies.refreshToken;
     }

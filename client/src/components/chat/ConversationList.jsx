@@ -53,9 +53,11 @@ export const ConversationList = ({
   const [isAddContactOpen, setIsAddContactOpen] = useState(false);
 
   useEffect(() => {
-    fetchPendingConversations();
-    fetchContacts();
-  }, [fetchPendingConversations, fetchContacts]);
+    if (user) {
+      fetchPendingConversations();
+      fetchContacts();
+    }
+  }, [user, fetchPendingConversations, fetchContacts]);
 
   const formatMessageTime = (dateStr) => {
     if (!dateStr) return '';

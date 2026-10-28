@@ -3,7 +3,7 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 
 export const ProtectedRoute = () => {
-  const { user, isCheckingAuth } = useAuthStore();
+  const { user, token, isCheckingAuth } = useAuthStore();
   const location = useLocation();
 
   if (isCheckingAuth) {
@@ -19,7 +19,7 @@ export const ProtectedRoute = () => {
     );
   }
 
-  if (!user) {
+  if (!user || !token) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

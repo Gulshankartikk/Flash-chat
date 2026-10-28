@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import axios from 'axios';
 import api from '../services/api';
 import { connectSocket, disconnectSocket } from '../services/socket';
 
@@ -19,12 +20,33 @@ export const useAuthStore = create((set, get) => ({
   setOtpCooldown: (val) => set({ otpCooldown: val }),
 
   checkAuth: async () => {
-    const token = localStorage.getItem('flash_chat_token') || get().token;
-    if (!token) {
+    set({ isCheckingAuth: true });
+    let token = localStorage.getItem('flash_chat_token') || get().token;
+
+    // If no token exists in memory or localStorage, attempt silent refresh first
+    if (!token || token === 'null' || token === 'undefined') {
+      try {
+        const refreshUrl = import.meta.env.VITE_API_URL
+          ? `${import.meta.env.VITE_API_URL}/api/auth/refresh-token`
+          : '/api/auth/refresh-token';
+        const refreshRes = await axios.post(refreshUrl, {}, { withCredentials: true });
+        if (refreshRes.data?.accessToken) {
+          token = refreshRes.data.accessToken;
+          localStorage.setItem('flash_chat_token', token);
+          api.defaults.headers.common.Authorization = `Bearer ${token}`;
+        }
+      } catch (_) {
+        // No active session cookie found
+        set({ user: null, token: null, isCheckingAuth: false });
+        return null;
+      }
+    }
+
+    if (!token || token === 'null' || token === 'undefined') {
       set({ user: null, token: null, isCheckingAuth: false });
       return null;
     }
-    set({ isCheckingAuth: true });
+
     try {
       const res = await api.get('/auth/me');
       const user = res.data.user;
