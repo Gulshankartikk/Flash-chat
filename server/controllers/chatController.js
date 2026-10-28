@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 const { z } = require('zod');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
@@ -29,6 +30,22 @@ const chatSettingsSchema = z.object({
   archive: z.boolean().optional(),
   muteUntil: z.string().datetime().nullable().optional()
 });
+
+const mediaTypes = new Set([
+  'image',
+  'video',
+  'audio',
+  'voice',
+  'document',
+  'location',
+  'contact',
+  'shared_post',
+  'shared_reel',
+  'shared_story',
+  'shared_profile'
+]);
+
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * POST /api/chats/direct
@@ -374,6 +391,9 @@ const getChatMedia = async (req, res, next) => {
     };
 
     if (type) {
+      if (!mediaTypes.has(type)) {
+        return res.status(400).json({ success: false, message: 'Invalid media type.' });
+      }
       query.type = type;
     }
 
@@ -406,13 +426,17 @@ const searchMessages = async (req, res, next) => {
     const query = {
       deletedForEveryone: false,
       deletedFor: { $ne: req.user._id },
-      text: { $regex: q.trim(), $options: 'i' }
+      text: { $regex: escapeRegex(q.trim()), $options: 'i' }
     };
 
     if (conversationId) {
-      const isMember = await chatService.isMember(conversationId, req.user._id);
+      if (typeof conversationId !== 'string' || !mongoose.isValidObjectId(conversationId)) {
+        return res.status(400).json({ success: false, message: 'Invalid conversation ID.' });
+      }
+      const conversationObjectId = new mongoose.Types.ObjectId(conversationId);
+      const isMember = await chatService.isMember(conversationObjectId, req.user._id);
       if (!isMember) return res.status(403).json({ success: false, message: 'Access denied.' });
-      query.conversation = conversationId;
+      query.conversation = conversationObjectId;
     } else {
       // Find conversations user is a part of
       const userConvs = await Conversation.find({ 'members.user': req.user._id }).select('_id');

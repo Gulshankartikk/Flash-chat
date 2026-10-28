@@ -3,15 +3,11 @@ const ContactInvite = require('../models/ContactInvite');
 const User = require('../models/User');
 const Block = require('../models/Block');
 const logger = require('../utils/logger');
+const { stripHtml } = require('../utils/sanitize');
 
-// Strip HTML and dangerous script tags
 const sanitizeText = (str) => {
   if (!str || typeof str !== 'string') return '';
-  return str
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-    .replace(/<[^>]*>?/gm, '')
-    .trim();
+  return stripHtml(str);
 };
 
 const escapeRegex = (string) => {

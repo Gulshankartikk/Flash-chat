@@ -1,4 +1,5 @@
 const Comment = require('../models/Comment');
+const mongoose = require('mongoose');
 const Post = require('../models/Post');
 const Reel = require('../models/Reel');
 const Like = require('../models/Like');
@@ -151,7 +152,10 @@ const createComment = async (req, res, next) => {
     let actualParentId = null;
     let parentComment = null;
     if (parentId) {
-      parentComment = await Comment.findById(parentId);
+      if (typeof parentId !== 'string' || !mongoose.isValidObjectId(parentId)) {
+        return res.status(400).json({ success: false, message: 'Invalid parent comment ID.' });
+      }
+      parentComment = await Comment.findById(new mongoose.Types.ObjectId(parentId));
       if (parentComment) {
         // Enforce 1 level: if parent already has a parent, attach to the top parent
         actualParentId = parentComment.parent ? parentComment.parent : parentComment._id;

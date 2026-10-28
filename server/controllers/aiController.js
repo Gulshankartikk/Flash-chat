@@ -8,6 +8,11 @@ const Comment = require('../models/Comment');
 const asyncHandler = require('../middleware/asyncHandler');
 const logger = require('../utils/logger');
 
+const parseObjectId = (value) => {
+  if (typeof value !== 'string' || !mongoose.isValidObjectId(value)) return null;
+  return new mongoose.Types.ObjectId(value);
+};
+
 /**
  * 1. AI Tab: Create a new AI conversation
  * POST /api/ai/chats
@@ -224,9 +229,13 @@ exports.streamAiMessage = async (req, res) => {
 exports.getSmartReplies = asyncHandler(async (req, res) => {
   const { conversationId, lastN = 10 } = req.body;
   const userId = req.user._id;
+  const conversationObjectId = parseObjectId(conversationId);
+  if (!conversationObjectId) {
+    return res.status(400).json({ success: false, message: 'Invalid conversation ID.' });
+  }
 
   const conversation = await Conversation.findOne({
-    _id: conversationId,
+    _id: conversationObjectId,
     'members.user': userId
   });
 
@@ -236,7 +245,7 @@ exports.getSmartReplies = asyncHandler(async (req, res) => {
 
   // Fetch recent visible messages
   const messages = await Message.find({
-    conversation: conversationId,
+    conversation: conversationObjectId,
     deletedForEveryone: false,
     deletedFor: { $ne: userId }
   })
@@ -269,9 +278,13 @@ exports.getSmartReplies = asyncHandler(async (req, res) => {
 exports.summarizeChat = asyncHandler(async (req, res) => {
   const { conversationId, range = 'last50' } = req.body;
   const userId = req.user._id;
+  const conversationObjectId = parseObjectId(conversationId);
+  if (!conversationObjectId) {
+    return res.status(400).json({ success: false, message: 'Invalid conversation ID.' });
+  }
 
   const conversation = await Conversation.findOne({
-    _id: conversationId,
+    _id: conversationObjectId,
     'members.user': userId
   });
 
@@ -280,7 +293,7 @@ exports.summarizeChat = asyncHandler(async (req, res) => {
   }
 
   const query = {
-    conversation: conversationId,
+    conversation: conversationObjectId,
     deletedForEveryone: false,
     deletedFor: { $ne: userId }
   };
@@ -339,7 +352,11 @@ exports.translateMessage = asyncHandler(async (req, res) => {
 
   let sourceText = text;
   if (messageId) {
-    const msg = await Message.findById(messageId);
+    const messageObjectId = parseObjectId(messageId);
+    if (!messageObjectId) {
+      return res.status(400).json({ success: false, message: 'Invalid message ID.' });
+    }
+    const msg = await Message.findById(messageObjectId);
     if (!msg) {
       return res.status(404).json({ success: false, message: 'Message not found.' });
     }
@@ -444,7 +461,11 @@ exports.suggestCommentReplies = asyncHandler(async (req, res) => {
 
   let textToReply = commentText;
   if (commentId) {
-    const comment = await Comment.findById(commentId);
+    const commentObjectId = parseObjectId(commentId);
+    if (!commentObjectId) {
+      return res.status(400).json({ success: false, message: 'Invalid comment ID.' });
+    }
+    const comment = await Comment.findById(commentObjectId);
     if (comment) textToReply = comment.text;
   }
 
@@ -512,8 +533,12 @@ exports.describeImage = asyncHandler(async (req, res) => {
 exports.summarizePocketItem = asyncHandler(async (req, res) => {
   const { itemId } = req.body;
   const userId = req.user._id;
+  const itemObjectId = parseObjectId(itemId);
+  if (!itemObjectId) {
+    return res.status(400).json({ success: false, message: 'Invalid Pocket item ID.' });
+  }
 
-  const item = await PocketItem.findOne({ _id: itemId, owner: userId, deletedAt: null });
+  const item = await PocketItem.findOne({ _id: itemObjectId, owner: userId, deletedAt: null });
   if (!item) {
     return res.status(404).json({ success: false, message: 'Pocket item not found.' });
   }
@@ -721,4 +746,3 @@ exports.getDisclosure = asyncHandler(async (req, res) => {
     provider: 'Google Gemini'
   });
 });
-
