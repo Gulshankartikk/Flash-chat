@@ -43,11 +43,12 @@ exports.closeTicket = asyncHandler(async (req, res) => {
 exports.getFaq = asyncHandler(async (req, res) => {
   const { category, search } = req.query;
   const query = { isActive: true };
-  if (category) query.category = category;
+  if (category) query.category = { $eq: category };
   if (search && search.trim()) {
+    const escapedSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     query.$or = [
-      { question: { $regex: search.trim(), $options: 'i' } },
-      { answer: { $regex: search.trim(), $options: 'i' } }
+      { question: { $regex: escapedSearch, $options: 'i' } },
+      { answer: { $regex: escapedSearch, $options: 'i' } }
     ];
   }
   const faqs = await SupportFaq.find(query).sort({ order: 1 }).lean();

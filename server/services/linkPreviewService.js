@@ -74,7 +74,7 @@ const linkPreviewService = {
 
     let html = '';
     try {
-      const response = await fetch(validUrl, {
+      const response = await fetch(parsedUrl, {
         signal: controller.signal,
         headers: {
           'User-Agent': 'Mozilla/5.0 (FlashChat LinkPreviewBot/1.0; +https://flashchat.app)',

@@ -85,8 +85,8 @@ class ChatService {
    */
   async isMember(conversationId, userId) {
     const conv = await Conversation.findOne({
-      _id: conversationId,
-      'members.user': userId
+      _id: { $eq: conversationId },
+      'members.user': { $eq: userId }
     }).select('_id');
     return !!conv;
   }
@@ -109,7 +109,7 @@ class ChatService {
       snapshot
     } = payload;
 
-    const conversation = await Conversation.findById(conversationId);
+    const conversation = await Conversation.findOne({ _id: { $eq: conversationId } });
     if (!conversation) {
       throw new Error('Conversation not found.');
     }
@@ -123,7 +123,10 @@ class ChatService {
 
     // Deduplicate by clientId if present
     if (clientId) {
-      const existingMsg = await Message.findOne({ conversation: conversationId, clientId });
+      const existingMsg = await Message.findOne({
+        conversation: { $eq: conversationId },
+        clientId: { $eq: clientId }
+      });
       if (existingMsg) {
         return existingMsg;
       }
@@ -163,7 +166,7 @@ class ChatService {
       }
     });
 
-    await Conversation.findByIdAndUpdate(conversationId, {
+    await Conversation.findOneAndUpdate({ _id: { $eq: conversationId } }, {
       lastMessage: message._id,
       updatedAt: new Date(),
       $set: memberUpdates

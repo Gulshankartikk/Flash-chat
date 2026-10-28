@@ -21,6 +21,9 @@ const shareContent = async (req, res, next) => {
         message: 'kind, refId, and at least one conversationId are required.'
       });
     }
+    if (typeof refId !== 'string' || conversationIds.some((id) => typeof id !== 'string')) {
+      return res.status(400).json({ success: false, message: 'Invalid content or conversation ID.' });
+    }
 
     // 1. Fetch content snapshot and owner
     let snapshot = {

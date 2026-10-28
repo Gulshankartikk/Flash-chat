@@ -249,7 +249,7 @@ const pocketController = {
 
       // Filter: Search query (case-insensitive title/content/tags)
       if (q && q.trim()) {
-        const regex = new RegExp(q.trim(), 'i');
+        const regex = new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
         query.$or = [
           { title: regex },
           { content: regex },
@@ -1178,7 +1178,7 @@ const pocketController = {
       }
 
       if (q && q.trim()) {
-        const regex = new RegExp(q.trim(), 'i');
+        const regex = new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
         // Search text or regex match on title, content, or tags
         // Exclude client-encrypted ciphertext from text regex matching to avoid garbled false positives
         query.$or = [
@@ -1211,7 +1211,7 @@ const pocketController = {
       const { kind = 'chat_message' } = req.query;
       const items = await PocketItem.find({
         owner: req.user._id,
-        'source.kind': kind,
+        'source.kind': { $eq: kind },
         deletedAt: null
       }).select('source.refId').lean();
 
