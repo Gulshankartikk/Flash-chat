@@ -57,8 +57,8 @@ registerRoute(
 registerRoute(
   ({ request, url }) =>
     request.destination === 'image' ||
-    url.origin.includes('cloudinary.com') ||
-    url.origin.includes('dicebear.com'),
+    ['https://res.cloudinary.com', 'https://cloudinary.com'].includes(url.origin) ||
+    ['https://api.dicebear.com', 'https://dicebear.com'].includes(url.origin),
   new CacheFirst({
     cacheName: 'flash-images',
     plugins: [

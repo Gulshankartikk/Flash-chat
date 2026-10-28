@@ -553,6 +553,10 @@ exports.autoTagPocketItem = asyncHandler(async (req, res) => {
   const { itemId } = req.body;
   const userId = req.user._id;
 
+  if (typeof itemId !== 'string') {
+    return res.status(400).json({ success: false, message: 'A valid item ID is required.' });
+  }
+
   const item = await PocketItem.findOne({ _id: itemId, owner: userId, deletedAt: null });
   if (!item) {
     return res.status(404).json({ success: false, message: 'Pocket item not found.' });
@@ -694,6 +698,10 @@ exports.submitFeedback = asyncHandler(async (req, res) => {
   }
 
   if (conversationId && messageId) {
+    if (typeof conversationId !== 'string' || typeof messageId !== 'string') {
+      return res.status(400).json({ success: false, message: 'Invalid conversation or message ID.' });
+    }
+
     await AiConversation.updateOne(
       { _id: conversationId, user: req.user._id, 'messages._id': messageId },
       { $set: { 'messages.$.rating': rating } }
@@ -721,4 +729,3 @@ exports.getDisclosure = asyncHandler(async (req, res) => {
     provider: 'Google Gemini'
   });
 });
-

@@ -14,10 +14,10 @@ class NotificationService {
 
       // 2. De-duplicate similar active notifications (e.g. repeated like on same post)
       const existing = await Notification.findOne({
-        user,
-        actor,
-        type,
-        'target.refId': target?.refId
+        user: { $eq: user },
+        actor: { $eq: actor },
+        type: { $eq: type },
+        'target.refId': { $eq: target?.refId }
       });
 
       if (existing) {

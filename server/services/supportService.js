@@ -399,9 +399,9 @@ class SupportService {
    */
   async getAdminTickets({ status, category, assignedTo, search, page = 1, limit = 50 }) {
     const query = {};
-    if (status) query.status = status;
-    if (category) query.category = category;
-    if (assignedTo) query.assignedTo = assignedTo;
+    if (status) query.status = { $eq: status };
+    if (category) query.category = { $eq: category };
+    if (assignedTo) query.assignedTo = { $eq: assignedTo };
 
     if (search && search.trim()) {
       query.subject = { $regex: search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
