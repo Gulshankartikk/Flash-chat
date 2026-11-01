@@ -252,9 +252,13 @@ async function runMigrationAndCompatSuite() {
   if (failed > 0) throw new Error('Migration and compatibility checks failed');
 }
 
-runMigrationAndCompatSuite().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+runMigrationAndCompatSuite()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
 
 module.exports = { runMigrationAndCompatSuite };

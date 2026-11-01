@@ -49,7 +49,8 @@ for (const suite of testSuites) {
 
   const result = spawnSync('node', [path.join(__dirname, '..', suite.file)], {
     stdio: 'inherit',
-    env: { ...process.env, NODE_ENV: 'test' }
+    env: { ...process.env, NODE_ENV: 'test' },
+    timeout: 45000
   });
 
   if (result.status === 0) {

@@ -339,6 +339,7 @@ if (require.main === module) {
     .then(async () => {
       await runPhoneChatAndPendingSuite();
       await mongoose.disconnect();
+      process.exit(0);
     })
     .catch((err) => {
       if (err.name === 'MongooseServerSelectionError') {
