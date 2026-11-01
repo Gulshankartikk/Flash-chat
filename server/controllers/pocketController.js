@@ -221,7 +221,7 @@ const pocketController = {
         } else if (type === 'ai') {
           query.type = 'ai_answer';
         } else {
-          query.type = type;
+          query.type = { $eq: type };
         }
       }
 
@@ -229,14 +229,16 @@ const pocketController = {
       if (folder) {
         if (folder === 'none' || folder === 'unorganized') {
           query.folder = null;
+        } else if (typeof folder === 'string' && /^[0-9a-fA-F]{24}$/.test(folder)) {
+          query.folder = { $eq: folder };
         } else {
-          query.folder = folder;
+          return res.status(400).json({ success: false, message: 'Invalid folder ID.' });
         }
       }
 
       // Filter: Tag
-      if (tag) {
-        query.tags = tag.toLowerCase().trim();
+      if (tag && typeof tag === 'string') {
+        query.tags = { $eq: tag.toLowerCase().trim() };
       }
 
       // Filter: Favorite
@@ -1172,11 +1174,11 @@ const pocketController = {
       }
 
       if (type && type !== 'all') {
-        query.type = type;
+        query.type = { $eq: type };
       }
 
-      if (tag) {
-        query.tags = tag.toLowerCase().trim();
+      if (tag && typeof tag === 'string') {
+        query.tags = { $eq: tag.toLowerCase().trim() };
       }
 
       if (q && q.trim()) {

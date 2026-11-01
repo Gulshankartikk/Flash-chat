@@ -289,6 +289,7 @@ class CallService {
       try {
         const expiry = Math.floor(Date.now() / 1000) + 24 * 3600; // 24 hours
         const username = `${expiry}:${userId}`;
+        // CodeQL [js/weak-cryptographic-algorithm] RFC 5766 TURN REST API specification mandates HMAC-SHA1 for ephemeral credentials
         const credential = crypto
           .createHmac('sha1', config.TURN_SECRET)
           .update(username)
