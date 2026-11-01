@@ -299,7 +299,7 @@ export const PublicProfilePage = () => {
   if (error || !profile) {
     return (
       <div className="p-8 max-w-md mx-auto text-center space-y-4">
-        <div className="w-16 h-16 rounded-full bg-rose-500/10 text-[#F43F5E] flex items-center justify-center mx-auto text-2xl">
+        <div className="w-16 h-16 rounded-full bg-accent/15 text-accent flex items-center justify-center mx-auto text-2xl">
           <AlertCircle className="w-8 h-8" />
         </div>
         <h2 className="text-xl font-bold text-ink">User Not Found</h2>
@@ -678,7 +678,7 @@ export const PublicProfilePage = () => {
             )
           ) : activeTab === 'reels' ? (
             userReels.length === 0 ? (
-              <p className="text-xs text-[#6B7280] text-center py-12">No reels yet.</p>
+              <p className="text-xs text-muted text-center py-12">No reels yet.</p>
             ) : (
               <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                 {userReels.map((reel) => (
@@ -701,7 +701,7 @@ export const PublicProfilePage = () => {
               </div>
             )
           ) : (
-            <p className="text-xs text-[#6B7280] text-center py-12">
+            <p className="text-xs text-muted text-center py-12">
               Saved posts are private to you.
             </p>
           )}

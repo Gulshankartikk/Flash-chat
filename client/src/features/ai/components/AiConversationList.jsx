@@ -49,13 +49,13 @@ export const AiConversationList = ({
   };
 
   return (
-    <div className={`flex flex-col h-full bg-card dark:bg-zinc-900 border-r border-line dark:border-zinc-800 ${className}`}>
+    <div className={`flex flex-col h-full bg-card border-r border-line ${className}`}>
       {/* Header & New Chat Button */}
-      <div className="p-4 border-b border-line dark:border-zinc-800 shrink-0">
+      <div className="p-4 border-b border-line shrink-0">
         <button
           type="button"
           onClick={onNewChat}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl bg-gradient-to-r from-primary to-secondary text-white font-semibold text-xs shadow-md shadow-primary/25 hover:brightness-105 transition-all active:scale-[0.98]"
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl bg-brand-gradient text-white font-semibold text-xs shadow-md shadow-primary/25 hover:opacity-95 transition-all active:scale-[0.98]"
         >
           <Plus className="w-4 h-4" />
           <span>New Chat</span>
@@ -69,7 +69,7 @@ export const AiConversationList = ({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search conversations..."
-            className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-cream dark:bg-zinc-800 border border-line dark:border-zinc-700 text-xs text-ink dark:text-cream placeholder-muted focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-cream border border-line text-xs text-ink placeholder-muted focus:outline-none focus:ring-1 focus:ring-primary"
           />
         </div>
       </div>
@@ -95,8 +95,8 @@ export const AiConversationList = ({
                 onClick={() => !isEditing && onSelect && onSelect(c._id)}
                 className={`group relative flex items-center justify-between p-2.5 rounded-xl cursor-pointer text-xs transition-all ${
                   isActive
-                    ? 'bg-primary/15 text-primary dark:text-pink-400 font-semibold border border-primary/30 dark:border-pink-500/20'
-                    : 'text-ink/80 dark:text-zinc-300 hover:bg-cream dark:hover:bg-zinc-800/60'
+                    ? 'bg-primary/15 text-primary font-semibold border border-primary/30'
+                    : 'text-ink/80 hover:bg-cream'
                 }`}
               >
                 <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -108,7 +108,7 @@ export const AiConversationList = ({
                         type="text"
                         value={editTitle}
                         onChange={(e) => setEditTitle(e.target.value)}
-                        className="w-full px-2 py-0.5 rounded bg-card dark:bg-zinc-800 border border-primary text-xs focus:outline-none"
+                        className="w-full px-2 py-0.5 rounded bg-card border border-primary text-xs focus:outline-none"
                         autoFocus
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') saveRename(c._id, e);

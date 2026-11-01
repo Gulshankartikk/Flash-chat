@@ -349,13 +349,13 @@ export const PocketSearchPage = () => {
 
           {/* AI Error */}
           {aiError && (
-            <div className="p-4 rounded-3xl bg-rose-50 border border-rose-200 text-xs text-[#F43F5E] space-y-2">
+            <div className="p-4 rounded-3xl bg-accent/10 border border-accent/30 text-xs text-accent space-y-2">
               <p className="font-bold">Could not complete query:</p>
               <p>{aiError}</p>
               <button
                 type="button"
                 onClick={() => executeAskPocket(query)}
-                className="px-3 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-bold shadow-xs hover:bg-rose-700 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-accent text-white text-xs font-bold shadow-xs hover:opacity-90 cursor-pointer"
               >
                 Retry
               </button>

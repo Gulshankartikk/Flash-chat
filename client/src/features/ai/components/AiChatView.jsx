@@ -103,7 +103,7 @@ export const AiChatView = ({
   ];
 
   return (
-    <div className={`relative flex-1 flex flex-col h-full bg-cream/30 dark:bg-zinc-950 overflow-hidden ${className}`}>
+    <div className={`relative flex-1 flex flex-col h-full bg-cream overflow-hidden ${className}`}>
       {/* Scrollable messages */}
       <div
         ref={scrollContainerRef}
@@ -113,10 +113,10 @@ export const AiChatView = ({
         {messages.length === 0 && !isStreaming ? (
           /* Empty State */
           <div className="h-full flex flex-col items-center justify-center text-center max-w-lg mx-auto py-12 px-4">
-            <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-primary via-secondary to-accent flex items-center justify-center text-white shadow-xl shadow-primary/25 mb-4 animate-pulse">
+            <div className="w-16 h-16 rounded-3xl bg-brand-gradient flex items-center justify-center text-white shadow-xl shadow-primary/25 mb-4 animate-pulse">
               <Sparkles className="w-8 h-8" />
             </div>
-            <h2 className="text-xl font-bold text-ink dark:text-cream">Hi, I'm Flash AI</h2>
+            <h2 className="text-xl font-bold text-ink">Hi, I'm Flash AI</h2>
             <p className="text-xs text-muted mt-1.5 mb-6">
               Ask questions, summarize chats, brainstorm captions, or search your personal Pocket vault.
             </p>
@@ -127,9 +127,9 @@ export const AiChatView = ({
                   key={idx}
                   type="button"
                   onClick={() => onSuggestionClick && onSuggestionClick(s.prompt)}
-                  className="p-3.5 rounded-2xl bg-card dark:bg-zinc-900 border border-line dark:border-zinc-800 hover:border-primary/50 hover:bg-primary/10 dark:hover:bg-zinc-800 transition-all text-xs text-ink/80 dark:text-zinc-200 group shadow-sm"
+                  className="p-3.5 rounded-2xl bg-card border border-line hover:border-primary/50 hover:bg-primary/10 transition-all text-xs text-ink/80 group shadow-sm"
                 >
-                  <p className="font-semibold text-ink dark:text-cream group-hover:text-primary transition-colors">
+                  <p className="font-semibold text-ink group-hover:text-primary transition-colors">
                     {s.label}
                   </p>
                   <p className="text-[11px] text-muted truncate mt-0.5">{s.prompt}</p>
@@ -165,8 +165,8 @@ export const AiChatView = ({
                   <div
                     className={`relative rounded-3xl p-4 sm:p-5 text-sm leading-relaxed shadow-sm transition-all ${
                       isUser
-                        ? 'bg-gradient-to-r from-primary to-secondary text-white rounded-br-none shadow-primary/15'
-                        : 'bg-card dark:bg-zinc-900 text-ink dark:text-zinc-100 border border-line dark:border-zinc-800 rounded-bl-none'
+                        ? 'bg-brand-gradient text-white rounded-br-none shadow-primary/15'
+                        : 'bg-card text-ink border border-line rounded-bl-none'
                     }`}
                   >
                     {/* User attachments */}
@@ -198,7 +198,7 @@ export const AiChatView = ({
                       <button
                         type="button"
                         onClick={() => handleCopy(msg.text, index)}
-                        className="p-1.5 rounded-lg hover:text-ink dark:hover:text-cream hover:bg-card dark:hover:bg-zinc-800 transition-colors"
+                        className="p-1.5 rounded-lg hover:text-ink hover:bg-card transition-colors"
                         title="Copy text"
                       >
                         {isCopied ? <Check className="w-3.5 h-3.5 text-primary" /> : <Copy className="w-3.5 h-3.5" />}
@@ -208,7 +208,7 @@ export const AiChatView = ({
                       <button
                         type="button"
                         onClick={() => handleSavePocket(msg)}
-                        className={`p-1.5 rounded-lg hover:bg-card dark:hover:bg-zinc-800 transition-colors ${
+                        className={`p-1.5 rounded-lg hover:bg-card transition-colors ${
                           isSaved ? 'text-secondary' : 'hover:text-secondary'
                         }`}
                         title="Save to Pocket"
@@ -221,7 +221,7 @@ export const AiChatView = ({
                         <button
                           type="button"
                           onClick={() => onShareToChat(msg.text)}
-                          className="p-1.5 rounded-lg hover:text-primary hover:bg-card dark:hover:bg-zinc-800 transition-colors"
+                          className="p-1.5 rounded-lg hover:text-primary hover:bg-card transition-colors"
                           title="Share into chat"
                         >
                           <Share2 className="w-3.5 h-3.5" />
@@ -232,7 +232,7 @@ export const AiChatView = ({
                       <button
                         type="button"
                         onClick={() => handleFeedback(msg._id, 'thumbs_up')}
-                        className={`p-1.5 rounded-lg hover:bg-card dark:hover:bg-zinc-800 transition-colors ${
+                        className={`p-1.5 rounded-lg hover:bg-card transition-colors ${
                           feedback === 'thumbs_up' ? 'text-primary' : 'hover:text-primary'
                         }`}
                         title="Good response"
@@ -243,8 +243,8 @@ export const AiChatView = ({
                       <button
                         type="button"
                         onClick={() => handleFeedback(msg._id, 'thumbs_down')}
-                        className={`p-1.5 rounded-lg hover:bg-card dark:hover:bg-zinc-800 transition-colors ${
-                          feedback === 'thumbs_down' ? 'text-rose-500' : 'hover:text-rose-500'
+                        className={`p-1.5 rounded-lg hover:bg-card transition-colors ${
+                          feedback === 'thumbs_down' ? 'text-accent' : 'hover:text-accent'
                         }`}
                         title="Poor response"
                       >
@@ -256,7 +256,7 @@ export const AiChatView = ({
                         <button
                           type="button"
                           onClick={onRegenerate}
-                          className="flex items-center gap-1 p-1.5 rounded-lg hover:text-primary hover:bg-card dark:hover:bg-zinc-800 transition-colors text-[11px]"
+                          className="flex items-center gap-1 p-1.5 rounded-lg hover:text-primary hover:bg-card transition-colors text-[11px]"
                           title="Regenerate response"
                         >
                           <RotateCw className="w-3.5 h-3.5" />
@@ -276,7 +276,7 @@ export const AiChatView = ({
                   <AiBadge size="xs" />
                   <span className="text-[11px] font-semibold text-muted">Flash AI</span>
                 </div>
-                <div className="bg-card dark:bg-zinc-900 text-ink dark:text-zinc-100 border border-line dark:border-zinc-800 rounded-3xl rounded-bl-none p-4 sm:p-5 text-sm leading-relaxed shadow-sm">
+                <div className="bg-card text-ink border border-line rounded-3xl rounded-bl-none p-4 sm:p-5 text-sm leading-relaxed shadow-sm">
                   {streamingText ? (
                     <AiMarkdown content={streamingText} />
                   ) : (
@@ -296,7 +296,7 @@ export const AiChatView = ({
         <button
           type="button"
           onClick={scrollToBottom}
-          className="absolute bottom-4 right-6 flex items-center gap-1.5 py-1.5 px-3 rounded-full bg-card dark:bg-zinc-800 border border-line dark:border-zinc-700 text-xs font-semibold text-ink dark:text-cream shadow-lg hover:bg-cream transition-all animate-bounce"
+          className="absolute bottom-4 right-6 flex items-center gap-1.5 py-1.5 px-3 rounded-full bg-card border border-line text-xs font-semibold text-ink shadow-lg hover:bg-cream transition-all animate-bounce"
         >
           <ArrowDown className="w-3.5 h-3.5 text-primary" />
           <span>Latest</span>

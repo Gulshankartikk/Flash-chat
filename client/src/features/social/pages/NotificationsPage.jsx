@@ -163,7 +163,7 @@ export const NotificationsPage = () => {
     if (items.length === 0) return null;
     return (
       <div className="space-y-2">
-        <h4 className="text-xs font-bold text-[#6B7280] px-2">{title}</h4>
+        <h4 className="text-xs font-bold text-muted px-2">{title}</h4>
         <div className="space-y-1.5">
           {items.map((notif) => {
             const isFollowingBack = Boolean(followingMap[notif.actor?._id]);

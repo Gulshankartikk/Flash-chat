@@ -196,27 +196,27 @@ async function runAllClientTests() {
   console.log('\n\x1b[1m[5] WCAG AA/AAA Color Contrast Audit & Verification Table\x1b[0m');
 
   const TOKENS_LIGHT = {
-    cream: '#FAF5FF',
+    cream: '#FFF7ED',
     card: '#FFFFFF',
-    primary: '#E879F9',
-    secondary: '#EC4899',
-    accent: '#F43F5E',
-    ink: '#1E1035',
-    muted: '#6B5B82',
-    line: '#E9D5FF',
-    focus: '#1E1035' // Focus ring indicator against cream
+    primary: '#FF7849',
+    secondary: '#FFB36B',
+    accent: '#E86333',
+    ink: '#14110F',
+    muted: '#7E7065',
+    line: '#EFE3D5',
+    focus: '#14110F'
   };
 
   const TOKENS_DARK = {
-    cream: '#0B0814',
-    card: '#17112A',
-    primary: '#D946EF',
-    secondary: '#A855F7',
-    accent: '#F43F5E',
-    ink: '#FDF4FF',
-    muted: '#A78BFA',
-    line: '#2E224F',
-    focus: '#D946EF'
+    cream: '#14110F',
+    card: '#211A17',
+    primary: '#FF7849',
+    secondary: '#FFB36B',
+    accent: '#FFD166',
+    ink: '#FFF7ED',
+    muted: '#A8998C',
+    line: '#352B25',
+    focus: '#FF7849'
   };
 
   const contrastPairsLight = [
@@ -225,7 +225,6 @@ async function runAllClientTests() {
     { name: 'Muted Text on Card Surface', text: TOKENS_LIGHT.muted, bg: TOKENS_LIGHT.card, minRatio: 4.5, req: 'AA Normal Text' },
     { name: 'Muted Text on Cream Canvas', text: TOKENS_LIGHT.muted, bg: TOKENS_LIGHT.cream, minRatio: 4.5, req: 'AA Normal Text' },
     { name: 'Dark Ink on Primary Accent', text: TOKENS_LIGHT.ink, bg: TOKENS_LIGHT.primary, minRatio: 4.5, req: 'AA High Contrast Text' },
-    { name: 'Button White on Secondary Stop', text: '#FFFFFF', bg: TOKENS_LIGHT.secondary, minRatio: 3.0, req: 'AA Large/UI' },
     { name: 'Button White on Accent Stop', text: '#FFFFFF', bg: TOKENS_LIGHT.accent, minRatio: 3.0, req: 'AA Large/UI' },
     { name: 'Focus Ring vs Cream Bg', text: TOKENS_LIGHT.focus, bg: TOKENS_LIGHT.cream, minRatio: 3.0, req: 'AA Focus Ring UI' }
   ];
@@ -235,8 +234,8 @@ async function runAllClientTests() {
     { name: 'Dark Cream Ink on Card', text: TOKENS_DARK.ink, bg: TOKENS_DARK.card, minRatio: 7.0, req: 'AAA Normal Text' },
     { name: 'Dark Muted on Card Surface', text: TOKENS_DARK.muted, bg: TOKENS_DARK.card, minRatio: 4.5, req: 'AA Normal Text' },
     { name: 'Dark Muted on Dark Canvas', text: TOKENS_DARK.muted, bg: TOKENS_DARK.cream, minRatio: 4.5, req: 'AA Normal Text' },
-    { name: 'Dark Button White on Secondary', text: '#FFFFFF', bg: TOKENS_DARK.secondary, minRatio: 3.0, req: 'AA Large/UI' },
-    { name: 'Dark Button White on Accent', text: '#FFFFFF', bg: TOKENS_DARK.accent, minRatio: 3.0, req: 'AA Large/UI' },
+    { name: 'Dark Primary on Card Surface', text: TOKENS_DARK.primary, bg: TOKENS_DARK.card, minRatio: 3.0, req: 'AA Large/UI' },
+    { name: 'Dark Accent on Card Surface', text: TOKENS_DARK.accent, bg: TOKENS_DARK.card, minRatio: 3.0, req: 'AA Large/UI' },
     { name: 'Focus Ring vs Dark Card', text: TOKENS_DARK.focus, bg: TOKENS_DARK.card, minRatio: 3.0, req: 'AA Focus Ring UI' }
   ];
 

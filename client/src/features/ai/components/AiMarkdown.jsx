@@ -14,8 +14,8 @@ const CodeBlock = ({ language, code }) => {
   };
 
   return (
-    <div className="relative my-3 rounded-xl overflow-hidden bg-zinc-900 border border-zinc-700 text-zinc-100 font-mono text-xs">
-      <div className="flex items-center justify-between px-3.5 py-1.5 bg-zinc-800/80 border-b border-zinc-700/60 text-zinc-400">
+    <div className="relative my-3 rounded-xl overflow-hidden bg-card border border-line text-ink font-mono text-xs">
+      <div className="flex items-center justify-between px-3.5 py-1.5 bg-cream/70 border-b border-line text-muted">
         <span className="font-semibold text-[11px] uppercase tracking-wider">{language || 'code'}</span>
         <button
           type="button"
@@ -93,7 +93,7 @@ export const AiMarkdown = React.memo(({ content = '', className = '' }) => {
       .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.*?)\*/g, '<em>$1</em>')
       // Inline code
-      .replace(/`([^`]+)`/g, '<code class="bg-primary/15 dark:bg-zinc-800 text-primary dark:text-pink-400 px-1.5 py-0.5 rounded text-[13px] font-mono">$1</code>')
+      .replace(/`([^`]+)`/g, '<code class="bg-primary/15 text-primary px-1.5 py-0.5 rounded text-[13px] font-mono">$1</code>')
       // Unordered list items
       .replace(/^\s*[\-\*]\s+(.*$)/gim, '<li class="ml-4 list-disc my-0.5">$1</li>')
       // Ordered list items
@@ -101,7 +101,7 @@ export const AiMarkdown = React.memo(({ content = '', className = '' }) => {
       // Links
       .replace(
         /\[([^\]]+)\]\(([^)]+)\)/g,
-        '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary dark:text-pink-400 underline font-medium hover:opacity-80">$1</a>'
+        '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-primary underline font-medium hover:opacity-80">$1</a>'
       )
       // Line breaks
       .replace(/\n\n/g, '<div class="h-2"></div>')
@@ -117,7 +117,7 @@ export const AiMarkdown = React.memo(({ content = '', className = '' }) => {
   const parsedParts = parseMarkdown(content);
 
   return (
-    <div className={`prose-sm leading-relaxed text-ink dark:text-zinc-100 break-words ${className}`}>
+    <div className={`prose-sm leading-relaxed text-ink break-words ${className}`}>
       {parsedParts.map((part, index) => {
         if (part.type === 'code') {
           return <CodeBlock key={index} language={part.language} code={part.code} />;

@@ -82,7 +82,7 @@ export const PocketHomePage = () => {
   const [showPinModal, setShowPinModal] = useState(false);
   const [showNewFolderModal, setShowNewFolderModal] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
-  const [newFolderColor, setNewFolderColor] = useState('#D946EF');
+  const [newFolderColor, setNewFolderColor] = useState('#FF7849');
   const [searchQuery, setSearchQuery] = useState('');
 
   const searchInputRef = useRef(null);
@@ -485,7 +485,7 @@ export const PocketHomePage = () => {
           >
             <div
               className="w-2.5 h-2.5 rounded-full"
-              style={{ backgroundColor: f.color || '#D946EF' }}
+              style={{ backgroundColor: f.color || '#FF7849' }}
             />
             <span>{f.name}</span>
             {f.itemCount !== undefined && (
@@ -603,7 +603,7 @@ export const PocketHomePage = () => {
       {!isLoading && regularItems.length > 0 && (
         <div className="space-y-2">
           {pinnedItems.length > 0 && (
-            <div className="flex items-center gap-1.5 text-xs font-bold text-[#6B7280]">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-muted">
               <span>ALL ITEMS</span>
             </div>
           )}
@@ -716,7 +716,7 @@ export const PocketHomePage = () => {
                 <div>
                   <label className="text-xs font-bold text-ink block mb-1">Color Tag</label>
                   <div className="flex items-center gap-2">
-                    {['#D946EF', '#A855F7', '#EC4899', '#8B5CF6', '#3B82F6', '#10B981'].map((c) => (
+                    {['#FF7849', '#FFB36B', '#FFD166', '#EF4444', '#10B981', '#3B82F6'].map((c) => (
                       <button
                         key={c}
                         type="button"

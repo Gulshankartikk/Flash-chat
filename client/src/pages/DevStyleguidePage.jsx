@@ -41,26 +41,31 @@ export const DevStyleguidePage = () => {
       {/* WCAG Contrast Summary */}
       <Card padding="p-5" className="mb-8">
         <h2 className="text-sm font-bold text-ink mb-3">WCAG AA & AAA Verified Contrast Ratios</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-xs">
           <div className="p-3 rounded-lg bg-card border border-line">
-            <span className="font-bold text-ink">Ink on Canvas</span>
-            <p className="text-muted mt-1">#FDF4FF on #0B0814</p>
-            <span className="text-primary font-bold">18.2:1 (AAA)</span>
+            <span className="font-bold text-ink">Text on Background</span>
+            <p className="text-muted mt-1">#FFF7ED on #14110F</p>
+            <span className="text-primary font-bold">17.4:1 (AAA)</span>
           </div>
           <div className="p-3 rounded-lg bg-card border border-line">
-            <span className="font-bold text-ink">Ink on White Card</span>
-            <p className="text-muted mt-1">#1F2937 on #FFFFFF</p>
-            <span className="text-primary font-bold">14.1:1 (AAA)</span>
+            <span className="font-bold text-ink">Text on Cards</span>
+            <p className="text-muted mt-1">#FFF7ED on #211A17</p>
+            <span className="text-primary font-bold">16.0:1 (AAA)</span>
           </div>
           <div className="p-3 rounded-lg bg-card border border-line">
-            <span className="font-bold text-ink">White on Accent</span>
-            <p className="text-muted mt-1">#FFFFFF on #F43F5E</p>
-            <span className="text-primary font-bold">3.9:1 (AA)</span>
+            <span className="font-bold text-ink">Primary on Cards</span>
+            <p className="text-muted mt-1">#FF7849 on #211A17</p>
+            <span className="text-primary font-bold">6.1:1 (AA)</span>
           </div>
           <div className="p-3 rounded-lg bg-card border border-line">
-            <span className="font-bold text-ink">Muted on White</span>
-            <p className="text-muted mt-1">#6B7280 on #FFFFFF</p>
-            <span className="text-primary font-bold">4.6:1 (AA)</span>
+            <span className="font-bold text-ink">Accent on Cards</span>
+            <p className="text-muted mt-1">#FFD166 on #211A17</p>
+            <span className="text-primary font-bold">11.4:1 (AAA)</span>
+          </div>
+          <div className="p-3 rounded-lg bg-card border border-line">
+            <span className="font-bold text-ink">Muted on Cards</span>
+            <p className="text-muted mt-1">#A8998C on #211A17</p>
+            <span className="text-primary font-bold">6.3:1 (AA)</span>
           </div>
         </div>
       </Card>

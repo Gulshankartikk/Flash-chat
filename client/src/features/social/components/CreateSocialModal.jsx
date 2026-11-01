@@ -39,7 +39,7 @@ export const CreateSocialModal = () => {
 
   const [activeType, setActiveType] = useState('post'); // 'post' | 'reel' | 'story'
   const [storyTab, setStoryTab] = useState('media'); // 'media' | 'text'
-  const [statusBgColor, setStatusBgColor] = useState('#10B981'); // WhatsApp green default
+  const [statusBgColor, setStatusBgColor] = useState('#FF7849'); // Theme primary coral default
   const [statusFontStyle, setStatusFontStyle] = useState('sans'); // 'sans' | 'serif' | 'mono' | 'cursive'
   const [statusTextAlign, setStatusTextAlign] = useState('center'); // 'left' | 'center' | 'right'
   const [selectedFiles, setSelectedFiles] = useState([]); // Array of { file, previewUrl, type, width, height, duration }
@@ -613,7 +613,7 @@ export const CreateSocialModal = () => {
               <div className="space-y-1.5">
                 <span className="text-xs font-bold text-muted">Background Color:</span>
                 <div className="flex items-center gap-2 overflow-x-auto py-1">
-                  {['#10B981', '#059669', '#6366F1', '#EC4899', '#F59E0B', '#8B5CF6', '#3B82F6', '#EF4444', '#1F2937'].map((c) => (
+                  {['#FF7849', '#211A17', '#FFB36B', '#FFD166', '#10B981', '#6366F1', '#EC4899', '#3B82F6', '#EF4444'].map((c) => (
                     <button
                       key={c}
                       type="button"

@@ -18,10 +18,16 @@ export default {
         line: 'var(--line)',
         brand: {
           DEFAULT: 'var(--primary)',
-          magenta: '#D946EF',
-          purple: '#A855F7',
-          pink: '#EC4899',
-          rose: '#F43F5E',
+          coral: '#FF7849',
+          amber: '#FFB36B',
+          gold: '#FFD166',
+          charcoal: '#14110F',
+          espresso: '#211A17',
+          ivory: '#FFF7ED',
+          magenta: '#FF7849',
+          purple: '#FFB36B',
+          pink: '#FF7849',
+          rose: '#FFD166',
         }
       },
       borderRadius: {
@@ -32,7 +38,7 @@ export default {
       },
       boxShadow: {
         'soft': 'var(--soft-shadow)',
-        'soft-dark': '0 8px 30px rgba(0, 0, 0, 0.6)',
+        'soft-dark': '0 8px 30px rgba(0, 0, 0, 0.7)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],

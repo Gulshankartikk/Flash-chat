@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 
 /**
- * SocialAvatar with Instagram-style story ring
- * - Unseen story: gradient ring (from-[#D946EF] to-[#A855F7])
- * - Seen story: muted ring (border-gray-300)
+ * SocialAvatar with story ring
+ * - Unseen story: gradient ring (bg-brand-gradient)
+ * - Seen story: muted ring (bg-line)
  * - Own / No story: clean border
  */
 export const SocialAvatar = ({

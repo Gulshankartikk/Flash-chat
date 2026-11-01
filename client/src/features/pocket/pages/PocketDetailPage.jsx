@@ -340,7 +340,7 @@ export const PocketDetailPage = () => {
   if (errorMessage) {
     return (
       <div className="p-6 max-w-xl mx-auto text-center space-y-4">
-        <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-[#F43F5E] flex items-center justify-center mx-auto">
+        <div className="w-12 h-12 rounded-2xl bg-accent/15 text-accent flex items-center justify-center mx-auto">
           <ShieldAlert className="w-6 h-6" />
         </div>
         <h2 className="text-lg font-bold text-ink">Unable to load Pocket item</h2>
@@ -829,15 +829,15 @@ export const PocketDetailPage = () => {
           {aiSheet.loading ? (
             <div className="py-8 flex flex-col items-center justify-center gap-3">
               <AiThinking />
-              <p className="text-xs text-[#6B7280]">Processing item with Flash AI...</p>
+              <p className="text-xs text-muted">Processing item with Flash AI...</p>
             </div>
           ) : aiSheet.error ? (
-            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-[#F43F5E] space-y-2">
+            <div className="p-4 rounded-2xl bg-accent/10 border border-accent/30 text-xs text-accent space-y-2">
               <p className="font-bold">Error:</p>
               <p>{aiSheet.error}</p>
               <button
                 onClick={aiSheet.type === 'summary' ? handleSummarize : handleAutoTag}
-                className="px-3 py-1.5 rounded-xl bg-rose-600 text-white text-xs font-bold shadow-xs hover:bg-rose-700 cursor-pointer"
+                className="px-3 py-1.5 rounded-xl bg-accent text-white text-xs font-bold shadow-xs hover:opacity-90 cursor-pointer"
               >
                 Try Again
               </button>
