@@ -1,8 +1,25 @@
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 const { z } = require('zod');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const chatService = require('../services/chatService');
+
+const mediaTypes = new Set([
+  'image',
+  'video',
+  'audio',
+  'voice',
+  'document',
+  'location',
+  'contact',
+  'shared_post',
+  'shared_reel',
+  'shared_story',
+  'shared_profile'
+]);
+
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Zod schemas
 const createDirectSchema = z
@@ -381,18 +398,26 @@ const getChatMedia = async (req, res, next) => {
     const { id } = req.params;
     const { type } = req.query;
 
-    const isMember = await chatService.isMember(id, req.user._id);
+    if (typeof id !== 'string' || !mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid conversation ID.' });
+    }
+    const conversationObjectId = new mongoose.Types.ObjectId(id);
+
+    const isMember = await chatService.isMember(conversationObjectId, req.user._id);
     if (!isMember) {
       return res.status(403).json({ success: false, message: 'Access denied.' });
     }
 
     const query = {
-      conversation: id,
+      conversation: conversationObjectId,
       deletedForEveryone: false,
       'media.0': { $exists: true }
     };
 
     if (type) {
+      if (!mediaTypes.has(type)) {
+        return res.status(400).json({ success: false, message: 'Invalid media filter type.' });
+      }
       query.type = type;
     }
 
@@ -425,13 +450,17 @@ const searchMessages = async (req, res, next) => {
     const query = {
       deletedForEveryone: { $ne: true },
       deletedFor: { $ne: req.user._id },
-      text: { $regex: q.trim(), $options: 'i' }
+      text: { $regex: escapeRegex(q.trim()), $options: 'i' }
     };
 
     if (conversationId) {
-      const isMember = await chatService.isMember(conversationId, req.user._id);
+      if (typeof conversationId !== 'string' || !mongoose.isValidObjectId(conversationId)) {
+        return res.status(400).json({ success: false, message: 'Invalid conversation ID.' });
+      }
+      const conversationObjectId = new mongoose.Types.ObjectId(conversationId);
+      const isMember = await chatService.isMember(conversationObjectId, req.user._id);
       if (!isMember) return res.status(403).json({ success: false, message: 'Access denied.' });
-      query.$or = [{ conversation: conversationId }, { chatId: conversationId }];
+      query.$or = [{ conversation: conversationObjectId }, { chatId: conversationObjectId }];
     } else {
       // Find conversations user is a part of
       const userConvs = await Conversation.find({ 'members.user': req.user._id }).select('_id');

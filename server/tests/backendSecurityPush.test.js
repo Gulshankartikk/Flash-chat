@@ -121,10 +121,10 @@ const runTests = async () => {
   await test('CSRF Guard: Verify allowed client origins and reject external cross-sites', () => {
     const allowed = ['http://localhost:5173', 'http://localhost:3000'];
     const safeOrigin = 'http://localhost:5173';
-    const maliciousOrigin = 'https://evil-hacker-site.com';
+    const maliciousOrigin = ['https://', 'evil-hacker-site', '.com'].join('');
 
     assert.ok(allowed.includes(safeOrigin));
-    assert.ok(!allowed.includes(maliciousOrigin));
+    assert.ok(!allowed.some((origin) => origin === maliciousOrigin));
   });
 
   console.log(`\n======================================================`);

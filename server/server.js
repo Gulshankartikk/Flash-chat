@@ -121,6 +121,13 @@ app.use(mongoSanitize());
 const csrfProtection = (req, res, next) => {
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
     const origin = req.headers.origin || req.headers.referer;
+    if (!origin && req.cookies?.refreshToken) {
+      return res.status(403).json({
+        success: false,
+        code: 'CSRF_ORIGIN_REQUIRED',
+        message: 'Cross-site request blocked.'
+      });
+    }
     if (origin) {
       try {
         const originUrl = new URL(origin);

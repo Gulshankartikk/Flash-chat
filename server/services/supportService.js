@@ -7,15 +7,12 @@ const User = require('../models/User');
 const chatService = require('./chatService');
 const pushService = require('./pushService');
 const logger = require('../utils/logger');
+const { stripHtml } = require('../utils/sanitize');
 
 // Strip HTML and dangerous script tags
 const sanitizeText = (str) => {
   if (!str || typeof str !== 'string') return '';
-  return str
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-    .replace(/<[^>]*>?/gm, '')
-    .trim();
+  return stripHtml(str);
 };
 
 class SupportService {
@@ -399,9 +396,9 @@ class SupportService {
    */
   async getAdminTickets({ status, category, assignedTo, search, page = 1, limit = 50 }) {
     const query = {};
-    if (status) query.status = status;
-    if (category) query.category = category;
-    if (assignedTo) query.assignedTo = assignedTo;
+    if (status) query.status = { $eq: status };
+    if (category) query.category = { $eq: category };
+    if (assignedTo) query.assignedTo = { $eq: assignedTo };
 
     if (search && search.trim()) {
       query.subject = { $regex: search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };

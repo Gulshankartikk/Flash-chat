@@ -70,7 +70,7 @@ exports.subscribe = asyncHandler(async (req, res) => {
  */
 exports.unsubscribe = asyncHandler(async (req, res) => {
   const { endpoint } = req.body;
-  if (!endpoint) {
+  if (typeof endpoint !== 'string' || !endpoint) {
     return res.status(400).json({
       success: false,
       message: 'Endpoint is required to unsubscribe.'
