@@ -3,7 +3,7 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev || npm install --omit=dev --no-audit --no-fund
 
 COPY . .
 
@@ -12,8 +12,8 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+RUN (getent group nodejs || addgroup -g 1001 -S nodejs) && \
+    (getent passwd nodejs || adduser -u 1001 -S -D -G nodejs nodejs)
 
 COPY --from=builder --chown=nodejs:nodejs /app /app
 

@@ -168,7 +168,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build Server Production Image
-        run: docker build -f server/Dockerfile.prod ./server
+        run: docker build --progress=plain -f server/Dockerfile.prod ./server
 
       - name: Build Client Production Image
-        run: docker build -f client/Dockerfile.prod ./client
+        run: docker build --progress=plain -f client/Dockerfile.prod ./client
