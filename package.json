@@ -20,7 +20,7 @@
     "release:record": "node scripts/release-record.js"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^10.0.6"
   },
   "dependencies": {
     "playwright": "^1.64.0"
