@@ -45,7 +45,10 @@ const recordViolation = (socket) => {
   }
 };
 
+let ioInstance = null;
+
 const initSocketIO = (io) => {
+  ioInstance = io;
   // Attach Redis adapter if Redis is connected
   if (redisClient && redisClient.status === 'ready') {
     try {
@@ -139,14 +142,25 @@ const initSocketIO = (io) => {
 
     // 3. Mark user online & broadcast presence
     try {
-      await User.findByIdAndUpdate(userId, { isOnline: true });
+      const lastSeen = new Date();
+      await User.findByIdAndUpdate(userId, { isOnline: true, lastSeen });
       const shouldBroadcast = socket.user.privacy?.lastSeen !== 'nobody';
       if (shouldBroadcast) {
-        socket.broadcast.volatile.emit('presence:update', { userId, isOnline: true });
+        socket.broadcast.emit('presence:update', { userId, isOnline: true, lastSeen });
       }
     } catch (e) {
       logger.error({ err: e.message }, 'Failed to update online status');
     }
+
+    // Heartbeat to keep presence active
+    socket.on('presence:heartbeat', async () => {
+      try {
+        const lastSeen = new Date();
+        await User.findByIdAndUpdate(userId, { isOnline: true, lastSeen });
+      } catch (e) {
+        // silent
+      }
+    });
 
     // Send online users list to connecting client
     const onlineList = Array.from(onlineUserSockets.keys());
@@ -154,6 +168,33 @@ const initSocketIO = (io) => {
 
     // Register Call & WebRTC signaling handlers
     registerCallHandlers(io, socket, { onlineUserSockets });
+
+    // -------------------------------------------------------------------------
+    // Event: conversation:join & chat:join
+    // -------------------------------------------------------------------------
+    socket.on('conversation:join', async ({ conversationId } = {}) => {
+      try {
+        if (!conversationId) return;
+        const isMember = await chatService.isMember(conversationId, userId);
+        if (isMember) {
+          socket.join(`conv:${conversationId}`);
+        }
+      } catch (e) {
+        // silent
+      }
+    });
+
+    socket.on('chat:join', async ({ conversationId } = {}) => {
+      try {
+        if (!conversationId) return;
+        const isMember = await chatService.isMember(conversationId, userId);
+        if (isMember) {
+          socket.join(`conv:${conversationId}`);
+        }
+      } catch (e) {
+        // silent
+      }
+    });
 
     // -------------------------------------------------------------------------
     // Event: message:send
@@ -181,12 +222,27 @@ const initSocketIO = (io) => {
         if (conv) {
           conv.members.forEach((m) => {
             const memberIdStr = String(m.user);
-            if (memberIdStr !== userId) {
-              // Notify user's personal room for conversation list update
-              io.to(`user:${memberIdStr}`).emit('conversation:updated', {
-                conversationId: conv._id,
-                lastMessage: message
+
+            // Ensure active sockets of conversation members are joined to the room
+            const memberSockets = onlineUserSockets.get(memberIdStr);
+            if (memberSockets) {
+              memberSockets.forEach((sId) => {
+                const s = io.sockets.sockets.get(sId);
+                if (s && !s.rooms.has(`conv:${conv._id}`)) {
+                  s.join(`conv:${conv._id}`);
+                }
               });
+            }
+
+            // Notify user's personal room for conversation list update (for ALL members including sender)
+            io.to(`user:${memberIdStr}`).emit('conversation:updated', {
+              conversationId: conv._id,
+              lastMessage: message
+            });
+
+            if (memberIdStr !== userId) {
+              // Direct emit to recipient personal room ensures delivery across all active tabs/views
+              io.to(`user:${memberIdStr}`).emit('message:new', message);
 
               // If recipient online, mark delivered
               if (onlineUserSockets.has(memberIdStr)) {
@@ -379,5 +435,6 @@ const initSocketIO = (io) => {
 
 module.exports = {
   initSocketIO,
+  getIO: () => ioInstance,
   onlineUserSockets
 };

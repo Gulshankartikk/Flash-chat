@@ -90,21 +90,21 @@ export const FollowListModal = ({ isOpen, onClose, userId, type = 'followers' })
     >
       <div className="flex flex-col max-h-[60vh]">
         {/* Search */}
-        <div className="p-3 border-b border-[#FED7AA]/50">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#FFF7ED] border border-[#FED7AA]">
-            <Search className="w-3.5 h-3.5 text-[#6B7280]" />
+        <div className="p-3 border-b border-line">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-canvas border border-line">
+            <Search className="w-3.5 h-3.5 text-muted" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search..."
-              className="w-full text-xs text-[#1F2937] bg-transparent focus:outline-hidden"
+              className="w-full text-xs text-ink bg-transparent focus:outline-hidden"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="text-[#6B7280] hover:text-[#1F2937]"
+                className="text-muted hover:text-ink"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -118,16 +118,16 @@ export const FollowListModal = ({ isOpen, onClose, userId, type = 'followers' })
             <div className="space-y-3 py-4">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="flex items-center gap-3 animate-pulse">
-                  <div className="w-10 h-10 rounded-full bg-[#FED7AA]/40" />
+                  <div className="w-10 h-10 rounded-full bg-line/40" />
                   <div className="flex-1 space-y-1.5">
-                    <div className="w-24 h-2.5 rounded-full bg-[#FED7AA]/40" />
-                    <div className="w-16 h-2 rounded-full bg-[#FED7AA]/30" />
+                    <div className="w-24 h-2.5 rounded-full bg-line/40" />
+                    <div className="w-16 h-2 rounded-full bg-line/30" />
                   </div>
                 </div>
               ))}
             </div>
           ) : filteredUsers.length === 0 ? (
-            <p className="text-xs text-[#6B7280] text-center py-8">
+            <p className="text-xs text-muted text-center py-8">
               {searchQuery ? 'No matching users found.' : `No ${type} yet.`}
             </p>
           ) : (
@@ -138,7 +138,7 @@ export const FollowListModal = ({ isOpen, onClose, userId, type = 'followers' })
               return (
                 <div
                   key={user._id}
-                  className="flex items-center justify-between p-2 rounded-2xl hover:bg-orange-50/70 transition"
+                  className="flex items-center justify-between p-2 rounded-2xl hover:bg-primary/10 transition"
                 >
                   <div
                     onClick={() => {
@@ -150,16 +150,16 @@ export const FollowListModal = ({ isOpen, onClose, userId, type = 'followers' })
                     <SocialAvatar src={user.avatar} alt={user.username} size="sm" />
                     <div className="flex flex-col">
                       <div className="flex items-center gap-1">
-                        <span className="text-xs font-bold text-[#1F2937] hover:underline">
+                        <span className="text-xs font-bold text-ink hover:underline">
                           {user.username}
                         </span>
                         {user.isVerified && (
-                          <span className="w-3 h-3 rounded-full bg-[#F97316] text-white text-[8px] flex items-center justify-center font-bold">
+                          <span className="w-3 h-3 rounded-full bg-primary text-white text-[8px] flex items-center justify-center font-bold">
                             ✓
                           </span>
                         )}
                       </div>
-                      <span className="text-[11px] text-[#6B7280]">{user.name}</span>
+                      <span className="text-[11px] text-muted">{user.name}</span>
                     </div>
                   </div>
 
@@ -169,8 +169,8 @@ export const FollowListModal = ({ isOpen, onClose, userId, type = 'followers' })
                       onClick={() => handleToggleFollow(user._id)}
                       className={`px-3 py-1 rounded-full text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
                         isFollowing
-                          ? 'bg-[#FFF7ED] border border-[#FED7AA] text-[#1F2937] hover:border-rose-300 hover:text-rose-600'
-                          : 'bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white shadow-xs'
+                          ? 'bg-canvas border border-line text-ink hover:border-rose-300 hover:text-accent'
+                          : 'bg-brand-gradient text-white shadow-xs'
                       }`}
                     >
                       {isFollowing ? (

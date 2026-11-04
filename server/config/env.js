@@ -34,8 +34,8 @@ const envSchema = z.object({
 
   // Google Gemini AI
   GEMINI_API_KEY: z.string().optional().default(''),
-  GEMINI_MODEL: z.string().default('gemini-1.5-flash'),
-  GEMINI_MODEL_PRO: z.string().default('gemini-1.5-pro'),
+  GEMINI_MODEL: z.string().default('gemini-3.8-flash'),
+  GEMINI_MODEL_PRO: z.string().default('gemini-3.8-flash'),
   AI_DAILY_LIMIT: z.string().or(z.number()).default(50).transform(val => Number(val) || 50),
   AI_MAX_INPUT_CHARS: z.string().or(z.number()).default(8000).transform(val => Number(val) || 8000),
 

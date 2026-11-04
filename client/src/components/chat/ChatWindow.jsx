@@ -11,13 +11,15 @@ import {
   Clock,
   Sparkles,
   X,
-  User
+  User,
+  Shield
 } from 'lucide-react';
 import { Avatar } from '../Avatar';
 import { MessageBubble } from './MessageBubble';
 import { MessageInput } from './MessageInput';
 import { GroupInfoPanel } from './GroupInfoPanel';
 import { EmptyState } from '../EmptyState';
+import { ForwardModal } from './ForwardModal';
 import { useChatStore } from '../../store/useChatStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useCall } from '../../features/calls';
@@ -28,9 +30,11 @@ export const ChatWindow = ({ conversationId, onBack }) => {
   const navigate = useNavigate();
   const { startCall, callState } = useCall();
   const {
+    conversations,
     activeConversation,
     selectConversation,
     messages,
+    messagesByConv,
     fetchMessages,
     hasMore,
     nextCursor,
@@ -43,7 +47,8 @@ export const ChatWindow = ({ conversationId, onBack }) => {
     forwardMessage,
     startTyping,
     stopTyping,
-    typingUsers
+    typingUsers,
+    onlineUsers
   } = useChatStore();
 
   const { user } = useAuthStore();
@@ -54,6 +59,11 @@ export const ChatWindow = ({ conversationId, onBack }) => {
   const [inChatSearch, setInChatSearch] = useState('');
   const [showInChatSearch, setShowInChatSearch] = useState(false);
   const [saveTarget, setSaveTarget] = useState(null);
+  const [forwardTargetMessage, setForwardTargetMessage] = useState(null);
+  const [isProcessingRequest, setIsProcessingRequest] = useState(false);
+  const [requestError, setRequestError] = useState(null);
+
+  const { acceptMessageRequest, rejectMessageRequest } = useChatStore();
 
   // AI Sheet & Summarize states
   const [showAiSheet, setShowAiSheet] = useState(false);
@@ -105,8 +115,10 @@ export const ChatWindow = ({ conversationId, onBack }) => {
   useEffect(() => {
     if (conversationId && String(activeConversation?._id) !== String(conversationId)) {
       selectConversation(conversationId);
+    } else if (conversationId && (!messages || messages.length === 0)) {
+      fetchMessages(conversationId);
     }
-  }, [conversationId, activeConversation?._id, selectConversation]);
+  }, [conversationId, activeConversation?._id, selectConversation, fetchMessages]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -134,8 +146,16 @@ export const ChatWindow = ({ conversationId, onBack }) => {
   };
 
   if (!activeConversation) {
+    if (conversationId || isLoadingMessages) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full flex-1 bg-cream/30 text-center p-8">
+          <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="text-xs text-muted">Loading conversation...</p>
+        </div>
+      );
+    }
     return (
-      <div className="hidden md:flex flex-col items-center justify-center h-full flex-1 bg-[#FFF7ED]/30 text-center p-8">
+      <div className="hidden md:flex flex-col items-center justify-center h-full flex-1 bg-cream/30 text-center p-8">
         <EmptyState
           emoji="⚡"
           title="Flash Chat Messaging"
@@ -147,41 +167,57 @@ export const ChatWindow = ({ conversationId, onBack }) => {
 
   const isGroup = activeConversation.type === 'group';
   const otherUser = activeConversation.otherUser;
+  const otherUserId = otherUser?._id ? String(otherUser._id) : null;
+  const isSelf = activeConversation.isSelf || (
+    activeConversation.type === 'direct' && otherUserId && String(otherUserId) === String(currentUserId)
+  );
+  const isOtherOnline = isSelf
+    ? true
+    : otherUserId && (onlineUsers instanceof Set ? onlineUsers.has(otherUserId) : false)
+    ? true
+    : Boolean(otherUser?.isOnline);
 
   // Typing state for this conversation
   const typers = typingUsers[activeConversation._id] || [];
-  const isTyping = typers.some((t) => t.userId !== currentUserId);
+  const isTyping = !isSelf && typers.some((t) => t.userId !== currentUserId);
   const typerName = typers.find((t) => t.userId !== currentUserId)?.userName || 'Someone';
 
   // Subheader status text
   const getSubheader = () => {
+    if (isSelf) return 'Message yourself • Notes, links & media';
     if (isTyping) return `${typerName} is typing...`;
     if (isGroup) return `${activeConversation.members?.length || 0} participants`;
-    if (otherUser?.isOnline) return 'Online';
+    if (isOtherOnline) return 'Active now';
     if (otherUser?.lastSeen && otherUser.privacy?.lastSeen !== 'nobody') {
       return `Last seen ${format(new Date(otherUser.lastSeen), 'p')}`;
     }
-    return 'Flash Chat Direct';
+    return 'Offline';
   };
+
+  // Messages for active conversation
+  const conversationMessages =
+    (activeConversation?._id && messagesByConv?.[activeConversation._id]) ||
+    messages ||
+    [];
 
   // Filter messages if in-chat search active
   const displayedMessages = inChatSearch.trim()
-    ? messages.filter((m) =>
+    ? conversationMessages.filter((m) =>
         (m.text || '').toLowerCase().includes(inChatSearch.toLowerCase().trim())
       )
-    : messages;
+    : conversationMessages;
 
   return (
-    <div className="relative flex flex-col h-full flex-1 bg-[#FFF7ED]/20 overflow-hidden">
+    <div className="relative flex flex-col h-full flex-1 bg-cream/20 overflow-hidden">
       {/* Chat Header Bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-[#FED7AA] z-10 select-none shadow-xs">
+      <div className="flex items-center justify-between px-4 py-3 bg-card border-b border-line z-10 select-none shadow-xs">
         <div className="flex items-center gap-3 min-w-0">
           {/* Mobile Back Button */}
           {onBack && (
             <button
               type="button"
               onClick={onBack}
-              className="md:hidden p-1.5 rounded-full hover:bg-orange-50 text-[#6B7280] hover:text-[#1F2937]"
+              className="md:hidden p-1.5 rounded-full hover:bg-cream text-muted hover:text-ink"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
@@ -196,7 +232,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
               src={activeConversation.displayAvatar}
               alt={activeConversation.displayName}
               size="md"
-              isOnline={otherUser?.isOnline}
+              isOnline={isOtherOnline}
               showStatus={!isGroup}
             />
           </div>
@@ -206,14 +242,17 @@ export const ChatWindow = ({ conversationId, onBack }) => {
             onClick={() => isGroup && setShowGroupInfo(true)}
             className={`min-w-0 ${isGroup ? 'cursor-pointer' : ''}`}
           >
-            <h3 className="text-sm font-bold text-[#1F2937] truncate">
-              {activeConversation.displayName}
+            <h3 className="text-sm font-bold text-ink truncate flex items-center gap-1.5">
+              <span>{activeConversation.displayName}</span>
+              {!isGroup && otherUser?.username && (
+                <span className="text-[11px] font-normal text-muted truncate">@{otherUser.username}</span>
+              )}
             </h3>
             <p
               className={`text-[11px] truncate font-medium ${
                 isTyping
                   ? 'text-primary animate-pulse font-bold'
-                  : otherUser?.isOnline
+                  : isOtherOnline
                   ? 'text-primary font-medium'
                   : 'text-muted'
               }`}
@@ -224,12 +263,12 @@ export const ChatWindow = ({ conversationId, onBack }) => {
         </div>
 
         {/* Right Header Actions */}
-        <div className="flex items-center gap-1.5 text-[#6B7280]">
+        <div className="flex items-center gap-1.5 text-muted">
           {/* In-chat search toggle */}
           <button
             type="button"
             onClick={() => setShowInChatSearch(!showInChatSearch)}
-            className="p-2 rounded-xl hover:bg-[#FFF7ED] hover:text-[#F97316] transition cursor-pointer"
+            className="p-2 rounded-xl hover:bg-cream hover:text-primary transition cursor-pointer"
             title="Search in conversation"
           >
             <Search className="w-4 h-4" />
@@ -241,35 +280,35 @@ export const ChatWindow = ({ conversationId, onBack }) => {
               <button
                 type="button"
                 onClick={() => setShowSummarizeMenu(!showSummarizeMenu)}
-                className="p-2 rounded-xl text-[#F97316] hover:bg-orange-50 transition cursor-pointer"
+                className="p-2 rounded-xl text-primary hover:bg-cream transition cursor-pointer"
                 title="Summarize conversation with AI"
               >
                 <Sparkles className="w-4 h-4" />
               </button>
 
               {showSummarizeMenu && (
-                <div className="absolute right-0 top-11 z-30 p-2 rounded-2xl bg-white border border-[#FED7AA] shadow-xl text-xs space-y-1 w-44 animate-scaleUp">
-                  <p className="px-2 py-1 text-[10px] font-bold text-[#6B7280] uppercase tracking-wider">
+                <div className="absolute right-0 top-11 z-30 p-2 rounded-2xl bg-card border border-line shadow-xl text-xs space-y-1 w-44 animate-scaleUp">
+                  <p className="px-2 py-1 text-[10px] font-bold text-muted uppercase tracking-wider">
                     Summarize with AI
                   </p>
                   <button
                     type="button"
                     onClick={() => handleSummarize('unread')}
-                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[#FFF7ED] text-[#1F2937] transition font-medium cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-cream text-ink transition font-medium cursor-pointer"
                   >
                     Unread Messages
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSummarize('today')}
-                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[#FFF7ED] text-[#1F2937] transition font-medium cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-cream text-ink transition font-medium cursor-pointer"
                   >
                     Today's Discussion
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSummarize('last50')}
-                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-[#FFF7ED] text-[#1F2937] transition font-medium cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 rounded-xl hover:bg-cream text-ink transition font-medium cursor-pointer"
                   >
                     Last 50 Messages
                   </button>
@@ -278,51 +317,55 @@ export const ChatWindow = ({ conversationId, onBack }) => {
             </div>
           )}
 
-          {/* Voice & Video Call Buttons */}
-          <button
-            type="button"
-            disabled={callState !== 'idle'}
-            onClick={() =>
-              startCall({
-                conversationId: activeConversation._id,
-                type: 'audio'
-              })
-            }
-            className={`p-2 rounded-xl transition cursor-pointer ${
-              callState !== 'idle'
-                ? 'opacity-40 cursor-not-allowed text-gray-300'
-                : 'hover:bg-[#FFF7ED] hover:text-[#F97316]'
-            }`}
-            title="Start voice call"
-          >
-            <Phone className="w-4 h-4" />
-          </button>
+          {/* Voice & Video Call Buttons (hidden in self notes) */}
+          {!isSelf && (
+            <>
+              <button
+                type="button"
+                disabled={callState !== 'idle'}
+                onClick={() =>
+                  startCall({
+                    conversationId: activeConversation._id,
+                    type: 'audio'
+                  })
+                }
+                className={`p-2 rounded-xl transition cursor-pointer ${
+                  callState !== 'idle'
+                    ? 'opacity-40 cursor-not-allowed text-muted'
+                    : 'hover:bg-cream hover:text-primary'
+                }`}
+                title="Start voice call"
+              >
+                <Phone className="w-4 h-4" />
+              </button>
 
-          <button
-            type="button"
-            disabled={callState !== 'idle'}
-            onClick={() =>
-              startCall({
-                conversationId: activeConversation._id,
-                type: 'video'
-              })
-            }
-            className={`p-2 rounded-xl transition cursor-pointer ${
-              callState !== 'idle'
-                ? 'opacity-40 cursor-not-allowed text-gray-300'
-                : 'hover:bg-[#FFF7ED] hover:text-[#F97316]'
-            }`}
-            title="Start video call"
-          >
-            <Video className="w-4 h-4" />
-          </button>
+              <button
+                type="button"
+                disabled={callState !== 'idle'}
+                onClick={() =>
+                  startCall({
+                    conversationId: activeConversation._id,
+                    type: 'video'
+                  })
+                }
+                className={`p-2 rounded-xl transition cursor-pointer ${
+                  callState !== 'idle'
+                    ? 'opacity-40 cursor-not-allowed text-muted'
+                    : 'hover:bg-cream hover:text-primary'
+                }`}
+                title="Start video call"
+              >
+                <Video className="w-4 h-4" />
+              </button>
+            </>
+          )}
 
           {/* View Profile button for direct chats */}
           {!isGroup && otherUser?.username && (
             <button
               type="button"
               onClick={() => navigate(`/u/${otherUser.username}`)}
-              className="p-2 rounded-xl hover:bg-[#FFF7ED] hover:text-[#F97316] transition cursor-pointer"
+              className="p-2 rounded-xl hover:bg-cream hover:text-primary transition cursor-pointer"
               title="View Social Profile"
             >
               <User className="w-4 h-4" />
@@ -334,7 +377,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
             <button
               type="button"
               onClick={() => setShowGroupInfo(true)}
-              className="p-2 rounded-xl hover:bg-[#FFF7ED] hover:text-[#F97316] transition cursor-pointer"
+              className="p-2 rounded-xl hover:bg-cream hover:text-primary transition cursor-pointer"
               title="Group settings & info"
             >
               <Info className="w-4 h-4" />
@@ -345,14 +388,14 @@ export const ChatWindow = ({ conversationId, onBack }) => {
 
       {/* In-Chat Message Search Drawer */}
       {showInChatSearch && (
-        <div className="p-2.5 bg-white border-b border-[#FED7AA] flex items-center gap-2 animate-slideDown">
-          <Search className="w-4 h-4 text-[#F97316]" />
+        <div className="p-2.5 bg-card border-b border-line flex items-center gap-2 animate-slideDown">
+          <Search className="w-4 h-4 text-primary" />
           <input
             type="text"
             placeholder="Search words in this chat..."
             value={inChatSearch}
             onChange={(e) => setInChatSearch(e.target.value)}
-            className="flex-1 text-xs py-1.5 px-3 rounded-xl border border-[#FED7AA] bg-[#FFF7ED]/30 focus:outline-none focus:ring-2 focus:ring-[#F97316]"
+            className="flex-1 text-xs py-1.5 px-3 rounded-xl border border-line bg-cream/40 text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary"
           />
           <button
             type="button"
@@ -360,7 +403,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
               setInChatSearch('');
               setShowInChatSearch(false);
             }}
-            className="p-1 text-[#6B7280] hover:text-[#1F2937]"
+            className="p-1 text-muted hover:text-ink cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -369,9 +412,19 @@ export const ChatWindow = ({ conversationId, onBack }) => {
 
       {/* Disappearing Messages Notice Banner */}
       {activeConversation.disappearAfter && (
-        <div className="bg-orange-50 border-b border-[#FED7AA]/60 py-1 px-4 text-center text-[10px] text-orange-800 font-semibold flex items-center justify-center gap-1.5">
+        <div className="bg-primary/10 border-b border-primary/20 py-1 px-4 text-center text-[10px] text-primary font-semibold flex items-center justify-center gap-1.5">
           <Clock className="w-3 h-3" />
           <span>Disappearing messages enabled ({activeConversation.disappearAfter / 86400} days)</span>
+        </div>
+      )}
+
+      {/* Message Request Notice Banner */}
+      {activeConversation.status === 'request' && (
+        <div className="bg-primary/10 border-b border-primary/20 py-2.5 px-4 text-center text-xs text-ink font-medium flex items-center justify-center gap-2">
+          <Sparkles className="w-4 h-4 text-primary shrink-0" />
+          <span>
+            <strong>Message Request:</strong> Accept this request to start chatting, calling, and sharing media.
+          </span>
         </div>
       )}
 
@@ -382,8 +435,31 @@ export const ChatWindow = ({ conversationId, onBack }) => {
         className="flex-1 overflow-y-auto p-4 space-y-1"
       >
         {isLoadingMessages && (
-          <div className="p-2 text-center text-xs text-[#6B7280] animate-pulse">
+          <div className="p-2 text-center text-xs text-muted animate-pulse">
             Loading older messages...
+          </div>
+        )}
+
+        {displayedMessages.length === 0 && !isLoadingMessages && (
+          <div className="flex flex-col items-center justify-center h-full p-8 text-center my-auto select-none">
+            <div className="p-3 rounded-full bg-primary/10 text-primary mb-3 shadow-xs">
+              <Avatar
+                src={activeConversation.displayAvatar}
+                alt={activeConversation.displayName}
+                size="lg"
+                isOnline={isOtherOnline}
+                showStatus={!isGroup}
+              />
+            </div>
+            <h4 className="text-sm font-bold text-ink">
+              {activeConversation.displayName}
+            </h4>
+            {!isGroup && otherUser?.username && (
+              <p className="text-xs text-muted mb-2">@{otherUser.username}</p>
+            )}
+            <p className="text-xs text-muted max-w-xs mt-1">
+              No messages here yet. Say hello to start the conversation!
+            </p>
           </div>
         )}
 
@@ -393,20 +469,35 @@ export const ChatWindow = ({ conversationId, onBack }) => {
 
           // Check if date changed between consecutive messages
           const showDateSeparator =
-            !prevMsg || !isSameDay(new Date(msg.createdAt), new Date(prevMsg.createdAt));
+            !prevMsg ||
+            !msg.createdAt ||
+            !prevMsg.createdAt ||
+            (() => {
+              try {
+                return !isSameDay(new Date(msg.createdAt), new Date(prevMsg.createdAt));
+              } catch {
+                return false;
+              }
+            })();
 
           const getDateLabel = (dateStr) => {
-            const date = new Date(dateStr);
-            if (isToday(date)) return 'Today';
-            if (isYesterday(date)) return 'Yesterday';
-            return format(date, 'MMMM d, yyyy');
+            if (!dateStr) return 'Today';
+            try {
+              const date = new Date(dateStr);
+              if (isNaN(date.getTime())) return 'Today';
+              if (isToday(date)) return 'Today';
+              if (isYesterday(date)) return 'Yesterday';
+              return format(date, 'MMMM d, yyyy');
+            } catch {
+              return 'Today';
+            }
           };
 
           return (
             <React.Fragment key={msg._id || index}>
               {showDateSeparator && (
                 <div className="flex items-center justify-center my-4">
-                  <span className="px-3 py-1 rounded-full bg-white border border-[#FED7AA] text-[10px] font-bold text-[#6B7280] shadow-xs select-none">
+                  <span className="px-3 py-1 rounded-full bg-card border border-line text-[10px] font-bold text-muted shadow-xs select-none">
                     {getDateLabel(msg.createdAt)}
                   </span>
                 </div>
@@ -417,6 +508,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
                 isOwn={isOwn}
                 isGroup={isGroup}
                 currentUserId={currentUserId}
+                isRestricted={activeConversation.status === 'request'}
                 onReply={(m) => setReplyingTo(m)}
                 onEdit={(m) => {
                   const updatedText = window.prompt('Edit your message:', m.text);
@@ -427,10 +519,7 @@ export const ChatWindow = ({ conversationId, onBack }) => {
                 onDelete={(msgId, scope) => deleteMessage(msgId, scope)}
                 onReact={(msgId, emoji) => reactToMessage(msgId, emoji)}
                 onStar={(msgId) => toggleStar(msgId)}
-                onForward={(m) => {
-                  const targetId = window.prompt('Enter target conversation ID to forward:');
-                  if (targetId) forwardMessage(m._id, [targetId]);
-                }}
+                onForward={(m) => setForwardTargetMessage(m)}
                 onSaveToPocket={(m) => {
                   setSaveTarget({
                     from: 'chat_message',
@@ -451,6 +540,15 @@ export const ChatWindow = ({ conversationId, onBack }) => {
         isOpen={!!saveTarget}
         onClose={() => setSaveTarget(null)}
         target={saveTarget}
+      />
+
+      {/* Message Forward Modal */}
+      <ForwardModal
+        isOpen={!!forwardTargetMessage}
+        message={forwardTargetMessage}
+        conversations={conversations}
+        onClose={() => setForwardTargetMessage(null)}
+        onForward={(msgId, convIds) => forwardMessage(msgId, convIds)}
       />
 
       {/* AI Assistant Sheet for Summaries & Message Explanations */}
@@ -481,16 +579,109 @@ export const ChatWindow = ({ conversationId, onBack }) => {
         onAccept={() => handleSummarize('last50')}
       />
 
-      {/* Bottom Message Input Bar */}
-      <MessageInput
-        conversationId={activeConversation._id}
-        allowAi={activeConversation.allowAi !== false && user?.aiSettings?.aiInChats !== false}
-        onSend={(payload) => sendMessage(payload)}
-        onTypingStart={startTyping}
-        onTypingStop={stopTyping}
-        replyingTo={replyingTo}
-        onCancelReply={() => setReplyingTo(null)}
-      />
+      {/* Bottom Message Input Bar OR Message Request Actions Bar */}
+      {activeConversation.status === 'request' ? (
+        <div className="p-4 bg-card border-t border-line space-y-2">
+          {requestError && (
+            <p className="text-xs text-accent text-center font-semibold">{requestError}</p>
+          )}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              disabled={isProcessingRequest}
+              onClick={async () => {
+                setIsProcessingRequest(true);
+                setRequestError(null);
+                try {
+                  await acceptMessageRequest(activeConversation._id);
+                } catch (err) {
+                  setRequestError(err.response?.data?.message || 'Failed to accept request');
+                } finally {
+                  setIsProcessingRequest(false);
+                }
+              }}
+              className="px-5 py-2.5 rounded-xl bg-brand text-white font-bold text-xs shadow-md shadow-primary/25 hover:brightness-105 transition cursor-pointer disabled:opacity-50"
+            >
+              Accept
+            </button>
+
+            <button
+              type="button"
+              disabled={isProcessingRequest}
+              onClick={async () => {
+                if (window.confirm('Delete this message request?')) {
+                  setIsProcessingRequest(true);
+                  try {
+                    await rejectMessageRequest(activeConversation._id);
+                    if (onBack) onBack();
+                  } catch (err) {
+                    setRequestError(err.response?.data?.message || 'Failed to delete request');
+                  } finally {
+                    setIsProcessingRequest(false);
+                  }
+                }
+              }}
+              className="px-4 py-2.5 rounded-xl bg-cream border border-line text-ink hover:text-accent font-bold text-xs transition cursor-pointer disabled:opacity-50"
+            >
+              Delete
+            </button>
+
+            <button
+              type="button"
+              disabled={isProcessingRequest}
+              onClick={async () => {
+                if (window.confirm('Block this user? They will not be able to message you.')) {
+                  setIsProcessingRequest(true);
+                  try {
+                    if (otherUser?._id) {
+                      await api.post(`/users/${otherUser._id}/block`);
+                    }
+                    await rejectMessageRequest(activeConversation._id);
+                    if (onBack) onBack();
+                  } catch (err) {
+                    setRequestError(err.response?.data?.message || 'Failed to block user');
+                  } finally {
+                    setIsProcessingRequest(false);
+                  }
+                }
+              }}
+              className="px-4 py-2.5 rounded-xl bg-cream border border-line text-muted hover:text-ink font-semibold text-xs transition cursor-pointer disabled:opacity-50"
+            >
+              Block
+            </button>
+
+            <button
+              type="button"
+              disabled={isProcessingRequest}
+              onClick={() => {
+                const reason = window.prompt('Report reason:');
+                if (reason && otherUser?._id) {
+                  api.post('/reports', { targetUserId: otherUser._id, reason }).catch(() => {});
+                  alert('Thank you for reporting. Our safety team will review it.');
+                }
+              }}
+              className="px-3 py-2.5 rounded-xl text-muted hover:text-ink font-semibold text-xs transition cursor-pointer"
+            >
+              Report
+            </button>
+          </div>
+        </div>
+      ) : isGroup && activeConversation.onlyAdminsCanSend && activeConversation.members?.find((m) => String(m.user?._id || m.user) === String(currentUserId))?.role !== 'admin' ? (
+        <div className="p-4 bg-card border-t border-line text-center text-xs text-muted flex items-center justify-center gap-2 select-none">
+          <Shield className="w-4 h-4 text-primary" />
+          <span>Only group admins can send messages to this group.</span>
+        </div>
+      ) : (
+        <MessageInput
+          conversationId={activeConversation._id}
+          allowAi={activeConversation.allowAi !== false && user?.aiSettings?.aiInChats !== false}
+          onSend={(payload) => sendMessage(payload)}
+          onTypingStart={startTyping}
+          onTypingStop={stopTyping}
+          replyingTo={replyingTo}
+          onCancelReply={() => setReplyingTo(null)}
+        />
+      )}
 
       {/* Group Info Slide-Over Panel */}
       <GroupInfoPanel

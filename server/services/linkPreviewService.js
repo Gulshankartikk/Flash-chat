@@ -28,14 +28,16 @@ const resolveUrl = (relative, base) => {
  */
 const unescapeHtml = (str) => {
   if (!str) return '';
-  return str
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ');
+  const entities = {
+    '&amp;': '&',
+    '&lt;': '<',
+    '&gt;': '>',
+    '&quot;': '"',
+    '&#039;': "'",
+    '&#39;': "'",
+    '&nbsp;': ' '
+  };
+  return str.replace(/&(?:amp|lt|gt|quot|#0?39|nbsp);/g, (entity) => entities[entity] || entity);
 };
 
 const linkPreviewService = {
@@ -74,7 +76,7 @@ const linkPreviewService = {
 
     let html = '';
     try {
-      const response = await fetch(validUrl, {
+      const response = await fetch(parsedUrl, {
         signal: controller.signal,
         headers: {
           'User-Agent': 'Mozilla/5.0 (FlashChat LinkPreviewBot/1.0; +https://flashchat.app)',

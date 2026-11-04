@@ -175,7 +175,7 @@ export const CallHistoryList = () => {
               <div
                 key={call._id}
                 onClick={() => handleCallBack(call)}
-                className="group flex items-center justify-between px-4 py-3 hover:bg-orange-50/40 transition cursor-pointer"
+                className="group flex items-center justify-between px-4 py-3 hover:bg-primary/10 transition cursor-pointer"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <Avatar src={displayAvatar} name={displayName} size="md" />
@@ -219,7 +219,7 @@ export const CallHistoryList = () => {
                       e.stopPropagation();
                       handleCallBack(call);
                     }}
-                    className="p-2 rounded-xl text-primary hover:bg-orange-50 transition cursor-pointer"
+                    className="p-2 rounded-xl text-primary hover:bg-primary/10 transition cursor-pointer"
                     title={`Call back with ${isVideo ? 'video' : 'voice'}`}
                   >
                     {isVideo ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}

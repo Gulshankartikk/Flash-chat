@@ -230,7 +230,7 @@ export const AiChatPage = () => {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] md:h-screen w-full bg-cream dark:bg-zinc-950 overflow-hidden font-sans">
+    <div className="flex h-[calc(100dvh-4rem)] md:h-screen w-full bg-cream overflow-hidden font-sans">
       {/* Desktop Left Sidebar: Conversation List (300px) */}
       <div className="hidden md:block w-80 h-full shrink-0">
         <AiConversationList
@@ -248,7 +248,7 @@ export const AiChatPage = () => {
       {/* Mobile Drawer (Slide over) */}
       {showMobileDrawer && (
         <div className="fixed inset-0 z-50 flex md:hidden bg-black/50 backdrop-blur-sm">
-          <div className="w-4/5 max-w-xs h-full bg-card dark:bg-zinc-900 shadow-2xl">
+          <div className="w-4/5 max-w-xs h-full bg-card shadow-2xl">
             <AiConversationList
               conversations={conversations}
               activeId={currentConversation?._id}
@@ -265,15 +265,15 @@ export const AiChatPage = () => {
       )}
 
       {/* Main Chat Workspace */}
-      <div className="flex-1 flex flex-col h-full min-w-0 bg-card dark:bg-zinc-900 border-l border-line dark:border-zinc-800">
+      <div className="flex-1 flex flex-col h-full min-w-0 bg-card border-l border-line">
         {/* Workspace Top Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-line dark:border-zinc-800 shrink-0">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-line shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             {/* Mobile Drawer Toggle */}
             <button
               type="button"
               onClick={() => setShowMobileDrawer(true)}
-              className="md:hidden p-2 rounded-xl text-muted hover:text-ink dark:hover:text-cream hover:bg-cream dark:hover:bg-zinc-800 transition-colors"
+              className="md:hidden p-2 rounded-xl text-muted hover:text-ink hover:bg-cream transition-colors"
               title="Open conversations"
             >
               <Menu className="w-5 h-5" />
@@ -281,11 +281,11 @@ export const AiChatPage = () => {
 
             {/* Title */}
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white shadow-sm shrink-0">
+              <div className="w-7 h-7 rounded-xl bg-brand-gradient flex items-center justify-center text-white shadow-sm shrink-0">
                 <Sparkles className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <h1 className="text-sm font-bold text-ink dark:text-cream truncate">
+                <h1 className="text-sm font-bold text-ink truncate">
                   {currentConversation?.title || 'Flash AI'}
                 </h1>
                 <p className="text-[10px] text-muted truncate">Flash AI Assistant</p>
@@ -300,7 +300,7 @@ export const AiChatPage = () => {
             <button
               type="button"
               onClick={handleNewChat}
-              className="flex items-center gap-1 py-1.5 px-3 rounded-xl bg-cream dark:bg-zinc-800 border border-line dark:border-zinc-700 text-xs font-semibold text-ink dark:text-cream hover:border-primary transition-colors"
+              className="flex items-center gap-1 py-1.5 px-3 rounded-xl bg-cream border border-line text-xs font-semibold text-ink hover:border-primary transition-colors"
             >
               <Plus className="w-3.5 h-3.5 text-primary" />
               <span className="hidden sm:inline">New Chat</span>

@@ -238,7 +238,7 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
   };
 
   return (
-    <div className="bg-white rounded-3xl p-3 sm:p-4 border border-[#FED7AA] shadow-sm space-y-3">
+    <div className="bg-card rounded-3xl p-3 sm:p-4 border border-line shadow-sm space-y-3">
       {/* Hidden file inputs */}
       <input
         ref={mediaInputRef}
@@ -261,8 +261,8 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
           onClick={() => setActiveTab(activeTab === 'note' ? null : 'note')}
           className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex-shrink-0 ${
             activeTab === 'note'
-              ? 'bg-[#F97316] text-white shadow-md shadow-orange-500/20'
-              : 'bg-[#FFF7ED] text-[#1F2937] hover:bg-[#FED7AA]/50'
+              ? 'bg-brand-gradient text-white shadow-md shadow-primary/20'
+              : 'bg-card/70 border border-line text-ink hover:bg-line/40'
           }`}
         >
           <FileText className="w-3.5 h-3.5" />
@@ -273,8 +273,8 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
           onClick={() => setActiveTab(activeTab === 'link' ? null : 'link')}
           className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex-shrink-0 ${
             activeTab === 'link'
-              ? 'bg-[#F97316] text-white shadow-md shadow-orange-500/20'
-              : 'bg-[#FFF7ED] text-[#1F2937] hover:bg-[#FED7AA]/50'
+              ? 'bg-brand-gradient text-white shadow-md shadow-primary/20'
+              : 'bg-card/70 border border-line text-ink hover:bg-line/40'
           }`}
         >
           <LinkIcon className="w-3.5 h-3.5" />
@@ -284,18 +284,18 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
         <button
           onClick={() => mediaInputRef.current?.click()}
           disabled={isSubmitting}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold bg-[#FFF7ED] text-[#1F2937] hover:bg-[#FED7AA]/50 transition-all flex-shrink-0 disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold bg-card/70 border border-line text-ink hover:bg-line/40 transition-all flex-shrink-0 disabled:opacity-50"
         >
-          <ImageIcon className="w-3.5 h-3.5 text-[#EC4899]" />
+          <ImageIcon className="w-3.5 h-3.5 text-primary" />
           <span>Photo / Video</span>
         </button>
 
         <button
           onClick={() => fileInputRef.current?.click()}
           disabled={isSubmitting}
-          className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold bg-[#FFF7ED] text-[#1F2937] hover:bg-[#FED7AA]/50 transition-all flex-shrink-0 disabled:opacity-50"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold bg-card/70 border border-line text-ink hover:bg-line/40 transition-all flex-shrink-0 disabled:opacity-50"
         >
-          <FileUp className="w-3.5 h-3.5 text-amber-600" />
+          <FileUp className="w-3.5 h-3.5 text-secondary" />
           <span>File</span>
         </button>
 
@@ -303,11 +303,11 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
           onClick={() => setActiveTab(activeTab === 'voice' ? null : 'voice')}
           className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex-shrink-0 ${
             activeTab === 'voice'
-              ? 'bg-[#F97316] text-white shadow-md shadow-orange-500/20'
-              : 'bg-[#FFF7ED] text-[#1F2937] hover:bg-[#FED7AA]/50'
+              ? 'bg-brand-gradient text-white shadow-md shadow-primary/20'
+              : 'bg-card/70 border border-line text-ink hover:bg-line/40'
           }`}
         >
-          <Mic className="w-3.5 h-3.5 text-rose-500" />
+          <Mic className="w-3.5 h-3.5 text-rose-400" />
           <span>Voice</span>
         </button>
 
@@ -315,8 +315,8 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
           onClick={() => setActiveTab(activeTab === 'snippet' ? null : 'snippet')}
           className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold transition-all flex-shrink-0 ${
             activeTab === 'snippet'
-              ? 'bg-[#F97316] text-white shadow-md shadow-orange-500/20'
-              : 'bg-[#FFF7ED] text-[#1F2937] hover:bg-[#FED7AA]/50'
+              ? 'bg-brand-gradient text-white shadow-md shadow-primary/20'
+              : 'bg-card/70 border border-line text-ink hover:bg-line/40'
           }`}
         >
           <Code2 className="w-3.5 h-3.5 text-primary" />
@@ -331,16 +331,16 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="pt-2 border-t border-[#FED7AA]/60 space-y-3"
+            className="pt-2 border-t border-line space-y-3"
           >
             {/* Folder selection dropdown if folders exist */}
             {folders.length > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-[11px] font-bold text-[#6B7280]">Folder:</span>
+                <span className="text-[11px] font-bold text-muted">Folder:</span>
                 <select
                   value={selectedFolder}
                   onChange={(e) => setSelectedFolder(e.target.value)}
-                  className="text-xs bg-[#FFF7ED] border border-[#FED7AA] rounded-xl px-2.5 py-1 text-[#1F2937] focus:outline-none focus:ring-1 focus:ring-[#F97316]"
+                  className="text-xs bg-canvas border border-line rounded-xl px-2.5 py-1 text-ink focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="">General (Unorganized)</option>
                   {folders.map((f) => (
@@ -361,20 +361,20 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
                   placeholder="Jot down a quick thought or note... (Markdown supported)"
                   rows={3}
                   autoFocus
-                  className="w-full text-xs p-3 bg-[#FFF7ED] border border-[#FED7AA] rounded-2xl text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#F97316]/50 resize-none placeholder:text-[#6B7280]"
+                  className="w-full text-xs p-3 bg-canvas border border-line rounded-2xl text-ink focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none placeholder:text-muted/60"
                 />
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setActiveTab(null)}
-                    className="px-3 py-1.5 text-xs text-[#6B7280] font-semibold hover:text-[#1F2937]"
+                    className="px-3 py-1.5 text-xs text-muted font-semibold hover:text-ink cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={!inputText.trim() || isSubmitting}
-                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-xs font-bold shadow-sm disabled:opacity-40 flex items-center gap-1.5"
+                    className="px-4 py-1.5 rounded-xl bg-brand-gradient text-white text-xs font-bold shadow-sm shadow-primary/20 disabled:opacity-40 flex items-center gap-1.5 cursor-pointer"
                   >
                     {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                     <span>Save Note</span>
@@ -392,34 +392,34 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
                   onChange={(e) => setUrlInput(e.target.value)}
                   placeholder="Paste URL (e.g. https://github.com)..."
                   autoFocus
-                  className="w-full text-xs p-3 bg-[#FFF7ED] border border-[#FED7AA] rounded-2xl text-[#1F2937] focus:outline-none focus:ring-2 focus:ring-[#F97316]/50 placeholder:text-[#6B7280]"
+                  className="w-full text-xs p-3 bg-canvas border border-line rounded-2xl text-ink focus:outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted/60"
                 />
 
                 {/* Link Preview Loading Skeleton */}
                 {isPreviewLoading && (
-                  <div className="p-3 bg-[#FFF7ED] rounded-2xl border border-[#FED7AA] flex items-center gap-3 animate-pulse">
-                    <div className="w-12 h-12 bg-[#FED7AA]/50 rounded-xl" />
+                  <div className="p-3 bg-canvas rounded-2xl border border-line flex items-center gap-3 animate-pulse">
+                    <div className="w-12 h-12 bg-line/50 rounded-xl" />
                     <div className="space-y-1.5 flex-1">
-                      <div className="h-3 bg-[#FED7AA]/60 rounded w-2/3" />
-                      <div className="h-2 bg-[#FED7AA]/40 rounded w-1/2" />
+                      <div className="h-3 bg-line/60 rounded w-2/3" />
+                      <div className="h-2 bg-line/40 rounded w-1/2" />
                     </div>
                   </div>
                 )}
 
                 {/* Populated Link Preview Card */}
                 {previewData && !isPreviewLoading && (
-                  <div className="p-3 bg-[#FFF7ED] rounded-2xl border border-[#FED7AA] flex items-start gap-3">
+                  <div className="p-3 bg-canvas rounded-2xl border border-line flex items-start gap-3">
                     {previewData.image && (
                       <img
                         src={previewData.image}
                         alt="Preview"
-                        className="w-14 h-14 object-cover rounded-xl border border-[#FED7AA]/50 flex-shrink-0"
+                        className="w-14 h-14 object-cover rounded-xl border border-line flex-shrink-0"
                       />
                     )}
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs font-bold text-[#1F2937] truncate">{previewData.title}</p>
-                      <p className="text-[11px] text-[#6B7280] line-clamp-2 mt-0.5">{previewData.description}</p>
-                      <span className="text-[10px] text-[#F97316] font-semibold mt-1 inline-block">
+                      <p className="text-xs font-bold text-ink truncate">{previewData.title}</p>
+                      <p className="text-[11px] text-muted line-clamp-2 mt-0.5">{previewData.description}</p>
+                      <span className="text-[10px] text-primary font-semibold mt-1 inline-block">
                         {previewData.siteName || new URL(urlInput).hostname}
                       </span>
                     </div>
@@ -430,14 +430,14 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
                   <button
                     type="button"
                     onClick={() => setActiveTab(null)}
-                    className="px-3 py-1.5 text-xs text-[#6B7280] font-semibold hover:text-[#1F2937]"
+                    className="px-3 py-1.5 text-xs text-muted font-semibold hover:text-ink cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={!urlInput.trim() || isSubmitting}
-                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-xs font-bold shadow-sm disabled:opacity-40 flex items-center gap-1.5"
+                    className="px-4 py-1.5 rounded-xl bg-brand-gradient text-white text-xs font-bold shadow-sm shadow-primary/20 disabled:opacity-40 flex items-center gap-1.5 cursor-pointer"
                   >
                     {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                     <span>Save Link</span>
@@ -450,11 +450,11 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
             {activeTab === 'snippet' && (
               <form onSubmit={handleSubmit} className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] font-bold text-[#6B7280]">Language:</span>
+                  <span className="text-[11px] font-bold text-muted">Language:</span>
                   <select
                     value={snippetLang}
                     onChange={(e) => setSnippetLang(e.target.value)}
-                    className="text-xs bg-[#FFF7ED] border border-[#FED7AA] rounded-xl px-2.5 py-1 text-[#1F2937] focus:outline-none"
+                    className="text-xs bg-canvas border border-line rounded-xl px-2.5 py-1 text-ink focus:outline-none"
                   >
                     <option value="javascript">JavaScript</option>
                     <option value="typescript">TypeScript</option>
@@ -472,20 +472,20 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
                   placeholder="// Paste your code snippet here..."
                   rows={4}
                   autoFocus
-                  className="w-full text-xs font-mono p-3 bg-[#1F2937] border border-gray-700 rounded-2xl text-amber-200 focus:outline-none resize-none"
+                  className="w-full text-xs font-mono p-3 bg-canvas border border-line rounded-2xl text-ink focus:outline-none resize-none"
                 />
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
                     onClick={() => setActiveTab(null)}
-                    className="px-3 py-1.5 text-xs text-[#6B7280] font-semibold hover:text-[#1F2937]"
+                    className="px-3 py-1.5 text-xs text-muted font-semibold hover:text-ink cursor-pointer"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={!inputText.trim() || isSubmitting}
-                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-xs font-bold shadow-sm disabled:opacity-40 flex items-center gap-1.5"
+                    className="px-4 py-1.5 rounded-xl bg-brand-gradient text-white text-xs font-bold shadow-sm shadow-primary/20 disabled:opacity-40 flex items-center gap-1.5 cursor-pointer"
                   >
                     {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                     <span>Save Snippet</span>
@@ -496,10 +496,10 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
 
             {/* Voice Memo Panel */}
             {activeTab === 'voice' && (
-              <div className="p-4 bg-[#FFF7ED] rounded-2xl border border-[#FED7AA] flex flex-col items-center gap-3">
+              <div className="p-4 bg-canvas rounded-2xl border border-line flex flex-col items-center gap-3">
                 <div className="flex items-center gap-2">
                   {isRecording && <div className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />}
-                  <span className="text-sm font-mono font-bold text-[#1F2937]">
+                  <span className="text-sm font-mono font-bold text-ink">
                     {Math.floor(recordingSeconds / 60)
                       .toString()
                       .padStart(2, '0')}
@@ -514,7 +514,7 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
                       type="button"
                       onClick={startRecording}
                       disabled={isSubmitting}
-                      className="px-4 py-2 rounded-2xl bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-rose-500/20 active:scale-95 disabled:opacity-50"
+                      className="px-4 py-2 rounded-2xl bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md shadow-rose-500/20 active:scale-95 disabled:opacity-50 cursor-pointer"
                     >
                       <Mic className="w-4 h-4" />
                       <span>Start Recording</span>
@@ -523,9 +523,9 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
                     <button
                       type="button"
                       onClick={stopRecording}
-                      className="px-4 py-2 rounded-2xl bg-[#1F2937] text-white font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-95 animate-pulse"
+                      className="px-4 py-2 rounded-2xl bg-card border border-line text-ink font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-95 animate-pulse cursor-pointer"
                     >
-                      <Square className="w-4 h-4 fill-white" />
+                      <Square className="w-4 h-4 fill-primary text-primary" />
                       <span>Stop & Save</span>
                     </button>
                   )}
@@ -535,7 +535,7 @@ export const QuickAddBar = ({ onItemCreated, folders = [] }) => {
                       if (isRecording) stopRecording();
                       setActiveTab(null);
                     }}
-                    className="px-3 py-1.5 text-xs text-[#6B7280] font-semibold hover:text-[#1F2937]"
+                    className="px-3 py-1.5 text-xs text-muted font-semibold hover:text-ink cursor-pointer"
                   >
                     Cancel
                   </button>

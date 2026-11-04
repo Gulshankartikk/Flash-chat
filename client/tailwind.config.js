@@ -17,9 +17,17 @@ export default {
         muted: 'var(--muted)',
         line: 'var(--line)',
         brand: {
-          orange: '#F97316',
-          pink: '#EC4899',
-          rose: '#F43F5E',
+          DEFAULT: 'var(--primary)',
+          coral: '#FF7849',
+          amber: '#FFB36B',
+          gold: '#FFD166',
+          charcoal: '#14110F',
+          espresso: '#211A17',
+          ivory: '#FFF7ED',
+          magenta: '#FF7849',
+          purple: '#FFB36B',
+          pink: '#FF7849',
+          rose: '#FFD166',
         }
       },
       borderRadius: {
@@ -29,15 +37,15 @@ export default {
         'full': '9999px',  // avatars/chips
       },
       boxShadow: {
-        'soft': '0 8px 30px rgba(249, 115, 22, 0.12)',
-        'soft-dark': '0 8px 30px rgba(0, 0, 0, 0.4)',
+        'soft': 'var(--soft-shadow)',
+        'soft-dark': '0 8px 30px rgba(0, 0, 0, 0.7)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
       },
       backgroundImage: {
-        'brand-gradient': 'linear-gradient(135deg, #F97316 0%, #EC4899 100%)',
-        'brand-gradient-hover': 'linear-gradient(135deg, #EA580C 0%, #DB2777 100%)',
+        'brand-gradient': 'var(--brand-gradient)',
+        'brand-gradient-hover': 'var(--brand-gradient-hover)',
       }
     },
   },

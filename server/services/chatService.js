@@ -4,6 +4,7 @@ const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const User = require('../models/User');
 const Contact = require('../models/Contact');
+const { buildPhoneSearchQuery, normalizePhone } = require('../utils/phoneUtils');
 
 class ChatService {
   /**
@@ -20,7 +21,7 @@ class ChatService {
    */
   async createDirectConversation(userIdA, userIdB) {
     if (String(userIdA) === String(userIdB)) {
-      throw new Error('Cannot start a direct conversation with yourself.');
+      return this.getOrCreateSelfConversation(userIdA);
     }
 
     const memberKey = this.getMemberKey(userIdA, userIdB);
@@ -29,15 +30,23 @@ class ChatService {
       .populate('lastMessage');
 
     if (!conversation) {
-      conversation = await Conversation.create({
-        type: 'direct',
-        memberKey,
-        createdBy: userIdA,
-        members: [
-          { user: userIdA, role: 'member', unreadCount: 0 },
-          { user: userIdB, role: 'member', unreadCount: 0 }
-        ]
-      });
+      try {
+        conversation = await Conversation.create({
+          type: 'direct',
+          memberKey,
+          createdBy: userIdA,
+          members: [
+            { user: userIdA, role: 'member', unreadCount: 0 },
+            { user: userIdB, role: 'member', unreadCount: 0 }
+          ]
+        });
+      } catch (err) {
+        if (err.code === 11000) {
+          conversation = await Conversation.findOne({ memberKey });
+        } else {
+          throw err;
+        }
+      }
 
       conversation = await Conversation.findById(conversation._id)
         .populate('members.user', '_id name username avatar isOnline lastSeen privacy')
@@ -46,6 +55,52 @@ class ChatService {
 
     return conversation;
   }
+
+  /**
+   * Get or create a self conversation (Message yourself / Note to Self)
+   */
+  async getOrCreateSelfConversation(userId) {
+    const memberKey = `${userId}_${userId}`;
+    let conversation = await Conversation.findOne({ memberKey })
+      .populate('members.user', '_id name username avatar phoneNumber isOnline lastSeen privacy')
+      .populate('lastMessage');
+
+    if (!conversation) {
+      const user = await User.findById(userId).select('_id name username avatar').lean();
+      try {
+        conversation = await Conversation.create({
+          type: 'direct',
+          memberKey,
+          createdBy: userId,
+          name: `${user?.name || 'You'} (You)`,
+          avatar: user?.avatar || '',
+          members: [
+            { user: userId, role: 'member', unreadCount: 0 }
+          ]
+        });
+      } catch (err) {
+        if (err.code === 11000) {
+          conversation = await Conversation.findOne({ memberKey });
+        } else {
+          throw err;
+        }
+      }
+
+      conversation = await Conversation.findById(conversation._id)
+        .populate('members.user', '_id name username avatar phoneNumber isOnline lastSeen privacy')
+        .populate('lastMessage');
+    }
+
+    return conversation;
+  }
+
+  /**
+   * Alias for createDirectConversation
+   */
+  async getOrCreateDirectConversation(userIdA, userIdB) {
+    return this.createDirectConversation(userIdA, userIdB);
+  }
+
 
   /**
    * Create a new group conversation
@@ -84,9 +139,10 @@ class ChatService {
    * Check if a user is a member of a conversation
    */
   async isMember(conversationId, userId) {
+    if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) return false;
     const conv = await Conversation.findOne({
-      _id: conversationId,
-      'members.user': userId
+      _id: { $eq: conversationId },
+      'members.user': { $eq: userId }
     }).select('_id');
     return !!conv;
   }
@@ -106,24 +162,32 @@ class ChatService {
       replyTo,
       forwardedFrom,
       sharedRef,
-      snapshot
+      snapshot,
+      poll
     } = payload;
 
-    const conversation = await Conversation.findById(conversationId);
+    const conversation = await Conversation.findOne({ _id: { $eq: conversationId } });
     if (!conversation) {
       throw new Error('Conversation not found.');
     }
 
-    const isUserMember = conversation.members.some(
+    const memberRec = conversation.members.find(
       (m) => String(m.user) === String(senderId)
     );
-    if (!isUserMember) {
+    if (!memberRec) {
       throw new Error('You are not a member of this conversation.');
+    }
+
+    if (conversation.type === 'group' && conversation.onlyAdminsCanSend && memberRec.role !== 'admin') {
+      throw new Error('Only admins can send messages in this group.');
     }
 
     // Deduplicate by clientId if present
     if (clientId) {
-      const existingMsg = await Message.findOne({ conversation: conversationId, clientId });
+      const existingMsg = await Message.findOne({
+        conversation: { $eq: conversationId },
+        clientId: { $eq: clientId }
+      });
       if (existingMsg) {
         return existingMsg;
       }
@@ -144,6 +208,7 @@ class ChatService {
       text: text ? text.trim() : '',
       media: Array.isArray(media) ? media : [],
       location: location || undefined,
+      poll: poll || undefined,
       contact: contact || undefined,
       replyTo: replyTo || undefined,
       forwardedFrom: forwardedFrom || undefined,
@@ -163,7 +228,7 @@ class ChatService {
       }
     });
 
-    await Conversation.findByIdAndUpdate(conversationId, {
+    await Conversation.findOneAndUpdate({ _id: { $eq: conversationId } }, {
       lastMessage: message._id,
       updatedAt: new Date(),
       $set: memberUpdates
@@ -223,13 +288,112 @@ class ChatService {
   }
 
   /**
+   * Helper: format a conversation with member-specific metadata
+   * (isPinned, isArchived, isMuted, unreadCount, otherUser, contactName, displayName, displayAvatar)
+   */
+  formatConversation(conv, userId, contactMap = {}, phoneMap = {}) {
+    if (!conv) return null;
+    const getUserIdStr = (u) => String(u?._id || u || '');
+    const myMember = conv.members?.find((m) => getUserIdStr(m.user) === String(userId));
+    const otherMember = conv.members?.find((m) => getUserIdStr(m.user) !== String(userId));
+    const isSelfChat = !otherMember || conv.members?.length === 1 || String(conv.memberKey) === `${userId}_${userId}`;
+
+    if (isSelfChat && conv.type === 'direct') {
+      const myUser = myMember?.user;
+      return {
+        ...conv,
+        isPinned: Boolean(myMember?.isPinned),
+        isArchived: Boolean(myMember?.isArchived),
+        isMuted: Boolean(myMember?.mutedUntil && new Date(myMember.mutedUntil) > new Date()),
+        unreadCount: 0,
+        otherUser: myUser || null,
+        contactName: 'You (Message yourself)',
+        displayName: 'You (Message yourself)',
+        displayAvatar: myUser?.avatar || '',
+        isSelf: true
+      };
+    }
+
+    const otherUserId = otherMember?.user?._id ? String(otherMember.user._id) : (otherMember?.user ? String(otherMember.user) : null);
+    const otherPhone = otherMember?.user?.phoneNumber || null;
+    const contactName = (otherUserId && contactMap[otherUserId]) || (otherPhone && phoneMap[otherPhone]) || null;
+
+    let displayName = 'Flash User';
+    if (conv.type === 'group') {
+      displayName = conv.name || 'Group Chat';
+    } else if (conv.type === 'support') {
+      displayName = 'Flash Support';
+    } else if (contactName) {
+      displayName = contactName;
+    } else if (otherMember?.user?.name) {
+      displayName = otherMember.user.name;
+    } else if (otherMember?.user?.username) {
+      displayName = `@${otherMember.user.username}`;
+    }
+
+    let displayAvatar = '';
+    if (conv.type === 'group') {
+      displayAvatar = conv.avatar || '';
+    } else if (conv.type === 'support') {
+      displayAvatar = conv.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=FlashSupport&backgroundColor=f97316';
+    } else {
+      displayAvatar = otherMember?.user?.avatar || '';
+    }
+
+    return {
+      ...conv,
+      isPinned: Boolean(myMember?.isPinned),
+      isArchived: Boolean(myMember?.isArchived),
+      isMuted: Boolean(myMember?.mutedUntil && new Date(myMember.mutedUntil) > new Date()),
+      unreadCount: myMember?.unreadCount || 0,
+      otherUser: conv.type === 'direct' ? (otherMember?.user || null) : null,
+      contactName: contactName || undefined,
+      displayName,
+      displayAvatar
+    };
+  }
+
+  /**
+   * Get single formatted conversation by ID and user ID
+   */
+  async getFormattedConversation(conversationId, userId) {
+    if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) return null;
+    const conv = await Conversation.findOne({
+      _id: conversationId,
+      'members.user': userId
+    })
+      .populate('members.user', '_id name username avatar phoneNumber isOnline lastSeen privacy')
+      .populate('createdBy', '_id name username')
+      .populate({
+        path: 'lastMessage',
+        populate: { path: 'sender', select: '_id name username' }
+      })
+      .lean();
+
+    if (!conv) return null;
+
+    const savedContacts = await Contact.find({
+      owner: userId
+    }).select('name phone linkedUser').lean();
+
+    const contactMap = {};
+    const phoneMap = {};
+    for (const c of savedContacts) {
+      if (c.linkedUser) contactMap[String(c.linkedUser)] = c.name;
+      if (c.phone) phoneMap[c.phone] = c.name;
+    }
+
+    return this.formatConversation(conv, userId, contactMap, phoneMap);
+  }
+
+  /**
    * Get user's conversation list with sorted pinning
    */
   async getUserConversations(userId) {
     const conversations = await Conversation.find({
       'members.user': userId
     })
-      .populate('members.user', '_id name username avatar isOnline lastSeen privacy')
+      .populate('members.user', '_id name username avatar phoneNumber isOnline lastSeen privacy')
       .populate({
         path: 'lastMessage',
         populate: { path: 'sender', select: '_id name username' }
@@ -237,56 +401,22 @@ class ChatService {
       .sort({ updatedAt: -1 })
       .lean();
 
-    // Retrieve owner's saved contact names to map linkedUser -> saved contact name
+    // Retrieve owner's saved contact names to map linkedUser/phone -> saved contact name
     const savedContacts = await Contact.find({
-      owner: userId,
-      linkedUser: { $ne: null }
-    }).select('name linkedUser').lean();
+      owner: userId
+    }).select('name phone linkedUser').lean();
 
     const contactMap = {};
+    const phoneMap = {};
     for (const c of savedContacts) {
       if (c.linkedUser) contactMap[String(c.linkedUser)] = c.name;
+      if (c.phone) phoneMap[c.phone] = c.name;
     }
 
     // Map conversation with member-specific metadata (isPinned, isArchived, unreadCount, otherUser, contactName)
-    const formatted = conversations.map((conv) => {
-      const myMember = conv.members.find((m) => String(m.user?._id) === String(userId));
-      const otherMember = conv.members.find((m) => String(m.user?._id) !== String(userId));
-      const otherUserId = otherMember?.user?._id ? String(otherMember.user._id) : null;
-      const contactName = otherUserId && contactMap[otherUserId] ? contactMap[otherUserId] : null;
-
-      let displayName = 'Flash User';
-      if (conv.type === 'group') {
-        displayName = conv.name;
-      } else if (conv.type === 'support') {
-        displayName = 'Flash Support';
-      } else if (contactName) {
-        displayName = contactName;
-      } else if (otherMember?.user?.name) {
-        displayName = otherMember.user.name;
-      }
-
-      let displayAvatar = '';
-      if (conv.type === 'group') {
-        displayAvatar = conv.avatar;
-      } else if (conv.type === 'support') {
-        displayAvatar = conv.avatar || 'https://api.dicebear.com/7.x/bottts/svg?seed=FlashSupport&backgroundColor=f97316';
-      } else {
-        displayAvatar = otherMember?.user?.avatar || '';
-      }
-
-      return {
-        ...conv,
-        isPinned: myMember?.isPinned || false,
-        isArchived: myMember?.isArchived || false,
-        isMuted: myMember?.mutedUntil && new Date(myMember.mutedUntil) > new Date(),
-        unreadCount: myMember?.unreadCount || 0,
-        otherUser: conv.type === 'direct' ? otherMember?.user || null : null,
-        contactName: contactName || undefined,
-        displayName,
-        displayAvatar
-      };
-    });
+    const formatted = conversations.map((conv) =>
+      this.formatConversation(conv, userId, contactMap, phoneMap)
+    );
 
     // Pinned conversations appear first, then sorted by updatedAt
     return formatted.sort((a, b) => {
@@ -299,9 +429,17 @@ class ChatService {
    * Get messages with cursor pagination
    */
   async getMessages(conversationId, userId, { cursor, limit = 30 }) {
+    if (!conversationId || !mongoose.Types.ObjectId.isValid(conversationId)) {
+      const err = new Error('Invalid conversation ID.');
+      err.statusCode = 400;
+      throw err;
+    }
+
     const isMember = await this.isMember(conversationId, userId);
     if (!isMember) {
-      throw new Error('Not authorized to access messages in this conversation.');
+      const err = new Error('Not authorized to access messages in this conversation.');
+      err.statusCode = 403;
+      throw err;
     }
 
     const savedContacts = await Contact.find({
@@ -315,9 +453,12 @@ class ChatService {
     }
 
     const query = {
-      conversation: conversationId,
+      $or: [
+        { conversation: conversationId },
+        { chatId: conversationId }
+      ],
       deletedFor: { $ne: userId },
-      deletedForEveryone: false
+      deletedForEveryone: { $ne: true }
     };
 
     if (cursor) {
@@ -348,7 +489,8 @@ class ChatService {
 
     // Oldest to newest for frontend display
     const ordered = mapped.reverse();
-    const nextCursor = messages.length === Number(limit) ? messages[0].createdAt : null;
+    // nextCursor should point to the oldest message in this batch to fetch previous history
+    const nextCursor = messages.length === Number(limit) ? messages[messages.length - 1].createdAt : null;
 
     return {
       messages: ordered,
@@ -592,6 +734,490 @@ class ChatService {
     }
     return forwardedMessages;
   }
+
+  /**
+   * Helper: Hash phone number with HMAC secret for secure privacy-preserving pending matching
+   */
+  getPhoneHash(phone) {
+    const secret = process.env.PHONE_HASH_SECRET || 'flash_chat_super_secure_phone_hmac_secret_32_chars_min';
+    return crypto.createHmac('sha256', secret).update(phone.trim()).digest('hex');
+  }
+
+  /**
+   * Helper: Mask phone number for UI display (e.g. +91 ••••• •43210)
+   */
+  maskPhone(phone) {
+    if (!phone || phone.length < 6) return phone || '';
+    const clean = phone.trim();
+    const prefix = clean.slice(0, 3);
+    const suffix = clean.slice(-4);
+    return `${prefix} ••••• •${suffix}`;
+  }
+
+  /**
+   * Start chat by phone number: direct resolution or pending queue
+   */
+  async startChatByPhone(userId, { phone, name = '', saveContact = true }) {
+    if (!phone || typeof phone !== 'string') {
+      const err = new Error('Phone number is required');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const cleanPhone = phone.trim();
+    // Validate E.164: + followed by 8-15 digits
+    if (!/^\+[1-9]\d{7,14}$/.test(cleanPhone)) {
+      const err = new Error('Please enter a valid international phone number in E.164 format (e.g. +1234567890)');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    // Reject chatting with own phone number
+    const currentUser = await User.findById(userId);
+    if (currentUser && currentUser.phoneNumber === cleanPhone) {
+      const err = new Error('Cannot start a chat with your own phone number.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const Block = require('../models/Block');
+    const PendingConversation = require('../models/PendingConversation');
+
+    // Look for existing registered user with this phone number
+    const candidate = await User.findOne(buildPhoneSearchQuery(cleanPhone));
+
+    let isEligible = false;
+    if (candidate) {
+      // Check discoverability
+      const isDiscoverable = candidate.discoverableByPhone !== false;
+      // Check blocks in both directions
+      const hasBlock = await Block.findOne({
+        $or: [
+          { blocker: userId, blocked: candidate._id },
+          { blocker: candidate._id, blocked: userId }
+        ]
+      });
+
+      if (isDiscoverable && !hasBlock) {
+        isEligible = true;
+      }
+    }
+
+    // CASE 1: Registered & Discoverable user on Flash Chat
+    if (isEligible && candidate) {
+      const conversation = await this.createDirectConversation(userId, candidate._id);
+
+      let contactRecord = null;
+      if (saveContact || name) {
+        contactRecord = await Contact.findOneAndUpdate(
+          { owner: userId, phone: cleanPhone },
+          {
+            $set: {
+              owner: userId,
+              name: (name && name.trim()) || candidate.name || 'Contact',
+              phone: cleanPhone,
+              linkedUser: candidate._id
+            }
+          },
+          { upsert: true, new: true }
+        );
+      }
+
+      return {
+        status: 'ready',
+        conversationId: conversation._id,
+        contactId: contactRecord?._id || null,
+        isRegistered: true,
+        user: {
+          _id: candidate._id,
+          name: candidate.name,
+          username: candidate.username,
+          avatar: candidate.avatar
+        }
+      };
+    }
+
+    // CASE 2: Unregistered (or non-discoverable / blocked) -> Create/Reuse PendingConversation
+    const phoneHash = this.getPhoneHash(cleanPhone);
+    const masked = this.maskPhone(cleanPhone);
+
+    let contactRecord = null;
+    if (saveContact || name) {
+      contactRecord = await Contact.findOneAndUpdate(
+        { owner: userId, phone: cleanPhone },
+        {
+          $set: {
+            owner: userId,
+            name: (name && name.trim()) || 'Contact',
+            phone: cleanPhone,
+            linkedUser: null
+          }
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    // Check cap of 20 pending invitations per owner
+    const pendingCount = await PendingConversation.countDocuments({ owner: userId });
+    let pending = await PendingConversation.findOne({ owner: userId, phoneHash });
+
+    if (!pending && pendingCount >= 20) {
+      const err = new Error('Maximum limit of 20 pending invitations reached.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (!pending) {
+      pending = await PendingConversation.create({
+        owner: userId,
+        phoneHash,
+        rawPhoneMasked: masked,
+        contact: contactRecord?._id || null,
+        name: (name && name.trim()) || 'Contact',
+        queuedMessages: [],
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      });
+    } else if (name || contactRecord) {
+      pending.name = (name && name.trim()) || pending.name;
+      if (contactRecord) pending.contact = contactRecord._id;
+      await pending.save();
+    }
+
+    return {
+      status: 'pending',
+      pendingId: pending._id,
+      canInvite: true,
+      contactId: contactRecord?._id || null,
+      isRegistered: false,
+      maskedPhone: masked
+    };
+  }
+
+  /**
+   * Queue text message for an unregistered contact
+   */
+  async queuePendingMessage(userId, pendingId, text) {
+    const PendingConversation = require('../models/PendingConversation');
+    const pending = await PendingConversation.findOne({ _id: pendingId, owner: userId });
+
+    if (!pending) {
+      const err = new Error('Pending conversation not found or access denied.');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      const err = new Error('Message text is required');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const cleanText = text.trim();
+    if (cleanText.length > 500) {
+      const err = new Error('Pending messages are limited to 500 characters');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    if (pending.queuedMessages.length >= 5) {
+      const err = new Error('Cannot queue more than 5 messages for an unregistered contact');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    pending.queuedMessages.push({
+      text: cleanText,
+      createdAt: new Date()
+    });
+
+    await pending.save();
+
+    return {
+      success: true,
+      pendingId: pending._id,
+      queuedCount: pending.queuedMessages.length,
+      message: 'Message queued for delivery when recipient joins Flash Chat.'
+    };
+  }
+
+  /**
+   * Get all pending conversations for an owner
+   */
+  async getPendingConversations(userId) {
+    const PendingConversation = require('../models/PendingConversation');
+    return PendingConversation.find({ owner: userId })
+      .populate('contact')
+      .sort({ updatedAt: -1 })
+      .lean();
+  }
+
+  /**
+   * Delete / Cancel a pending conversation
+   */
+  async deletePendingConversation(userId, pendingId) {
+    const PendingConversation = require('../models/PendingConversation');
+    const result = await PendingConversation.findOneAndDelete({ _id: pendingId, owner: userId });
+    if (!result) {
+      const err = new Error('Pending conversation not found.');
+      err.statusCode = 404;
+      throw err;
+    }
+    return { success: true, message: 'Pending conversation removed.' };
+  }
+
+  /**
+   * Deliver pending messages upon user signup / phone verification
+   */
+  async deliverPendingConversationsOnSignup(newUser) {
+    if (!newUser || !newUser.phoneNumber) return 0;
+    if (newUser.discoverableByPhone === false) return 0;
+
+    const PendingConversation = require('../models/PendingConversation');
+    const Block = require('../models/Block');
+
+    const phoneHash = this.getPhoneHash(newUser.phoneNumber);
+    const pendingList = await PendingConversation.find({ phoneHash });
+
+    let deliveredCount = 0;
+
+    for (const pending of pendingList) {
+      try {
+        // Check blocks in either direction
+        const isBlocked = await Block.findOne({
+          $or: [
+            { blocker: pending.owner, blocked: newUser._id },
+            { blocker: newUser._id, blocked: pending.owner }
+          ]
+        });
+
+        if (isBlocked) {
+          await PendingConversation.findByIdAndDelete(pending._id);
+          continue;
+        }
+
+        // Link contact if exists
+        await Contact.updateMany(
+          { owner: pending.owner, phone: newUser.phoneNumber },
+          { $set: { linkedUser: newUser._id } }
+        );
+
+        // Create direct conversation with 'request' status if queued messages exist
+        const hasQueued = pending.queuedMessages && pending.queuedMessages.length > 0;
+        const conv = await this.createDirectConversation(pending.owner, newUser._id);
+
+        if (hasQueued) {
+          conv.status = 'request';
+          conv.requestedBy = pending.owner;
+
+          for (const qm of pending.queuedMessages) {
+            const msg = await Message.create({
+              conversation: conv._id,
+              chatId: conv._id,
+              sender: pending.owner,
+              text: qm.text,
+              type: 'text',
+              deliveredTo: [],
+              readBy: []
+            });
+            conv.lastMessage = msg._id;
+          }
+          await conv.save();
+        }
+
+        await PendingConversation.findByIdAndDelete(pending._id);
+        deliveredCount++;
+      } catch (err) {
+        const logger = require('../utils/logger');
+        logger.error({ err: err.message }, 'Error delivering pending conversation on signup');
+      }
+    }
+
+    return deliveredCount;
+  }
+
+  /**
+   * Accept incoming message request
+   */
+  async acceptMessageRequest(userId, conversationId) {
+    const conv = await Conversation.findOne({
+      _id: conversationId,
+      'members.user': userId
+    });
+
+    if (!conv) {
+      const err = new Error('Conversation not found or access denied.');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    conv.status = 'active';
+    conv.requestedBy = null;
+    await conv.save();
+
+    return Conversation.findById(conv._id)
+      .populate('members.user', '_id name username avatar isOnline lastSeen privacy')
+      .populate('lastMessage')
+      .lean();
+  }
+
+  /**
+   * Reject / Decline incoming message request
+   */
+  async rejectMessageRequest(userId, conversationId) {
+    const conv = await Conversation.findOne({
+      _id: conversationId,
+      'members.user': userId
+    });
+
+    if (!conv) {
+      const err = new Error('Conversation not found or access denied.');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    await Message.deleteMany({ conversation: conversationId });
+    await Conversation.findByIdAndDelete(conversationId);
+
+    return { success: true, message: 'Message request declined and removed.' };
+  }
+
+  /**
+   * Vote on a message poll
+   */
+  async votePoll(userId, messageId, optionIndex) {
+    const message = await Message.findById(messageId);
+    if (!message || message.type !== 'poll' || !message.poll) {
+      throw new Error('Poll not found.');
+    }
+
+    const isMember = await this.isMember(message.conversation, userId);
+    if (!isMember) {
+      throw new Error('You are not a member of this conversation.');
+    }
+
+    const { options, allowMultiple } = message.poll;
+    if (typeof optionIndex !== 'number' || optionIndex < 0 || optionIndex >= options.length) {
+      throw new Error('Invalid option index.');
+    }
+
+    const userIdStr = String(userId);
+    const hasVotedThis = options[optionIndex].votes.some((v) => String(v) === userIdStr);
+
+    if (hasVotedThis) {
+      // Toggle off vote
+      options[optionIndex].votes = options[optionIndex].votes.filter((v) => String(v) !== userIdStr);
+    } else {
+      if (!allowMultiple) {
+        // Clear votes from all other options
+        options.forEach((opt) => {
+          opt.votes = opt.votes.filter((v) => String(v) !== userIdStr);
+        });
+      }
+      options[optionIndex].votes.push(userId);
+    }
+
+    message.markModified('poll');
+    await message.save();
+
+    return Message.findById(message._id)
+      .populate('sender', '_id name username avatar')
+      .populate('replyTo', '_id sender text type media')
+      .lean();
+  }
+
+  /**
+   * Export structured chat history backup
+   */
+  async exportChatBackup(userId, conversationId) {
+    const isMember = await this.isMember(conversationId, userId);
+    if (!isMember) {
+      throw new Error('You are not a member of this conversation.');
+    }
+
+    const conversation = await Conversation.findById(conversationId)
+      .populate('members.user', '_id name username avatar')
+      .lean();
+
+    const messages = await Message.find({
+      conversation: conversationId,
+      deletedForEveryone: false,
+      deletedFor: { $ne: userId }
+    })
+      .sort({ createdAt: 1 })
+      .populate('sender', '_id name username avatar')
+      .lean();
+
+    return {
+      version: '1.1.0',
+      exportedAt: new Date().toISOString(),
+      conversationId: conversation._id,
+      conversationType: conversation.type,
+      conversationName: conversation.name || 'Direct Chat',
+      messagesCount: messages.length,
+      messages: messages.map((m) => ({
+        _id: m._id,
+        sender: {
+          _id: m.sender?._id,
+          name: m.sender?.name,
+          username: m.sender?.username
+        },
+        type: m.type,
+        text: m.text,
+        media: m.media,
+        location: m.location,
+        poll: m.poll,
+        createdAt: m.createdAt
+      }))
+    };
+  }
+
+  /**
+   * Restore chat history backup
+   */
+  async restoreChatBackup(userId, backupData) {
+    if (!backupData || !backupData.conversationId || !Array.isArray(backupData.messages)) {
+      throw new Error('Invalid backup data format.');
+    }
+
+    const conversationId = backupData.conversationId;
+    const isMember = await this.isMember(conversationId, userId);
+    if (!isMember) {
+      throw new Error('You are not a member of this conversation.');
+    }
+
+    let restoredCount = 0;
+    for (const msg of backupData.messages) {
+      if (!msg.text && (!msg.media || msg.media.length === 0) && !msg.poll && !msg.location) {
+        continue;
+      }
+
+      const existing = await Message.findOne({
+        conversation: conversationId,
+        $or: [
+          { _id: mongoose.isValidObjectId(msg._id) ? msg._id : new mongoose.Types.ObjectId() },
+          { text: msg.text, createdAt: msg.createdAt ? new Date(msg.createdAt) : undefined }
+        ]
+      });
+
+      if (!existing) {
+        await Message.create({
+          conversation: conversationId,
+          chatId: conversationId,
+          sender: mongoose.isValidObjectId(msg.sender?._id) ? msg.sender._id : userId,
+          type: msg.type || 'text',
+          text: msg.text || '',
+          media: Array.isArray(msg.media) ? msg.media : [],
+          location: msg.location || undefined,
+          poll: msg.poll || undefined,
+          createdAt: msg.createdAt ? new Date(msg.createdAt) : new Date()
+        });
+        restoredCount++;
+      }
+    }
+
+    return { success: true, restoredCount };
+  }
 }
 
 module.exports = new ChatService();
+

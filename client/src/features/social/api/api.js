@@ -82,6 +82,11 @@ export const recordReelViewApi = async (reelId) => {
   return res.data;
 };
 
+export const deleteReelApi = async (reelId) => {
+  const res = await api.delete(`/reels/${reelId}`);
+  return res.data;
+};
+
 // -------------------------------------------------------------
 // STORIES API
 // -------------------------------------------------------------
@@ -100,6 +105,16 @@ export const createStoryApi = async (storyData, onProgress, cancelToken) => {
 
 export const markStoryViewedApi = async (storyId) => {
   const res = await api.post(`/stories/${storyId}/view`);
+  return res.data;
+};
+
+export const reactToStoryApi = async (storyId, emoji) => {
+  const res = await api.post(`/stories/${storyId}/react`, { emoji });
+  return res.data;
+};
+
+export const fetchStoryViewersApi = async (storyId) => {
+  const res = await api.get(`/stories/${storyId}/viewers`);
   return res.data;
 };
 
@@ -315,6 +330,11 @@ export const unblockUserApi = async (userId) => {
 
 export const createDirectChatApi = async (userId) => {
   const res = await api.post('/chats/direct', { userId });
+  return res.data;
+};
+
+export const fetchRecommendationsApi = async () => {
+  const res = await api.get('/explore/recommendations');
   return res.data;
 };
 

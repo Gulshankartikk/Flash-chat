@@ -538,9 +538,13 @@ async function runSecurityAndPrivacySuite() {
   if (failed > 0) throw new Error('Security and privacy suite encountered failures.');
 }
 
-runSecurityAndPrivacySuite().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+runSecurityAndPrivacySuite()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
 
 module.exports = { runSecurityAndPrivacySuite };

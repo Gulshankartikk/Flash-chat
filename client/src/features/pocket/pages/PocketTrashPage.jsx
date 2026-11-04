@@ -127,12 +127,12 @@ export const PocketTrashPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF7ED] p-3 sm:p-6 max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-canvas p-3 sm:p-6 max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <button
           onClick={() => navigate('/pocket')}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#FED7AA] text-xs font-bold text-[#1F2937] hover:bg-[#FED7AA]/40 transition-colors shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-line text-xs font-bold text-ink hover:bg-line/40 transition-colors shadow-sm cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Pocket</span>
@@ -146,10 +146,10 @@ export const PocketTrashPage = () => {
                   setIsMultiSelect(!isMultiSelect);
                   setSelectedIds([]);
                 }}
-                className={`p-2 rounded-xl border text-xs font-bold transition-colors ${
+                className={`p-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
                   isMultiSelect
-                    ? 'bg-[#F97316] text-white border-[#F97316]'
-                    : 'bg-white text-[#1F2937] border-[#FED7AA]'
+                    ? 'bg-primary text-white border-primary'
+                    : 'bg-card text-ink border-line'
                 }`}
               >
                 <CheckSquare className="w-4 h-4" />
@@ -157,7 +157,7 @@ export const PocketTrashPage = () => {
 
               <button
                 onClick={handleEmptyTrash}
-                className="px-3.5 py-1.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-600 hover:bg-rose-100 text-xs font-bold transition-colors flex items-center gap-1"
+                className="px-3.5 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 hover:bg-rose-500/20 text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Empty Trash</span>
@@ -168,13 +168,13 @@ export const PocketTrashPage = () => {
       </div>
 
       {/* Info Banner */}
-      <div className="p-4 bg-white rounded-3xl border border-[#FED7AA] shadow-sm flex items-start gap-3">
-        <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center flex-shrink-0">
+      <div className="p-4 bg-card rounded-3xl border border-line shadow-sm flex items-start gap-3">
+        <div className="w-8 h-8 rounded-xl bg-primary/20 text-primary flex items-center justify-center flex-shrink-0">
           <Clock className="w-4 h-4" />
         </div>
         <div>
-          <h2 className="text-xs font-bold text-[#1F2937]">Trash Auto-Cleanup</h2>
-          <p className="text-[11px] text-[#6B7280] mt-0.5">
+          <h2 className="text-xs font-bold text-ink">Trash Auto-Cleanup</h2>
+          <p className="text-[11px] text-muted mt-0.5">
             Items moved to trash are automatically and permanently deleted after 30 days. You can restore them anytime
             before their expiration.
           </p>
@@ -187,17 +187,17 @@ export const PocketTrashPage = () => {
           {[1, 2, 3].map((idx) => (
             <div
               key={idx}
-              className="h-20 bg-white rounded-3xl border border-[#FED7AA] p-4 animate-pulse"
+              className="h-20 bg-card rounded-3xl border border-line p-4 animate-pulse"
             />
           ))}
         </div>
       ) : trashItems.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 border border-[#FED7AA] text-center space-y-3 shadow-sm">
-          <div className="w-16 h-16 rounded-3xl bg-[#FFF7ED] border border-[#FED7AA] flex items-center justify-center text-3xl mx-auto">
+        <div className="bg-card rounded-3xl p-12 border border-line text-center space-y-3 shadow-sm">
+          <div className="w-16 h-16 rounded-3xl bg-canvas border border-line flex items-center justify-center text-3xl mx-auto">
             🗑️
           </div>
-          <h3 className="text-base font-black text-[#1F2937]">Trash is empty</h3>
-          <p className="text-xs text-[#6B7280]">Deleted items will show up here before permanent removal.</p>
+          <h3 className="text-base font-black text-ink">Trash is empty</h3>
+          <p className="text-xs text-muted">Deleted items will show up here before permanent removal.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -208,8 +208,8 @@ export const PocketTrashPage = () => {
             return (
               <div
                 key={item._id}
-                className={`bg-white rounded-3xl p-4 border transition-all shadow-sm flex items-center justify-between gap-4 ${
-                  isSelected ? 'border-[#F97316] bg-[#FFF7ED]/30' : 'border-[#FED7AA]'
+                className={`bg-card rounded-3xl p-4 border transition-all shadow-sm flex items-center justify-between gap-4 ${
+                  isSelected ? 'border-primary bg-primary/10' : 'border-line'
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
@@ -218,29 +218,29 @@ export const PocketTrashPage = () => {
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleSelect(item._id)}
-                      className="w-4 h-4 rounded text-[#F97316] focus:ring-[#F97316] cursor-pointer"
+                      className="w-4 h-4 rounded text-primary focus:ring-primary cursor-pointer"
                     />
                   )}
 
-                  <div className="w-10 h-10 rounded-2xl bg-[#FFF7ED] border border-[#FED7AA] flex items-center justify-center text-[#F97316] flex-shrink-0">
+                  <div className="w-10 h-10 rounded-2xl bg-canvas border border-line flex items-center justify-center text-primary flex-shrink-0">
                     {item.type === 'note' && <FileText className="w-5 h-5" />}
                     {item.type === 'link' && <LinkIcon className="w-5 h-5" />}
-                    {item.type === 'image' && <ImageIcon className="w-5 h-5 text-[#EC4899]" />}
-                    {item.type === 'video' && <Play className="w-5 h-5 text-[#EC4899]" />}
-                    {item.type === 'audio' && <Music className="w-5 h-5 text-[#F43F5E]" />}
-                    {item.type === 'document' && <FileCheck className="w-5 h-5 text-[#F97316]" />}
-                    {item.type === 'snippet' && <Code2 className="w-5 h-5 text-[#F97316]" />}
+                    {item.type === 'image' && <ImageIcon className="w-5 h-5 text-primary" />}
+                    {item.type === 'video' && <Play className="w-5 h-5 text-primary" />}
+                    {item.type === 'audio' && <Music className="w-5 h-5 text-rose-400" />}
+                    {item.type === 'document' && <FileCheck className="w-5 h-5 text-secondary" />}
+                    {item.type === 'snippet' && <Code2 className="w-5 h-5 text-secondary" />}
                   </div>
 
                   <div className="min-w-0">
-                    <h4 className="text-xs font-bold text-[#1F2937] truncate">
+                    <h4 className="text-xs font-bold text-ink truncate">
                       {item.title || 'Untitled Item'}
                     </h4>
-                    <p className="text-[11px] text-[#6B7280] line-clamp-1">
+                    <p className="text-[11px] text-muted line-clamp-1">
                       {item.content || 'No text content'}
                     </p>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
+                      <span className="text-[10px] font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-md border border-rose-500/30">
                         Auto-deletes in {daysLeft} {daysLeft === 1 ? 'day' : 'days'}
                       </span>
                     </div>
@@ -252,14 +252,14 @@ export const PocketTrashPage = () => {
                   <button
                     onClick={() => handleRestore(item._id)}
                     title="Restore item"
-                    className="p-2 rounded-xl bg-cream hover:bg-card text-primary border border-line transition-colors"
+                    className="p-2 rounded-xl bg-canvas hover:bg-line/40 text-primary border border-line transition-colors cursor-pointer"
                   >
                     <RotateCcw className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => handlePermanentDelete(item._id)}
                     title="Delete forever"
-                    className="p-2 rounded-xl bg-cream hover:bg-card text-accent border border-line transition-colors"
+                    className="p-2 rounded-xl bg-canvas hover:bg-line/40 text-accent border border-line transition-colors cursor-pointer"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

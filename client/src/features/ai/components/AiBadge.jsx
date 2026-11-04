@@ -6,9 +6,9 @@ export const AiBadge = ({ size = 'sm', className = '' }) => {
 
   return (
     <span
-      className={`inline-flex items-center font-bold rounded-full bg-gradient-to-r from-orange-500/15 to-pink-500/15 text-orange-600 dark:text-pink-400 border border-orange-200 dark:border-pink-900/40 select-none ${sizeClasses} ${className}`}
+      className={`inline-flex items-center font-bold rounded-full bg-primary/15 text-primary border border-primary/30 select-none ${sizeClasses} ${className}`}
     >
-      <Sparkles className="w-3 h-3 text-orange-500" />
+      <Sparkles className="w-3 h-3 text-primary" />
       <span>AI</span>
     </span>
   );

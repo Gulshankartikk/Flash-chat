@@ -3,15 +3,15 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 
 export const ProtectedRoute = () => {
-  const { user, isCheckingAuth } = useAuthStore();
+  const { user, token, isCheckingAuth } = useAuthStore();
   const location = useLocation();
 
   if (isCheckingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FFF7ED]">
+      <div className="min-h-screen flex items-center justify-center bg-cream">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-[#F97316] border-t-transparent rounded-full animate-spin" />
-          <p className="text-xs text-[#6B7280] font-semibold">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-muted font-semibold">
             Connecting to Flash Chat...
           </p>
         </div>
@@ -19,7 +19,7 @@ export const ProtectedRoute = () => {
     );
   }
 
-  if (!user) {
+  if (!user || !token) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 

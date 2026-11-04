@@ -36,15 +36,15 @@ export const UsageMeter = ({ compact = false, className = '' }) => {
   if (compact) {
     return (
       <div className={`flex items-center gap-2 text-xs text-muted ${className}`} title={`${used}/${limit} requests today`}>
-        <div className="w-16 h-1.5 bg-line dark:bg-zinc-700 rounded-full overflow-hidden">
+        <div className="w-16 h-1.5 bg-line rounded-full overflow-hidden">
           <div
             className={`h-full transition-all duration-500 rounded-full ${
-              isNearLimit ? 'bg-rose-500' : 'bg-gradient-to-r from-primary to-secondary'
+              isNearLimit ? 'bg-accent' : 'bg-brand-gradient'
             }`}
             style={{ width: `${percentage}%` }}
           />
         </div>
-        <span className="font-semibold text-ink dark:text-cream">
+        <span className="font-semibold text-ink">
           {used}/{limit}
         </span>
       </div>
@@ -52,9 +52,9 @@ export const UsageMeter = ({ compact = false, className = '' }) => {
   }
 
   return (
-    <div className={`p-3.5 rounded-2xl bg-cream dark:bg-zinc-800/80 border border-line dark:border-zinc-700/80 ${className}`}>
+    <div className={`p-3.5 rounded-2xl bg-cream border border-line ${className}`}>
       <div className="flex items-center justify-between text-xs mb-2">
-        <div className="flex items-center gap-1.5 font-semibold text-ink dark:text-cream">
+        <div className="flex items-center gap-1.5 font-semibold text-ink">
           <Sparkles className="w-3.5 h-3.5 text-primary" />
           <span>Daily AI Usage</span>
         </div>
@@ -63,12 +63,12 @@ export const UsageMeter = ({ compact = false, className = '' }) => {
         </span>
       </div>
 
-      <div className="w-full h-2 bg-orange-100 dark:bg-zinc-700 rounded-full overflow-hidden">
+      <div className="w-full h-2 bg-primary/20 rounded-full overflow-hidden">
         <div
           className={`h-full transition-all duration-500 rounded-full ${
             isNearLimit
-              ? 'bg-rose-500'
-              : 'bg-gradient-to-r from-primary via-secondary to-accent'
+              ? 'bg-accent'
+              : 'bg-brand-gradient'
           }`}
           style={{ width: `${percentage}%` }}
         />

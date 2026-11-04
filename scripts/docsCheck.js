@@ -43,6 +43,14 @@ function runDocsCheck() {
   // 3. Scan markdown docs
   const docFiles = [
     'README.md',
+    'RELEASING.md',
+    'DEPLOYMENT.md',
+    'CONTRIBUTING.md',
+    'SECURITY.md',
+    'DR.md',
+    'MONITORING.md',
+    'MIGRATION.md',
+    'RISKS.md',
     'DESIGN_SYSTEM.md',
     'ACCESSIBILITY.md',
     'SUPPORT_RUNBOOK.md',
@@ -53,7 +61,10 @@ function runDocsCheck() {
   ];
 
   for (const docFile of docFiles) {
-    const fullPath = path.join(rootDir, docFile);
+    let fullPath = path.join(rootDir, docFile);
+    if (!fs.existsSync(fullPath)) {
+      fullPath = path.join(rootDir, 'docs', docFile);
+    }
     if (!fs.existsSync(fullPath)) {
       errors.push(`Missing expected document: ${docFile}`);
       continue;

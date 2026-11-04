@@ -1,0 +1,27 @@
+========================================================================
+FLASH CHAT CLEANUP BASELINE AUDIT SNAPSHOT (STEP 0 - BEFORE)
+========================================================================
+Timestamp: 2026-10-10T14:00:00+05:30
+Branch: chore/cleanup
+
+1. Repository Metadata:
+   - Total tracked & source files: 416
+   - Total source size (excluding node_modules, .git, dist): 3.89 MB (4,074,785 bytes)
+
+2. Test Suites Baseline:
+   - Server Test Suites: 12 / 12 Passed (0 Failed)
+   - Client Master Suite: 45 / 45 Passed (0 Failed)
+   - 3-Browser Live E2E Suite: 12 / 12 Passed (0 Failed)
+   - Documentation Check (docs:check): 0 errors
+   - Dependency Hygiene (deps:check): 0 vulnerabilities, 0 license errors
+
+3. Client Production Build Baseline:
+   - Main Entry Chunk (index.js): 208.46 kB (gzip: 64.80 kB)
+   - Total precache assets: 52 entries (1167.14 KiB)
+   - Build time: ~4.89s
+   - Service worker (sw.mjs): 28.76 kB (gzip: 9.49 kB)
+
+4. Container & Backend Readiness Baseline:
+   - /api/health: healthy (MongoDB connected, Mailer ready)
+   - /api/ready: ready
+========================================================================

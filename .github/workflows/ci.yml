@@ -36,6 +36,11 @@ jobs:
         image: mongo:7.0
         ports:
           - 27017:27017
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand({ping: 1})'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     steps:
       - name: Checkout Code
@@ -52,6 +57,9 @@ jobs:
 
       - name: Run Documentation Quality & Consistency Suite
         run: npm run docs:check
+
+      - name: Run Release Consistency Check
+        run: node scripts/release-prepare.js --check
 
       - name: Run Project Integrity & Import Audit
         run: node server/tests/projectAudit.js
@@ -160,7 +168,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build Server Production Image
-        run: docker build -f server/Dockerfile.prod ./server
+        run: docker build --progress=plain -f server/Dockerfile.prod ./server
 
       - name: Build Client Production Image
-        run: docker build -f client/Dockerfile.prod ./client
+        run: docker build --progress=plain -f client/Dockerfile.prod ./client

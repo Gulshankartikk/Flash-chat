@@ -3,15 +3,13 @@ const ContactInvite = require('../models/ContactInvite');
 const User = require('../models/User');
 const Block = require('../models/Block');
 const logger = require('../utils/logger');
+const { normalizePhone, buildPhoneSearchQuery } = require('../utils/phoneUtils');
+const { stripHtml } = require('../utils/sanitize');
 
 // Strip HTML and dangerous script tags
 const sanitizeText = (str) => {
   if (!str || typeof str !== 'string') return '';
-  return str
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '')
-    .replace(/<[^>]*>?/gm, '')
-    .trim();
+  return stripHtml(str);
 };
 
 const escapeRegex = (string) => {
@@ -27,8 +25,9 @@ class ContactService {
       let candidate = null;
 
       if (phone && phone.trim()) {
+        const phoneQuery = buildPhoneSearchQuery(phone);
         candidate = await User.findOne({
-          phoneNumber: phone.trim(),
+          ...phoneQuery,
           discoverableByPhone: { $ne: false },
           _id: { $ne: ownerId }
         }).select('_id name username avatar isOnline lastSeen isPrivate isVerified');
@@ -65,12 +64,53 @@ class ContactService {
    * Create a new contact
    */
   async createContact(ownerId, data) {
-    const name = sanitizeText(data.name);
-    const phone = data.phone ? data.phone.trim() : null;
-    const email = data.email ? data.email.toLowerCase().trim() : null;
+    let name = sanitizeText(data.name);
+    let phone = data.phone ? data.phone.trim() : null;
+    let email = data.email ? data.email.toLowerCase().trim() : null;
     const note = sanitizeText(data.note);
-    const avatar = data.avatar || '';
+    let avatar = data.avatar || '';
     const isFavorite = !!data.isFavorite;
+    let linkedUserId = data.userId || data.linkedUser || data.targetUserId || null;
+
+    if (linkedUserId) {
+      if (String(linkedUserId) === String(ownerId)) {
+        const err = new Error('Cannot add yourself as a contact.');
+        err.statusCode = 400;
+        throw err;
+      }
+      const userToAdd = await User.findById(linkedUserId).lean();
+      if (!userToAdd) {
+        const err = new Error('User to add as contact not found.');
+        err.statusCode = 404;
+        throw err;
+      }
+
+      // Check block in either direction
+      const isBlocked = await Block.findOne({
+        $or: [
+          { blocker: ownerId, blocked: linkedUserId },
+          { blocker: linkedUserId, blocked: ownerId }
+        ]
+      });
+      if (isBlocked) {
+        const err = new Error('Cannot add this user as contact due to privacy restrictions.');
+        err.statusCode = 403;
+        throw err;
+      }
+
+      const existingLinked = await Contact.findOne({ owner: ownerId, linkedUser: linkedUserId });
+      if (existingLinked) {
+        const err = new Error(`A contact for this user already exists (${existingLinked.name}).`);
+        err.statusCode = 409;
+        err.existingContactId = existingLinked._id;
+        throw err;
+      }
+
+      if (!name) name = userToAdd.name || userToAdd.username;
+      if (!avatar) avatar = userToAdd.avatar || '';
+      if (!email && userToAdd.discoverableByEmail && userToAdd.email) email = userToAdd.email;
+      if (!phone && userToAdd.discoverableByPhone && userToAdd.phoneNumber) phone = userToAdd.phoneNumber;
+    }
 
     if (!name) {
       const err = new Error('Contact name is required.');
@@ -78,8 +118,8 @@ class ContactService {
       throw err;
     }
 
-    if (!phone && !email) {
-      const err = new Error('At least one of phone number or email is required.');
+    if (!phone && !email && !linkedUserId) {
+      const err = new Error('At least one of phone number, email, or user ID is required.');
       err.statusCode = 400;
       throw err;
     }
@@ -94,7 +134,14 @@ class ContactService {
 
     // Duplicate check for this owner
     if (phone) {
-      const existingPhone = await Contact.findOne({ owner: ownerId, phone });
+      const cleanDigits = phone.replace(/\D/g, '').slice(-10);
+      const existingPhone = await Contact.findOne({
+        owner: ownerId,
+        $or: [
+          { phone },
+          ...(cleanDigits ? [{ phone: new RegExp(`${cleanDigits}$`) }] : [])
+        ]
+      });
       if (existingPhone) {
         const err = new Error(`A contact with phone number "${phone}" already exists (${existingPhone.name}).`);
         err.statusCode = 409;
@@ -113,7 +160,9 @@ class ContactService {
       }
     }
 
-    const linkedUserId = await this.findMatchingUser(phone, email, ownerId);
+    if (!linkedUserId && (phone || email)) {
+      linkedUserId = await this.findMatchingUser(phone, email, ownerId);
+    }
 
     const contact = await Contact.create({
       owner: ownerId,
@@ -245,11 +294,16 @@ class ContactService {
     }
 
     if (q && q.trim()) {
-      const escaped = escapeRegex(q.trim());
+      const cleanQ = q.trim().replace(/^@/, '');
+      const escaped = escapeRegex(cleanQ);
+      const matchingUsers = await User.find({ username: { $regex: escaped, $options: 'i' } }).select('_id').lean();
+      const matchingUserIds = matchingUsers.map((u) => u._id);
+
       query.$or = [
         { name: { $regex: escaped, $options: 'i' } },
         { phone: { $regex: escaped, $options: 'i' } },
-        { email: { $regex: escaped, $options: 'i' } }
+        { email: { $regex: escaped, $options: 'i' } },
+        ...(matchingUserIds.length > 0 ? [{ linkedUser: { $in: matchingUserIds } }] : [])
       ];
     }
 
@@ -418,7 +472,11 @@ class ContactService {
     try {
       const queries = [];
       if (newUser.phoneNumber && newUser.discoverableByPhone !== false) {
+        const last10 = newUser.phoneNumber.replace(/\D/g, '').slice(-10);
         queries.push({ phone: newUser.phoneNumber });
+        if (last10) {
+          queries.push({ phone: new RegExp(`${last10}$`) });
+        }
       }
       if (newUser.email && newUser.discoverableByEmail !== false) {
         queries.push({ email: newUser.email.toLowerCase() });
@@ -446,8 +504,12 @@ class ContactService {
           await contact.save();
         }
       }
+
+      // Deliver any pending queued messages
+      const chatService = require('./chatService');
+      await chatService.deliverPendingConversationsOnSignup(newUser);
     } catch (err) {
-      logger.error({ err: err.message }, 'Failed linking contacts for new user');
+      logger.error({ err: err.message }, 'Failed linking contacts or delivering pending conversations for new user');
     }
   }
 

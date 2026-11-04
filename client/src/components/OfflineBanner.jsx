@@ -20,7 +20,7 @@ export const OfflineBanner = () => {
   if (!isOffline) return null;
 
   return (
-    <div className="bg-gradient-to-r from-[#F97316] to-[#F43F5E] text-white px-4 py-2 text-xs font-semibold flex items-center justify-between shadow-md z-40 relative">
+    <div className="bg-brand-gradient text-white px-4 py-2 text-xs font-semibold flex items-center justify-between shadow-md z-40 relative">
       <div className="flex items-center gap-2 max-w-[85%] truncate">
         <WifiOff className="w-3.5 h-3.5 flex-shrink-0 animate-pulse" />
         <span className="truncate">

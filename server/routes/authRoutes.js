@@ -13,13 +13,19 @@ router.post('/onboarding', authMiddleware, authController.onboarding);
 router.get('/check-username/:username', authController.checkUsername);
 router.get('/sessions', authMiddleware, authController.getSessions);
 router.delete('/sessions/:sid', authMiddleware, authController.deleteSession);
-router.post('/logout', authMiddleware, authController.logout);
-router.post('/logout-all', authMiddleware, authController.logoutAll);
+router.post('/logout', authMiddleware.optional, authController.logout);
+router.post('/logout-all', authMiddleware.optional, authController.logoutAll);
 router.get('/me', authMiddleware, authController.getMe);
+
+// Password reset routes
+router.post('/forgot-password', mailLimiter, authController.forgotPassword);
+router.post('/reset-password', authLimiter, authController.resetPassword);
 
 // Legacy routes (backward compatibility)
 router.post('/signup', authLimiter, authController.signup);
+router.post('/register', authLimiter, authController.signup);
 router.post('/login', authLimiter, authController.login);
 router.post('/google', authLimiter, authController.googleAuth);
 
 module.exports = router;
+

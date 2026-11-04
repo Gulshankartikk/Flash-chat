@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import axios from 'axios';
 import api from '../services/api';
 import { connectSocket, disconnectSocket } from '../services/socket';
 
@@ -20,14 +21,37 @@ export const useAuthStore = create((set, get) => ({
 
   checkAuth: async () => {
     set({ isCheckingAuth: true });
+    let token = localStorage.getItem('flash_chat_token') || get().token;
+
+    // If no token exists in memory or localStorage, attempt silent refresh first
+    if (!token || token === 'null' || token === 'undefined') {
+      try {
+        const refreshUrl = import.meta.env.VITE_API_URL
+          ? `${import.meta.env.VITE_API_URL}/api/auth/refresh-token`
+          : '/api/auth/refresh-token';
+        const refreshRes = await axios.post(refreshUrl, {}, { withCredentials: true });
+        if (refreshRes.data?.accessToken) {
+          token = refreshRes.data.accessToken;
+          localStorage.setItem('flash_chat_token', token);
+          api.defaults.headers.common.Authorization = `Bearer ${token}`;
+        }
+      } catch (_) {
+        // No active session cookie found
+        set({ user: null, token: null, isCheckingAuth: false });
+        return null;
+      }
+    }
+
+    if (!token || token === 'null' || token === 'undefined') {
+      set({ user: null, token: null, isCheckingAuth: false });
+      return null;
+    }
+
     try {
       const res = await api.get('/auth/me');
       const user = res.data.user;
-      set({ user, isCheckingAuth: false });
-      const currentToken = get().token;
-      if (currentToken) {
-        connectSocket(currentToken);
-      }
+      set({ user, token, isCheckingAuth: false });
+      connectSocket(token);
       return user;
     } catch {
       set({ user: null, token: null, isCheckingAuth: false });
@@ -121,6 +145,15 @@ export const useAuthStore = create((set, get) => ({
     } finally {
       localStorage.removeItem('flash_chat_token');
       disconnectSocket();
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(new CustomEvent('flash_chat_auth_logout'));
+          localStorage.removeItem('flash_chat_offline_contacts');
+          if (navigator.serviceWorker?.controller) {
+            navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_USER_CACHES' });
+          }
+        } catch (_) {}
+      }
       set({ user: null, token: null, otpSent: false });
     }
   },
@@ -133,39 +166,33 @@ export const useAuthStore = create((set, get) => ({
     } finally {
       localStorage.removeItem('flash_chat_token');
       disconnectSocket();
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(new CustomEvent('flash_chat_auth_logout'));
+          localStorage.removeItem('flash_chat_offline_contacts');
+          if (navigator.serviceWorker?.controller) {
+            navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_USER_CACHES' });
+          }
+        } catch (_) {}
+      }
       set({ user: null, token: null, otpSent: false });
     }
   },
 
-  // Legacy signup
-  signup: async ({ name, email, password }) => {
-    set({ error: null });
-    try {
-      const res = await api.post('/auth/signup', { name, email, password });
-      const { user, token } = res.data;
-      if (token) {
-        localStorage.setItem('flash_chat_token', token);
-      }
-      set({ user, token });
-      connectSocket(token);
-      return user;
-    } catch (err) {
-      set({ error: err.message });
-      throw err;
-    }
-  },
-
-  // Legacy login
-  login: async ({ email, password }) => {
+  // Signup
+  signup: async ({ name, email, password, username, phoneNumber }) => {
     set({ isLoggingIn: true, error: null });
     try {
-      const res = await api.post('/auth/login', { email, password });
-      const { user, token } = res.data;
-      if (token) {
-        localStorage.setItem('flash_chat_token', token);
+      const res = await api.post('/auth/signup', { name, email, password, username, phoneNumber });
+      const { user, token, accessToken } = res.data;
+      const activeToken = token || accessToken;
+      if (activeToken) {
+        localStorage.setItem('flash_chat_token', activeToken);
       }
-      set({ user, token, isLoggingIn: false });
-      connectSocket(token);
+      set({ user, token: activeToken, isLoggingIn: false });
+      if (activeToken) {
+        connectSocket(activeToken);
+      }
       return user;
     } catch (err) {
       set({ error: err.message, isLoggingIn: false });
@@ -173,17 +200,66 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
-  // Legacy Google Auth
+  // Login (Email, Username, or Phone + Password)
+  login: async ({ identifier, email, password }) => {
+    set({ isLoggingIn: true, error: null });
+    try {
+      const targetIdentifier = identifier || email;
+      const res = await api.post('/auth/login', { identifier: targetIdentifier, password });
+      const { user, token, accessToken } = res.data;
+      const activeToken = token || accessToken;
+      if (activeToken) {
+        localStorage.setItem('flash_chat_token', activeToken);
+      }
+      set({ user, token: activeToken, isLoggingIn: false });
+      if (activeToken) {
+        connectSocket(activeToken);
+      }
+      return user;
+    } catch (err) {
+      set({ error: err.message, isLoggingIn: false });
+      throw err;
+    }
+  },
+
+  // Forgot password
+  forgotPassword: async (email) => {
+    set({ error: null });
+    try {
+      const res = await api.post('/auth/forgot-password', { email });
+      return res.data;
+    } catch (err) {
+      set({ error: err.message });
+      throw err;
+    }
+  },
+
+  // Reset password
+  resetPassword: async (token, newPassword) => {
+    set({ error: null });
+    try {
+      const res = await api.post('/auth/reset-password', { token, newPassword });
+      return res.data;
+    } catch (err) {
+      set({ error: err.message });
+      throw err;
+    }
+  },
+
+  // Google Auth
   googleAuth: async (credential) => {
     set({ isLoggingIn: true, error: null });
     try {
       const res = await api.post('/auth/google', { credential });
-      const { user, token } = res.data;
-      if (token) {
-        localStorage.setItem('flash_chat_token', token);
+      const { user, token, accessToken } = res.data;
+      const activeToken = token || accessToken;
+      if (activeToken) {
+        localStorage.setItem('flash_chat_token', activeToken);
       }
-      set({ user, token, isLoggingIn: false });
-      connectSocket(token);
+      set({ user, token: activeToken, isLoggingIn: false });
+      if (activeToken) {
+        connectSocket(activeToken);
+      }
       return user;
     } catch (err) {
       set({ error: err.message, isLoggingIn: false });

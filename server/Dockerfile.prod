@@ -1,19 +1,19 @@
 # Production Multi-Stage Dockerfile for Flash Chat Server
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev || npm install --omit=dev --no-audit --no-fund
 
 COPY . .
 
 # Final runtime image with non-root security
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+RUN (getent group nodejs || addgroup -g 1001 -S nodejs) && \
+    (getent passwd nodejs || adduser -u 1001 -S -D -G nodejs nodejs)
 
 COPY --from=builder --chown=nodejs:nodejs /app /app
 

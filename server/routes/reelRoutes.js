@@ -12,6 +12,7 @@ router.get('/feed', reelController.getReelsFeed);
 // Single Reel CRUD
 router.post('/', reelController.createReel);
 router.get('/:id', reelController.getReelById);
+router.delete('/:id', reelController.deleteReel);
 
 // Reel Interactions
 router.post('/:id/like', reelController.likeReel);

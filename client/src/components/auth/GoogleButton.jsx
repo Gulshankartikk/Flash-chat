@@ -55,7 +55,7 @@ export const GoogleButton = ({ text = 'Continue with Google' }) => {
           type="button"
           onClick={handleManualClick}
           disabled={isLoggingIn}
-          className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700/60 font-medium transition shadow-sm hover:shadow"
+          className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-xl border border-line bg-card text-ink hover:bg-cream font-medium transition shadow-sm hover:shadow"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path

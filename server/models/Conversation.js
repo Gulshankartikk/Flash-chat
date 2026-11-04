@@ -83,9 +83,28 @@ const conversationSchema = new mongoose.Schema(
       type: Boolean,
       default: true
     },
+    onlyAdminsCanSend: {
+      type: Boolean,
+      default: false
+    },
+    onlyAdminsCanEditInfo: {
+      type: Boolean,
+      default: false
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
+    },
+    status: {
+      type: String,
+      enum: ['active', 'request', 'archived'],
+      default: 'active',
+      index: true
+    },
+    requestedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
     },
     // Sorted member key "idA_idB" prevents duplicate direct conversations
     memberKey: {

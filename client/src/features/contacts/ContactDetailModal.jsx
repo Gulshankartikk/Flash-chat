@@ -19,6 +19,7 @@ import {
   Send
 } from 'lucide-react';
 import { Modal } from '../../components/Modal';
+import { BottomSheet } from '../../components/BottomSheet';
 import { Avatar } from '../../components/Avatar';
 import { Button } from '../../components/Button';
 import { useContactsStore } from './useContacts';
@@ -55,10 +56,15 @@ export const ContactDetailModal = ({
 
   const handleMessage = async () => {
     try {
-      const conv = await startChatWithContact(contact._id);
+      const res = await startChatWithContact(contact._id);
+      const conv = res?.conversation || res;
       onClose();
       if (conv?._id) {
         navigate(`/chats/${conv._id}`);
+      } else if (conv?.conversationId) {
+        navigate(`/chats/${conv.conversationId}`);
+      } else if (res?.status === 'pending' || res?.pendingId) {
+        navigate('/chats');
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Failed to start chat');
@@ -118,9 +124,12 @@ export const ContactDetailModal = ({
     }
   };
 
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const Wrapper = isMobile ? BottomSheet : Modal;
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Contact Details" maxWidth="max-w-md">
-      <div className="space-y-5">
+    <Wrapper isOpen={isOpen} onClose={onClose} title="Contact Details" maxWidth="max-w-md">
+      <div className="space-y-5 overflow-y-auto max-h-[75vh] pr-1 scrollbar-thin">
         {/* Profile Card Header */}
         <div className="flex flex-col items-center text-center p-4 bg-cream rounded-2xl border border-line">
           <Avatar
@@ -158,22 +167,23 @@ export const ContactDetailModal = ({
             </span>
           )}
 
-          {/* Quick Action Buttons */}
-          <div className="flex items-center justify-center gap-3 mt-4 w-full">
+          {/* Quick Action Buttons (Horizontal Scrollable) */}
+          <div className="flex items-center gap-2.5 mt-4 w-full overflow-x-auto pb-1.5 scrollbar-thin snap-x">
+            <button
+              type="button"
+              onClick={handleMessage}
+              className="flex flex-col items-center gap-1 p-2.5 min-w-[80px] rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs snap-start shrink-0 cursor-pointer"
+            >
+              <MessageSquare className="w-5 h-5 text-primary" />
+              <span>Message</span>
+            </button>
+
             {isLinked ? (
               <>
                 <button
                   type="button"
-                  onClick={handleMessage}
-                  className="flex flex-col items-center gap-1 p-2 rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs"
-                >
-                  <MessageSquare className="w-5 h-5 text-primary" />
-                  <span>Message</span>
-                </button>
-                <button
-                  type="button"
                   onClick={() => handleStartCall('audio')}
-                  className="flex flex-col items-center gap-1 p-2 rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs"
+                  className="flex flex-col items-center gap-1 p-2.5 min-w-[80px] rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs snap-start shrink-0 cursor-pointer"
                 >
                   <Phone className="w-5 h-5 text-primary" />
                   <span>Audio Call</span>
@@ -181,7 +191,7 @@ export const ContactDetailModal = ({
                 <button
                   type="button"
                   onClick={() => handleStartCall('video')}
-                  className="flex flex-col items-center gap-1 p-2 rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs"
+                  className="flex flex-col items-center gap-1 p-2.5 min-w-[80px] rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs snap-start shrink-0 cursor-pointer"
                 >
                   <Video className="w-5 h-5 text-secondary" />
                   <span>Video Call</span>
@@ -193,15 +203,15 @@ export const ContactDetailModal = ({
                   type="button"
                   onClick={() => handleInvite('sms')}
                   disabled={isInviting || !contact.phone}
-                  className="flex flex-col items-center gap-1 p-2 rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition disabled:opacity-50 shadow-xs"
+                  className="flex flex-col items-center gap-1 p-2.5 min-w-[100px] rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition disabled:opacity-50 shadow-xs snap-start shrink-0 cursor-pointer"
                 >
                   <Send className="w-5 h-5 text-primary" />
-                  <span>Invite via SMS</span>
+                  <span>Invite SMS</span>
                 </button>
                 <button
                   type="button"
                   onClick={handleShareLink}
-                  className="flex flex-col items-center gap-1 p-2 rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs"
+                  className="flex flex-col items-center gap-1 p-2.5 min-w-[100px] rounded-xl bg-card border border-line hover:border-primary/50 text-ink text-xs font-semibold flex-1 transition shadow-xs snap-start shrink-0 cursor-pointer"
                 >
                   {copiedLink ? <Check className="w-5 h-5 text-primary" /> : <Share2 className="w-5 h-5 text-secondary" />}
                   <span>{copiedLink ? 'Copied!' : 'Share Link'}</span>
@@ -331,6 +341,6 @@ export const ContactDetailModal = ({
           </div>
         )}
       </div>
-    </Modal>
+    </Wrapper>
   );
 };

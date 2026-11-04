@@ -40,28 +40,28 @@ export const PostDetailPage = () => {
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="p-2 rounded-full hover:bg-orange-100 text-[#1F2937] transition cursor-pointer"
+          className="p-2 rounded-full hover:bg-primary/10 text-ink transition cursor-pointer"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <span className="text-sm font-bold text-[#1F2937]">Post</span>
+        <span className="text-sm font-bold text-ink">Post</span>
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-3xl border border-[#FED7AA]/60 p-6 flex items-center justify-center aspect-square animate-pulse">
-          <div className="w-8 h-8 border-4 border-[#F97316] border-t-transparent rounded-full animate-spin" />
+        <div className="bg-card rounded-3xl border border-line p-6 flex items-center justify-center aspect-square animate-pulse">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : error ? (
-        <div className="bg-white rounded-3xl border border-[#FED7AA]/60 p-8 text-center space-y-3">
-          <AlertCircle className="w-10 h-10 text-[#F43F5E] mx-auto stroke-1" />
-          <h3 className="text-sm font-bold text-[#1F2937]">{error}</h3>
-          <p className="text-xs text-[#6B7280]">
+        <div className="bg-card rounded-3xl border border-line p-8 text-center space-y-3">
+          <AlertCircle className="w-10 h-10 text-accent mx-auto stroke-1" />
+          <h3 className="text-sm font-bold text-ink">{error}</h3>
+          <p className="text-xs text-muted">
             The post may have been removed or you do not have permission to view it.
           </p>
           <button
             type="button"
             onClick={() => navigate('/social')}
-            className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-xs font-bold shadow-xs hover:opacity-95 cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-brand-gradient text-white text-xs font-bold shadow-xs hover:opacity-95 cursor-pointer"
           >
             Back to Feed
           </button>

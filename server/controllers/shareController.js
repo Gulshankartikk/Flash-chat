@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Post = require('../models/Post');
 const Reel = require('../models/Reel');
 const Story = require('../models/Story');
@@ -22,6 +23,15 @@ const shareContent = async (req, res, next) => {
       });
     }
 
+    if (
+      typeof refId !== 'string' ||
+      !mongoose.isValidObjectId(refId) ||
+      conversationIds.some((id) => typeof id !== 'string' || !mongoose.isValidObjectId(id))
+    ) {
+      return res.status(400).json({ success: false, message: 'Invalid content or conversation ID.' });
+    }
+    const cleanRefId = new mongoose.Types.ObjectId(refId);
+
     // 1. Fetch content snapshot and owner
     let snapshot = {
       thumbnail: '',
@@ -36,7 +46,7 @@ const shareContent = async (req, res, next) => {
 
     if (kind === 'post') {
       messageType = 'shared_post';
-      const post = await Post.findById(refId).populate('author', '_id name username avatar');
+      const post = await Post.findById(cleanRefId).populate('author', '_id name username avatar');
       if (!post) return res.status(404).json({ success: false, message: 'Post not found.' });
 
       contentAuthorId = post.author._id;
@@ -50,7 +60,7 @@ const shareContent = async (req, res, next) => {
       };
     } else if (kind === 'reel') {
       messageType = 'shared_reel';
-      const reel = await Reel.findById(refId).populate('author', '_id name username avatar');
+      const reel = await Reel.findById(cleanRefId).populate('author', '_id name username avatar');
       if (!reel) return res.status(404).json({ success: false, message: 'Reel not found.' });
 
       contentAuthorId = reel.author._id;
@@ -64,10 +74,10 @@ const shareContent = async (req, res, next) => {
       };
 
       // Increment reel sharesCount
-      await Reel.findByIdAndUpdate(refId, { $inc: { sharesCount: 1 } });
+      await Reel.findByIdAndUpdate(cleanRefId, { $inc: { sharesCount: 1 } });
     } else if (kind === 'story') {
       messageType = 'shared_story';
-      const story = await Story.findById(refId).populate('author', '_id name username avatar');
+      const story = await Story.findById(cleanRefId).populate('author', '_id name username avatar');
       if (!story) return res.status(404).json({ success: false, message: 'Story not found or expired.' });
 
       contentAuthorId = story.author._id;
@@ -81,7 +91,7 @@ const shareContent = async (req, res, next) => {
       };
     } else if (kind === 'profile') {
       messageType = 'contact';
-      const profile = await User.findById(refId).select('_id name username avatar bio');
+      const profile = await User.findById(cleanRefId).select('_id name username avatar bio');
       if (!profile) return res.status(404).json({ success: false, message: 'User not found.' });
 
       contentAuthorId = profile._id;

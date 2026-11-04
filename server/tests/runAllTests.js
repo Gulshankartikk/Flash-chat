@@ -20,17 +20,37 @@ const testSuites = [
   { name: '8. Flash AI Defense & Prompt Wrapper Suite', file: 'tests/runAiTests.js' },
   { name: '9. Step 9A Security, Rate Limiting & Observability Suite', file: 'tests/backendSecurityPush.test.js' },
   { name: '10. Security, Privacy & Access Isolation Suite (B-3c.3)', file: 'tests/securityAndPrivacySuite.js' },
-  { name: '11. Migration, Idempotency & Compatibility Suite (B-3c.4)', file: 'tests/migrationAndCompatSuite.js' }
+  { name: '11. Migration, Idempotency & Compatibility Suite (B-3c.4)', file: 'tests/migrationAndCompatSuite.js' },
+  { name: '12. Phone-Based Chats & Pending Conversations Suite', file: 'tests/integration/phoneChatAndPendingSuite.test.js' },
+  { name: '13. Multi-User Auth, Manual Search & Real-Time Chat Suite', file: '../scripts/verifyMultiUserChat.js', requiresServer: true },
+  { name: '14. Chat History Persistence & Reopening Verification Suite', file: '../scripts/verifyChatHistoryPersistence.js', requiresServer: true }
 ];
 
 let totalPassedSuites = 0;
 let totalFailedSuites = 0;
+let totalSkippedSuites = 0;
+
+// Check if live Express server is currently up on port 5000
+const serverCheck = spawnSync(process.execPath, [
+  '-e',
+  "const http=require('http'); const req=http.get('http://localhost:5000/api/health', (r)=>process.exit(r.statusCode===200?0:1)); req.on('error', ()=>process.exit(1)); req.setTimeout(1000, ()=>process.exit(1));"
+]);
+const isLiveServerRunning = serverCheck.status === 0;
 
 for (const suite of testSuites) {
   console.log(`\n▶ Running: \x1b[1m${suite.name}\x1b[0m...`);
+
+  if (suite.requiresServer && !isLiveServerRunning) {
+    console.log('  \x1b[33m⏭ Skipping: Live Express server not active on http://localhost:5000\x1b[0m');
+    console.log('    \x1b[90m(Run "node scripts/runFullBackendWithMongo.js" to execute live end-to-end suites)\x1b[0m');
+    totalSkippedSuites++;
+    continue;
+  }
+
   const result = spawnSync('node', [path.join(__dirname, '..', suite.file)], {
     stdio: 'inherit',
-    env: { ...process.env, NODE_ENV: 'test' }
+    env: { ...process.env, NODE_ENV: 'test' },
+    timeout: 45000
   });
 
   if (result.status === 0) {
@@ -43,7 +63,10 @@ for (const suite of testSuites) {
 console.log('\n========================================================================');
 console.log('📊 FLASH CHAT BACKEND TEST RUN SUMMARY');
 console.log('========================================================================');
-console.log(`Total Suites Executed: ${testSuites.length}`);
+console.log(`Total Suites Executed: ${testSuites.length - totalSkippedSuites}`);
+if (totalSkippedSuites > 0) {
+  console.log(`Suites Skipped (Requires Live Daemon): \x1b[33m${totalSkippedSuites}\x1b[0m`);
+}
 console.log(`Suites Passed: \x1b[32m${totalPassedSuites}\x1b[0m`);
 console.log(`Suites Failed: \x1b[31m${totalFailedSuites}\x1b[0m`);
 console.log('========================================================================\n');

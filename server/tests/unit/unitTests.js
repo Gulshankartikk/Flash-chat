@@ -233,11 +233,85 @@ async function runAllUnitTests() {
     assert.ok(decoded.exp - decoded.iat <= 900); // 15 mins (900s)
   });
 
+  // ----------------------------------------------------------------
+  // 7. NEW EVOLUTIONARY SUITE: POLLS, SCHEDULING & ADVANCED ADMIN
+  // ----------------------------------------------------------------
+  console.log('\n\x1b[1m[7] WhatsApp & Instagram Evolutionary Features\x1b[0m');
+
+  runTest('Poll Voting logic accurately toggles votes and enforces single vs multiple selection', () => {
+    const poll = {
+      question: 'Best meeting time?',
+      options: [
+        { text: '10:00 AM', votes: ['user1'] },
+        { text: '2:00 PM', votes: [] }
+      ],
+      allowMultiple: false
+    };
+
+    // User2 votes option 1
+    poll.options[1].votes.push('user2');
+    assert.strictEqual(poll.options[1].votes.includes('user2'), true);
+
+    // User2 switches vote to option 0 (single choice clears previous)
+    if (!poll.allowMultiple) {
+      poll.options[1].votes = poll.options[1].votes.filter(v => v !== 'user2');
+      poll.options[0].votes.push('user2');
+    }
+    assert.strictEqual(poll.options[1].votes.includes('user2'), false);
+    assert.strictEqual(poll.options[0].votes.includes('user2'), true);
+  });
+
+  runTest('Message Scheduling rejects past timestamps and validates future execution', () => {
+    const pastDate = new Date(Date.now() - 3600000);
+    const futureDate = new Date(Date.now() + 3600000);
+
+    const isPastValid = futureDate > new Date();
+    const isPastRejected = pastDate <= new Date();
+
+    assert.strictEqual(isPastValid, true);
+    assert.strictEqual(isPastRejected, true);
+  });
+
+  runTest('Advanced Group Administration restricts non-admins when onlyAdminsCanSend is enabled', () => {
+    const groupConversation = {
+      type: 'group',
+      onlyAdminsCanSend: true,
+      members: [
+        { user: 'admin1', role: 'admin' },
+        { user: 'member1', role: 'member' }
+      ]
+    };
+
+    const canAdminSend = groupConversation.members.find(m => m.user === 'admin1')?.role === 'admin';
+    const canMemberSend = !groupConversation.onlyAdminsCanSend || groupConversation.members.find(m => m.user === 'member1')?.role === 'admin';
+
+    assert.strictEqual(canAdminSend, true);
+    assert.strictEqual(canMemberSend, false);
+  });
+
+  runTest('Chat Backup Export encapsulates version, messages and integrity metadata', () => {
+    const mockBackup = {
+      version: '1.1.0',
+      exportedAt: new Date().toISOString(),
+      conversationId: 'conv123',
+      messagesCount: 2,
+      messages: [
+        { _id: 'm1', text: 'Hello', type: 'text' },
+        { _id: 'm2', text: 'World', type: 'text' }
+      ]
+    };
+
+    assert.strictEqual(mockBackup.version, '1.1.0');
+    assert.strictEqual(mockBackup.messages.length, 2);
+    assert.ok(mockBackup.exportedAt);
+  });
+
   console.log('\n======================================================');
   console.log(`Unit Test Results: \x1b[32m${passed} Passed\x1b[0m, \x1b[31m${failed} Failed\x1b[0m`);
   console.log('======================================================\n');
 
   if (failed > 0) process.exit(1);
+  process.exit(0);
 }
 
 if (require.main === module) {

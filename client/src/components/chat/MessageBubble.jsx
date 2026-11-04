@@ -26,6 +26,8 @@ import {
   Languages
 } from 'lucide-react';
 import { Avatar } from '../Avatar';
+import { PollBubble } from './PollBubble';
+import { VoiceNotePlayer } from './VoiceNotePlayer';
 import { PostViewerModal } from '../../features/social/components/PostViewerModal';
 import { useSocialStore } from '../../features/social/store/useSocialStore';
 import { fetchStoriesTray } from '../../features/social/api/api';
@@ -55,16 +57,24 @@ export const MessageBubble = React.memo(function MessageBubble({
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [audioElement, setAudioElement] = useState(null);
 
-  const formattedTime = message.createdAt
-    ? format(new Date(message.createdAt), 'h:mm a')
-    : '';
+  const formattedTime = (() => {
+    if (!message.createdAt) return '';
+    try {
+      const d = new Date(message.createdAt);
+      return isNaN(d.getTime()) ? '' : format(d, 'h:mm a');
+    } catch {
+      return '';
+    }
+  })();
 
   // Receipts status
   const isRead = message.readBy && message.readBy.length > 1;
   const isDelivered = message.deliveredTo && message.deliveredTo.length > 1;
 
   // Starred by current user
-  const isStarred = Array.isArray(message.starredBy) && message.starredBy.includes(currentUserId);
+  const isStarred =
+    Array.isArray(message.starredBy) &&
+    message.starredBy.some((id) => String(id?._id || id) === String(currentUserId));
 
   // Group reactions by emoji: { [emoji]: count }
   const reactionCounts = (message.reactions || []).reduce((acc, r) => {
@@ -157,7 +167,7 @@ export const MessageBubble = React.memo(function MessageBubble({
   if (message.deletedForEveryone) {
     return (
       <div className={`flex w-full ${isOwn ? 'justify-end' : 'justify-start'} my-1 px-2`}>
-        <div className="px-4 py-2 rounded-2xl bg-orange-50/60 text-[#6B7280] text-xs italic border border-[#FED7AA]/60">
+        <div className="px-4 py-2 rounded-2xl bg-card text-muted text-xs italic border border-line">
           🚫 This message was deleted
         </div>
       </div>
@@ -187,14 +197,14 @@ export const MessageBubble = React.memo(function MessageBubble({
 
       {/* Floating Hover Action Bar (Left of bubble if own, right if received) */}
       <div
-        className={`absolute top-0 z-20 transition-opacity duration-150 flex items-center gap-1 bg-white border border-[#FED7AA] shadow-md rounded-2xl p-1 text-[#6B7280] ${
+        className={`absolute top-0 z-20 transition-opacity duration-150 flex items-center gap-1 bg-card border border-line shadow-md rounded-2xl p-1 text-muted ${
           showActions ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         } ${isOwn ? 'right-[calc(100%-80px)] md:right-[60%]' : 'left-[70%] md:left-[55%]'}`}
       >
         <button
           type="button"
           onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-          className="p-1 hover:text-[#F97316] hover:bg-orange-50 rounded-lg transition"
+          className="p-1 hover:text-primary hover:bg-cream rounded-lg transition"
           title="React"
         >
           <Smile className="w-3.5 h-3.5" />
@@ -203,7 +213,7 @@ export const MessageBubble = React.memo(function MessageBubble({
         <button
           type="button"
           onClick={() => onReply && onReply(message)}
-          className="p-1 hover:text-[#F97316] hover:bg-orange-50 rounded-lg transition"
+          className="p-1 hover:text-primary hover:bg-cream rounded-lg transition"
           title="Reply"
         >
           <Reply className="w-3.5 h-3.5" />
@@ -212,7 +222,7 @@ export const MessageBubble = React.memo(function MessageBubble({
         <button
           type="button"
           onClick={() => onForward && onForward(message)}
-          className="p-1 hover:text-[#F97316] hover:bg-orange-50 rounded-lg transition"
+          className="p-1 hover:text-primary hover:bg-cream rounded-lg transition"
           title="Forward"
         >
           <Forward className="w-3.5 h-3.5" />
@@ -221,7 +231,7 @@ export const MessageBubble = React.memo(function MessageBubble({
         <button
           type="button"
           onClick={() => onStar && onStar(message._id)}
-          className={`p-1 hover:bg-orange-50 rounded-lg transition ${
+          className={`p-1 hover:bg-cream rounded-lg transition ${
             isStarred ? 'text-amber-500 fill-amber-500' : 'hover:text-amber-500'
           }`}
           title={isStarred ? 'Unstar' : 'Star'}
@@ -232,7 +242,7 @@ export const MessageBubble = React.memo(function MessageBubble({
         <button
           type="button"
           onClick={handleCopy}
-          className="p-1 hover:text-[#F97316] hover:bg-orange-50 rounded-lg transition"
+          className="p-1 hover:text-primary hover:bg-cream rounded-lg transition"
           title="Copy Text"
         >
           <Copy className="w-3.5 h-3.5" />
@@ -241,7 +251,7 @@ export const MessageBubble = React.memo(function MessageBubble({
         <button
           type="button"
           onClick={() => onSaveToPocket && onSaveToPocket(message)}
-          className="p-1 hover:text-[#F97316] hover:bg-orange-50 rounded-lg transition"
+          className="p-1 hover:text-primary hover:bg-cream rounded-lg transition"
           title="Save to Pocket"
         >
           <Bookmark className="w-3.5 h-3.5" />
@@ -269,7 +279,7 @@ export const MessageBubble = React.memo(function MessageBubble({
             }}
             disabled={isTranslating}
             className={`p-1 rounded-lg transition ${
-              translatedText ? 'text-[#F97316] bg-orange-50' : 'hover:text-[#F97316] hover:bg-orange-50'
+              translatedText ? 'text-primary bg-cream' : 'hover:text-primary hover:bg-cream'
             }`}
             title="Translate message"
           >
@@ -282,7 +292,7 @@ export const MessageBubble = React.memo(function MessageBubble({
           <button
             type="button"
             onClick={() => onAskAi(message)}
-            className="p-1 hover:text-[#EC4899] hover:bg-pink-50 rounded-lg transition"
+            className="p-1 hover:text-secondary hover:bg-cream rounded-lg transition"
             title="Ask Flash AI about this"
           >
             <Sparkles className="w-3.5 h-3.5" />
@@ -294,7 +304,7 @@ export const MessageBubble = React.memo(function MessageBubble({
             <button
               type="button"
               onClick={() => onEdit && onEdit(message)}
-              className="p-1 hover:text-[#F97316] hover:bg-orange-50 rounded-lg transition"
+              className="p-1 hover:text-primary hover:bg-cream rounded-lg transition"
               title="Edit (within 15m)"
             >
               <Edit3 className="w-3.5 h-3.5" />
@@ -303,7 +313,7 @@ export const MessageBubble = React.memo(function MessageBubble({
             <button
               type="button"
               onClick={() => onDelete && onDelete(message._id, 'everyone')}
-              className="p-1 hover:text-[#F43F5E] hover:bg-rose-50 rounded-lg transition"
+              className="p-1 hover:text-accent hover:bg-cream rounded-lg transition"
               title="Delete for everyone"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -315,7 +325,7 @@ export const MessageBubble = React.memo(function MessageBubble({
       {/* Quick Emoji Reaction Palette Dropdown */}
       {showEmojiPicker && (
         <div
-          className={`absolute top-[-36px] z-30 flex items-center gap-1.5 p-1.5 rounded-2xl bg-white border border-[#FED7AA] shadow-xl text-base ${
+          className={`absolute top-[-36px] z-30 flex items-center gap-1.5 p-1.5 rounded-2xl bg-card border border-line shadow-xl text-base ${
             isOwn ? 'right-12' : 'left-12'
           }`}
         >
@@ -339,15 +349,15 @@ export const MessageBubble = React.memo(function MessageBubble({
       <div className="relative max-w-[85%] sm:max-w-[70%]">
         {/* Sender Name in group chats */}
         {!isOwn && isGroup && (
-          <p className="text-[11px] font-bold text-[#F97316] ml-2 mb-1">
+          <p className="text-[11px] font-bold text-primary ml-2 mb-1">
             {message.sender?.name || message.sender?.username}
           </p>
         )}
 
         {/* Forwarded Header */}
         {message.forwardedFrom && (
-          <div className="flex items-center gap-1 text-[10px] text-[#6B7280] italic ml-2 mb-0.5">
-            <Forward className="w-3 h-3 text-[#F97316]" />
+          <div className="flex items-center gap-1 text-[10px] text-muted italic ml-2 mb-0.5">
+            <Forward className="w-3 h-3 text-primary" />
             <span>Forwarded</span>
           </div>
         )}
@@ -356,8 +366,8 @@ export const MessageBubble = React.memo(function MessageBubble({
         <div
           className={`relative rounded-3xl px-4 py-2.5 shadow-sm text-sm break-words transition ${
             isOwn
-              ? 'bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white rounded-br-xs shadow-orange-500/10'
-              : 'bg-white text-[#1F2937] border border-[#FED7AA] rounded-bl-xs'
+              ? 'bg-brand-gradient text-white rounded-br-xs shadow-md shadow-primary/10'
+              : 'bg-card text-ink border border-line rounded-bl-xs'
           }`}
         >
           {/* Quoted Reply Preview Bar */}
@@ -366,10 +376,10 @@ export const MessageBubble = React.memo(function MessageBubble({
               className={`mb-2 p-2 rounded-xl text-xs border-l-4 overflow-hidden ${
                 isOwn
                   ? 'bg-white/15 border-white text-white/90'
-                  : 'bg-orange-50/70 border-[#F97316] text-[#6B7280]'
+                  : 'bg-cream/70 border-primary text-muted'
               }`}
             >
-              <p className="font-bold text-[11px] text-[#F97316]">
+              <p className="font-bold text-[11px] text-primary">
                 {message.replyTo.sender?.name || 'Reply'}
               </p>
               <p className="truncate text-[11px] mt-0.5">
@@ -385,7 +395,7 @@ export const MessageBubble = React.memo(function MessageBubble({
               className={`mb-2 p-2 rounded-2xl flex items-center gap-2.5 cursor-pointer transition ${
                 isOwn
                   ? 'bg-white/20 hover:bg-white/30 text-white'
-                  : 'bg-orange-50 hover:bg-orange-100 text-[#1F2937]'
+                  : 'bg-cream hover:bg-cream/80 text-ink border border-line'
               }`}
             >
               {message.snapshot.thumbnail && (
@@ -396,7 +406,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                 />
               )}
               <div className="flex-1 min-w-0 text-xs">
-                <div className="flex items-center gap-1 font-bold text-[10px] text-[#F97316]">
+                <div className="flex items-center gap-1 font-bold text-[10px] text-primary">
                   <Sparkles className="w-3 h-3" />
                   <span>Replied to story</span>
                 </div>
@@ -416,7 +426,7 @@ export const MessageBubble = React.memo(function MessageBubble({
               className={`mb-2 rounded-2xl overflow-hidden cursor-pointer transition select-none ${
                 isOwn
                   ? 'bg-white/15 text-white hover:bg-white/20'
-                  : 'bg-[#FFF7ED] text-[#1F2937] hover:bg-orange-100/60 border border-[#FED7AA]/60'
+                  : 'bg-cream/60 text-ink hover:bg-cream/90 border border-line'
               }`}
             >
               {/* Header */}
@@ -482,7 +492,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                         navigate(`/u/${message.snapshot.authorUsername}`);
                       }
                     }}
-                    className="w-full py-1.5 rounded-xl bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-xs font-bold text-center shadow-xs cursor-pointer"
+                    className="w-full py-1.5 rounded-xl bg-brand-gradient text-white text-xs font-bold text-center shadow-xs cursor-pointer hover:opacity-95"
                   >
                     View Profile
                   </button>
@@ -497,6 +507,16 @@ export const MessageBubble = React.memo(function MessageBubble({
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span>{contentError}</span>
             </div>
+          )}
+
+          {/* Poll Card */}
+          {message.type === 'poll' && message.poll && (
+            <PollBubble
+              poll={message.poll}
+              messageId={message._id}
+              currentUserId={currentUserId}
+              isOwn={isOwn}
+            />
           )}
 
           {/* Media Attachments */}
@@ -530,31 +550,12 @@ export const MessageBubble = React.memo(function MessageBubble({
 
                 if (med.mimeType?.startsWith('audio/') || message.type === 'voice' || message.type === 'audio') {
                   return (
-                    <div
+                    <VoiceNotePlayer
                       key={idx}
-                      className={`flex items-center gap-3 p-3 rounded-2xl ${
-                        isOwn ? 'bg-white/20' : 'bg-orange-50'
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => handleAudioToggle(med.url)}
-                        className={`w-9 h-9 rounded-full flex items-center justify-center shadow-md transition ${
-                          isOwn ? 'bg-white text-[#F97316]' : 'bg-[#F97316] text-white'
-                        }`}
-                      >
-                        {isPlayingAudio ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <div className="h-1.5 w-full bg-black/10 rounded-full overflow-hidden">
-                          <div className={`h-full ${isPlayingAudio ? 'w-2/3 animate-pulse bg-current' : 'w-0'}`} />
-                        </div>
-                        <div className="flex justify-between text-[10px] mt-1 opacity-80">
-                          <span>{message.type === 'voice' ? 'Voice Memo' : 'Audio Note'}</span>
-                          <span>{med.duration ? `${Math.round(med.duration)}s` : '0:15'}</span>
-                        </div>
-                      </div>
-                    </div>
+                      url={med.url}
+                      duration={med.duration}
+                      isOwn={isOwn}
+                    />
                   );
                 }
 
@@ -565,10 +566,10 @@ export const MessageBubble = React.memo(function MessageBubble({
                     href={med.url}
                     download
                     className={`flex items-center gap-3 p-2.5 rounded-2xl transition ${
-                      isOwn ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-orange-50 hover:bg-orange-100 text-[#1F2937]'
+                      isOwn ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-cream/60 hover:bg-cream text-ink border border-line'
                     }`}
                   >
-                    <div className="w-9 h-9 rounded-xl bg-orange-100 text-[#F97316] flex items-center justify-center flex-shrink-0">
+                    <div className="w-9 h-9 rounded-xl bg-card border border-line text-primary flex items-center justify-center flex-shrink-0">
                       <FileText className="w-5 h-5" />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -584,35 +585,62 @@ export const MessageBubble = React.memo(function MessageBubble({
 
           {/* Location Card */}
           {message.location && (
-            <div className={`p-3 rounded-2xl mb-2 flex items-start gap-2.5 ${isOwn ? 'bg-white/20' : 'bg-orange-50'}`}>
-              <MapPin className="w-5 h-5 text-[#F97316] flex-shrink-0 mt-0.5" />
-              <div className="text-xs">
-                <p className="font-bold">{message.location.label || 'Shared Location'}</p>
-                <p className="text-[10px] opacity-80">Lat: {message.location.lat.toFixed(4)}, Lng: {message.location.lng.toFixed(4)}</p>
+            <div className={`p-3 rounded-2xl mb-2 flex items-start gap-2.5 ${isOwn ? 'bg-white/20' : 'bg-cream/60 border border-line'}`}>
+              <div className="relative mt-0.5">
+                <MapPin className="w-5 h-5 text-primary flex-shrink-0" />
+                {message.location.isLive && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full animate-ping" />
+                )}
+              </div>
+              <div className="text-xs flex-1">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <span>{message.location.label || (message.location.isLive ? 'Live Location' : 'Shared Location')}</span>
+                  {message.location.isLive && (
+                    <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary border border-primary/30">
+                      Live
+                    </span>
+                  )}
+                </div>
+                {(message.location.lat != null || message.location.latitude != null || message.location.lng != null || message.location.longitude != null) && (
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <p className="text-[10px] opacity-80">
+                      {Number(message.location.lat ?? message.location.latitude ?? 0).toFixed(4)}, {Number(message.location.lng ?? message.location.longitude ?? 0).toFixed(4)}
+                    </p>
+                    <a
+                      href={`https://maps.google.com/?q=${message.location.lat ?? message.location.latitude},${message.location.lng ?? message.location.longitude}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] font-bold underline hover:opacity-90 flex items-center gap-0.5"
+                    >
+                      <span>View Map</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           {/* Contact Card */}
           {message.contact && (
-            <div className={`p-3 rounded-2xl mb-2 flex items-center gap-3 ${isOwn ? 'bg-white/20' : 'bg-orange-50'}`}>
-              <div className="w-8 h-8 rounded-full bg-orange-100 text-[#F97316] flex items-center justify-center font-bold">
+            <div className={`p-3 rounded-2xl mb-2 flex items-center gap-3 ${isOwn ? 'bg-white/20' : 'bg-cream/60 border border-line'}`}>
+              <div className="w-8 h-8 rounded-full bg-card border border-line text-primary flex items-center justify-center font-bold">
                 {message.contact.name?.[0] || 'C'}
               </div>
               <div className="text-xs flex-1 min-w-0">
                 <p className="font-bold truncate">{message.contact.name}</p>
                 <p className="text-[11px] opacity-80 truncate">{message.contact.phone}</p>
               </div>
-              <Phone className="w-4 h-4 text-[#F97316]" />
+              <Phone className="w-4 h-4 text-primary" />
             </div>
           )}
 
           {/* Message Text / AI Markdown Content */}
           {message.type === 'ai' ? (
             <div className="space-y-1.5 pt-0.5">
-              <div className="flex items-center gap-1.5 pb-1 border-b border-orange-200/50">
+              <div className="flex items-center gap-1.5 pb-1 border-b border-line/60">
                 <AiBadge size="xs" />
-                <span className="text-[10px] font-bold text-[#F97316]">Flash AI</span>
+                <span className="text-[10px] font-bold text-primary">Flash AI</span>
               </div>
               <AiMarkdown content={message.text} />
             </div>
@@ -624,7 +652,7 @@ export const MessageBubble = React.memo(function MessageBubble({
                 </p>
               )}
               {translatedText && (
-                <div className="mt-1.5 pt-1 border-t border-line/50 flex items-center justify-between text-[11px] text-[#F97316]">
+                <div className="mt-1.5 pt-1 border-t border-line/50 flex items-center justify-between text-[11px] text-primary">
                   <span className="font-medium">{showOriginal ? '(Original)' : '⚡ Translated with Flash AI'}</span>
                   <button
                     type="button"
@@ -641,7 +669,7 @@ export const MessageBubble = React.memo(function MessageBubble({
           {/* Footer Metadata: Timestamp, Star, Edited, Ticks */}
           <div
             className={`flex items-center justify-end gap-1.5 mt-1 text-[10px] select-none ${
-              isOwn ? 'text-white/80' : 'text-[#6B7280]'
+              isOwn ? 'text-white/80' : 'text-muted'
             }`}
           >
             {isStarred && <Star className="w-3 h-3 fill-amber-400 text-amber-400" />}
@@ -671,10 +699,10 @@ export const MessageBubble = React.memo(function MessageBubble({
                 key={emoji}
                 type="button"
                 onClick={() => onReact && onReact(message._id, emoji)}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white border border-[#FED7AA] text-xs font-semibold shadow-xs hover:bg-orange-50 transition cursor-pointer"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-card border border-line text-xs font-semibold shadow-xs hover:bg-cream transition cursor-pointer"
               >
                 <span>{emoji}</span>
-                <span className="text-[10px] text-[#6B7280]">{count}</span>
+                <span className="text-[10px] text-muted">{count}</span>
               </button>
             ))}
           </div>

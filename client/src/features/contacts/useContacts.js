@@ -25,13 +25,17 @@ export const useContactsStore = create((set, get) => ({
   offlineQueue: getStoredOfflineQueue(),
 
   fetchContacts: async () => {
+    const token = localStorage.getItem('flash_chat_token');
+    if (!token || token === 'null' || token === 'undefined') {
+      return;
+    }
     set({ isLoading: true, error: null });
     try {
       const res = await api.get('/contacts');
       set({ contacts: res.data.contacts || [], isLoading: false });
     } catch (err) {
       set({
-        error: err.response?.data?.message || 'Failed to fetch contacts',
+        error: err.response?.data?.message || err.message || 'Failed to fetch contacts',
         isLoading: false
       });
     }
@@ -130,29 +134,47 @@ export const useContactsStore = create((set, get) => ({
 
   startChatWithContact: async (contactId) => {
     const res = await api.post(`/contacts/${contactId}/message`);
-    return res.data.conversation;
+    return res.data.conversation || res.data;
   },
+
 
   inviteContact: async (contactId, channel = 'sms') => {
     const res = await api.post(`/contacts/${contactId}/invite`, { channel });
     return res.data;
   },
 
+  clearOfflineQueue: () => {
+    try {
+      localStorage.removeItem(OFFLINE_CONTACTS_KEY);
+    } catch (_) {}
+    set({ offlineQueue: [], contacts: [] });
+  },
+
   syncOfflineContacts: async () => {
+    const token = localStorage.getItem('flash_chat_token');
+    if (!token || token === 'null' || token === 'undefined') return;
+
     const queue = get().offlineQueue;
     if (!queue || queue.length === 0) return;
 
     const remaining = [];
-    for (const item of queue) {
+    for (let i = 0; i < queue.length; i++) {
+      const item = queue[i];
       try {
         await api.post('/contacts', item);
       } catch (err) {
+        if (err.response?.status === 401 || err.message?.includes('Authentication required')) {
+          remaining.push(...queue.slice(i));
+          break;
+        }
         remaining.push(item);
       }
     }
     saveStoredOfflineQueue(remaining);
     set({ offlineQueue: remaining });
-    await get().fetchContacts();
+    if (remaining.length < queue.length) {
+      await get().fetchContacts();
+    }
   }
 }));
 
@@ -160,5 +182,11 @@ export const useContactsStore = create((set, get) => ({
 if (typeof window !== 'undefined') {
   window.addEventListener('online', () => {
     useContactsStore.getState().syncOfflineContacts();
+  });
+  window.addEventListener('flash_chat_auth_logout', () => {
+    try {
+      localStorage.removeItem(OFFLINE_CONTACTS_KEY);
+    } catch (_) {}
+    useContactsStore.setState({ contacts: [], offlineQueue: [] });
   });
 }

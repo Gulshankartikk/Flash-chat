@@ -9,15 +9,29 @@ const storySchema = new mongoose.Schema(
       index: true
     },
     media: {
-      url: { type: String, required: true },
+      url: { type: String, default: '' },
       publicId: { type: String, default: '' },
-      type: { type: String, enum: ['image', 'video'], default: 'image' },
-      duration: { type: Number, default: 5 } // 5s for photos, video duration for videos
+      type: { type: String, enum: ['image', 'video', 'text'], default: 'image' },
+      duration: { type: Number, default: 5 } // 5s for photos/text, video duration for videos
     },
     text: {
       type: String,
       default: '',
-      maxlength: 500
+      maxlength: 1000
+    },
+    backgroundColor: {
+      type: String,
+      default: '#10B981' // WhatsApp green default
+    },
+    fontStyle: {
+      type: String,
+      enum: ['sans', 'serif', 'mono', 'cursive'],
+      default: 'sans'
+    },
+    textAlign: {
+      type: String,
+      enum: ['left', 'center', 'right'],
+      default: 'center'
     },
     stickers: [
       {
@@ -31,6 +45,30 @@ const storySchema = new mongoose.Schema(
       {
         user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         at: { type: Date, default: Date.now }
+      }
+    ],
+    reactions: [
+      {
+        user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        emoji: { type: String, required: true },
+        at: { type: Date, default: Date.now }
+      }
+    ],
+    audience: {
+      type: String,
+      enum: ['public', 'followers', 'close_friends', 'contacts', 'custom'],
+      default: 'followers'
+    },
+    hiddenFrom: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      }
+    ],
+    customAudience: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
       }
     ],
     closeFriendsOnly: {

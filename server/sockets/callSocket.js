@@ -1,4 +1,5 @@
 const callService = require('../services/callService');
+const notificationService = require('../services/notificationService');
 const Conversation = require('../models/Conversation');
 const Call = require('../models/Call');
 const logger = require('../utils/logger');
@@ -88,6 +89,17 @@ const registerCallHandlers = (io, socket, { onlineUserSockets }) => {
 
           await callService.insertCallSystemMessage(call, 'offline', 0);
 
+          await notificationService.createNotification(
+            {
+              user: calleeId,
+              actor: userId,
+              type: 'missed_call',
+              target: { kind: 'call', refId: call._id },
+              message: `Missed ${type === 'video' ? 'video' : 'voice'} call`
+            },
+            io
+          );
+
           if (ack) {
             ack({
               success: false,
@@ -161,10 +173,20 @@ const registerCallHandlers = (io, socket, { onlineUserSockets }) => {
 
             // Notify caller & participants
             io.to(`call:${call._id}`).emit('call:missed', { callId: call._id });
-            otherMembers.forEach((m) => {
+            for (const m of otherMembers) {
               const targetUserId = String(m.user._id || m.user);
               io.to(`user:${targetUserId}`).emit('call:missed', { callId: call._id });
-            });
+              await notificationService.createNotification(
+                {
+                  user: targetUserId,
+                  actor: userId,
+                  type: 'missed_call',
+                  target: { kind: 'call', refId: call._id },
+                  message: `Missed ${currentCall.type === 'video' ? 'video' : 'voice'} call`
+                },
+                io
+              );
+            }
           }
         } catch (err) {
           logger.warn({ err: err.message, callId: call._id }, 'Error during ring timeout');

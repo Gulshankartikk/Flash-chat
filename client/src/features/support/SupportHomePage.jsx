@@ -252,7 +252,7 @@ export const SupportHomePage = () => {
                       }`
                     )
                   }
-                  className="p-3.5 bg-card hover:bg-orange-50/30 border border-line rounded-2xl cursor-pointer transition shadow-xs flex items-center justify-between group"
+                  className="p-3.5 bg-card hover:bg-line/40 border border-line rounded-2xl cursor-pointer transition shadow-xs flex items-center justify-between group"
                 >
                   <div className="min-w-0 flex-1 pr-3">
                     <div className="flex items-center gap-2 mb-1">
@@ -344,7 +344,7 @@ export const SupportHomePage = () => {
                       type="button"
                       onClick={() => toggleFaq(faq._id)}
                       aria-expanded={isExpanded}
-                      className="w-full p-4 text-left flex items-center justify-between gap-3 hover:bg-orange-50/20 transition-colors cursor-pointer"
+                      className="w-full p-4 text-left flex items-center justify-between gap-3 hover:bg-line/20 transition-colors cursor-pointer"
                     >
                       <span className="text-xs font-bold text-ink">{faq.question}</span>
                       {isExpanded ? (

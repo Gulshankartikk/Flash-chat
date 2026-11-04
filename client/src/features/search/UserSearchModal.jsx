@@ -63,20 +63,20 @@ export const UserSearchModal = ({ isOpen, onClose }) => {
       <div className="space-y-4">
         {/* Search input field */}
         <div className="relative flex items-center">
-          <Search className="w-4 h-4 absolute left-3.5 text-[#F97316] pointer-events-none" />
+          <Search className="w-4 h-4 absolute left-3.5 text-primary pointer-events-none" />
           <input
             type="text"
             autoFocus
             placeholder="Search by name or @username..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full pl-10 pr-10 py-3 rounded-2xl border border-[#FED7AA] bg-[#FFF7ED]/30 text-sm text-[#1F2937] placeholder-[#6B7280]/60 focus:outline-none focus:ring-2 focus:ring-[#F97316] focus:bg-white transition"
+            className="w-full pl-10 pr-10 py-3 rounded-2xl border border-line bg-card/60 text-sm text-ink placeholder-muted/60 focus:outline-none focus:ring-2 focus:ring-primary focus:bg-card transition"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery('')}
-              className="absolute right-3 p-1 rounded-full text-[#6B7280] hover:text-[#1F2937] hover:bg-orange-100"
+              className="absolute right-3 p-1 rounded-full text-muted hover:text-ink hover:bg-line/40"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -102,7 +102,7 @@ export const UserSearchModal = ({ isOpen, onClose }) => {
               <div
                 key={user._id}
                 onClick={() => handleSelectUser(user.username)}
-                className="flex items-center justify-between p-3 rounded-2xl border border-transparent hover:border-[#FED7AA] hover:bg-[#FFF7ED]/70 transition cursor-pointer group"
+                className="flex items-center justify-between p-3 rounded-2xl border border-transparent hover:border-line hover:bg-card/70 transition cursor-pointer group"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <Avatar
@@ -114,27 +114,27 @@ export const UserSearchModal = ({ isOpen, onClose }) => {
                   />
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-bold text-[#1F2937] truncate group-hover:text-[#F97316] transition">
+                      <p className="text-sm font-bold text-ink truncate group-hover:text-primary transition">
                         {user.name}
                       </p>
                       {user.isPrivateAccount && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-100 text-[#F97316] font-semibold">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 font-semibold">
                           Private
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-[#6B7280] truncate">
+                    <p className="text-xs text-muted truncate">
                       @{user.username}
                     </p>
                     {user.bio && (
-                      <p className="text-[11px] text-[#6B7280]/80 truncate mt-0.5">
+                      <p className="text-[11px] text-muted/80 truncate mt-0.5">
                         {user.bio}
                       </p>
                     )}
                   </div>
                 </div>
 
-                <div className="p-2 rounded-xl text-[#6B7280] group-hover:text-[#F97316] group-hover:bg-white transition flex-shrink-0">
+                <div className="p-2 rounded-xl text-muted group-hover:text-primary group-hover:bg-line/40 transition flex-shrink-0">
                   <ExternalLink className="w-4 h-4" />
                 </div>
               </div>
@@ -146,11 +146,11 @@ export const UserSearchModal = ({ isOpen, onClose }) => {
               description={`We couldn't find anyone matching "${query}". Try searching a different handle or full name.`}
             />
           ) : (
-            <div className="flex flex-col items-center justify-center p-8 text-center text-xs text-[#6B7280]">
-              <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-[#FED7AA] flex items-center justify-center text-[#F97316] mb-3">
+            <div className="flex flex-col items-center justify-center p-8 text-center text-xs text-muted">
+              <div className="w-12 h-12 rounded-2xl bg-card border border-line flex items-center justify-center text-primary mb-3">
                 <Sparkles className="w-6 h-6" />
               </div>
-              <p className="font-semibold text-[#1F2937] text-sm">
+              <p className="font-semibold text-ink text-sm">
                 Discover People on Flash Chat
               </p>
               <p className="mt-1 max-w-xs text-[11px]">

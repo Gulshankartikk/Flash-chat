@@ -23,11 +23,13 @@ import {
   Play,
   Layers,
   ShieldCheck,
-  Edit3
+  Edit3,
+  BookUser
 } from 'lucide-react';
 import { useAuthStore } from '../store/useAuthStore';
 import { useCall } from '../features/calls';
 import { useSocialStore } from '../features/social/store/useSocialStore';
+import { useContactsStore } from '../features/contacts/useContacts';
 import {
   fetchUserProfileApi,
   fetchUserPostsApi,
@@ -43,6 +45,7 @@ import { SocialAvatar } from '../features/social/components/SocialAvatar';
 import { FollowListModal } from '../features/social/components/FollowListModal';
 import { FollowRequestsModal } from '../features/social/components/FollowRequestsModal';
 import { PostViewerModal } from '../features/social/components/PostViewerModal';
+import api from '../services/api';
 
 export const PublicProfilePage = () => {
   const { username } = useParams();
@@ -64,6 +67,9 @@ export const PublicProfilePage = () => {
   const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'reels' | 'saved'
   const [userPosts, setUserPosts] = useState([]);
   const [userReels, setUserReels] = useState([]);
+  const [savedPosts, setSavedPosts] = useState([]);
+  const [savedCollections, setSavedCollections] = useState(['All Posts']);
+  const [selectedCollection, setSelectedCollection] = useState('All Posts');
   const [loadingContent, setLoadingContent] = useState(false);
   const [isPrivateLocked, setIsPrivateLocked] = useState(false);
 
@@ -72,6 +78,14 @@ export const PublicProfilePage = () => {
   const [showRequestsModal, setShowRequestsModal] = useState(false);
   const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   const [activePostId, setActivePostId] = useState(null);
+
+  const { contacts, addContact, deleteContact, fetchContacts } = useContactsStore();
+
+  useEffect(() => {
+    if (currentUser) {
+      fetchContacts();
+    }
+  }, [currentUser, fetchContacts]);
 
   const isMe =
     Boolean(currentUser?._id && profile?._id) &&
@@ -126,6 +140,19 @@ export const PublicProfilePage = () => {
             setIsPrivateLocked(Boolean(res.isPrivate));
             setUserReels(res.data || []);
           }
+        } else if (activeTab === 'saved') {
+          const [postsRes, colsRes] = await Promise.all([
+            api.get('/posts/saved', {
+              params: selectedCollection !== 'All Posts' ? { collectionName: selectedCollection } : {}
+            }),
+            api.get('/posts/collections')
+          ]);
+          if (postsRes.data?.success) {
+            setSavedPosts(postsRes.data.data || []);
+          }
+          if (colsRes.data?.success && Array.isArray(colsRes.data.data)) {
+            setSavedCollections(colsRes.data.data);
+          }
         }
       } catch (err) {
         console.error('Failed to load user content:', err);
@@ -135,7 +162,7 @@ export const PublicProfilePage = () => {
     };
 
     loadPostsAndReels();
-  }, [profile?._id, activeTab, followStatus]);
+  }, [profile?._id, activeTab, followStatus, selectedCollection]);
 
   // Tap avatar to open story
   const handleAvatarClick = async () => {
@@ -272,15 +299,15 @@ export const PublicProfilePage = () => {
   if (loading) {
     return (
       <div className="p-4 sm:p-8 max-w-xl mx-auto space-y-6">
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#FED7AA] animate-pulse space-y-4">
+        <div className="bg-card rounded-3xl p-6 sm:p-8 border border-line animate-pulse space-y-4">
           <div className="flex items-center gap-6">
-            <div className="w-20 h-20 rounded-full bg-[#FED7AA]/40" />
+            <div className="w-20 h-20 rounded-full bg-line/40" />
             <div className="flex-1 space-y-2">
-              <div className="w-32 h-4 rounded-full bg-[#FED7AA]/40" />
-              <div className="w-24 h-3 rounded-full bg-[#FED7AA]/30" />
+              <div className="w-32 h-4 rounded-full bg-line/40" />
+              <div className="w-24 h-3 rounded-full bg-line/30" />
             </div>
           </div>
-          <div className="w-full h-10 rounded-2xl bg-[#FED7AA]/20" />
+          <div className="w-full h-10 rounded-2xl bg-line/20" />
         </div>
       </div>
     );
@@ -289,17 +316,17 @@ export const PublicProfilePage = () => {
   if (error || !profile) {
     return (
       <div className="p-8 max-w-md mx-auto text-center space-y-4">
-        <div className="w-16 h-16 rounded-full bg-rose-50 text-[#F43F5E] flex items-center justify-center mx-auto text-2xl">
+        <div className="w-16 h-16 rounded-full bg-accent/15 text-accent flex items-center justify-center mx-auto text-2xl">
           <AlertCircle className="w-8 h-8" />
         </div>
-        <h2 className="text-xl font-bold text-[#1F2937]">User Not Found</h2>
-        <p className="text-xs text-[#6B7280]">
+        <h2 className="text-xl font-bold text-ink">User Not Found</h2>
+        <p className="text-xs text-muted">
           The account @{username} doesn't exist, has been deleted, or you have been blocked.
         </p>
         <button
           type="button"
           onClick={() => navigate('/social')}
-          className="px-4 py-2 rounded-xl bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-xs font-bold shadow-xs hover:opacity-95 cursor-pointer"
+          className="px-4 py-2 rounded-xl bg-brand-gradient text-white text-xs font-bold shadow-xs hover:opacity-95 cursor-pointer"
         >
           Explore Social
         </button>
@@ -314,39 +341,39 @@ export const PublicProfilePage = () => {
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="p-1.5 rounded-full hover:bg-orange-100 text-[#1F2937] transition cursor-pointer"
+          className="p-1.5 rounded-full hover:bg-line/40 text-ink transition cursor-pointer"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
 
-        <span className="text-xs font-bold text-[#1F2937]">@{profile.username}</span>
+        <span className="text-xs font-bold text-ink">@{profile.username}</span>
 
         {/* Options Menu */}
         <div className="relative">
           <button
             type="button"
             onClick={() => setShowOptionsMenu(!showOptionsMenu)}
-            className="p-1.5 rounded-full hover:bg-orange-100 text-[#1F2937] transition cursor-pointer"
+            className="p-1.5 rounded-full hover:bg-line/40 text-ink transition cursor-pointer"
           >
             <MoreVertical className="w-5 h-5" />
           </button>
 
           {showOptionsMenu && (
-            <div className="absolute right-0 top-8 z-40 w-44 bg-white rounded-2xl border border-[#FED7AA] shadow-xl p-1.5 text-xs font-semibold text-[#1F2937] space-y-0.5">
+            <div className="absolute right-0 top-8 z-40 w-44 bg-card rounded-2xl border border-line shadow-2xl p-1.5 text-xs font-semibold text-ink space-y-0.5">
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="w-full px-2.5 py-1.5 rounded-xl hover:bg-orange-50 flex items-center gap-2 cursor-pointer text-left"
+                className="w-full px-2.5 py-1.5 rounded-xl hover:bg-line/40 flex items-center gap-2 cursor-pointer text-left"
               >
-                <Link2 className="w-3.5 h-3.5 text-[#6B7280]" />
+                <Link2 className="w-3.5 h-3.5 text-muted" />
                 <span>Copy Profile Link</span>
               </button>
               <button
                 type="button"
                 onClick={handleShareProfile}
-                className="w-full px-2.5 py-1.5 rounded-xl hover:bg-orange-50 flex items-center gap-2 cursor-pointer text-left"
+                className="w-full px-2.5 py-1.5 rounded-xl hover:bg-line/40 flex items-center gap-2 cursor-pointer text-left"
               >
-                <Share2 className="w-3.5 h-3.5 text-[#EC4899]" />
+                <Share2 className="w-3.5 h-3.5 text-primary" />
                 <span>Share Profile</span>
               </button>
 
@@ -358,7 +385,7 @@ export const PublicProfilePage = () => {
                       alert('Profile reported for review.');
                       setShowOptionsMenu(false);
                     }}
-                    className="w-full px-2.5 py-1.5 rounded-xl hover:bg-rose-50 text-rose-600 flex items-center gap-2 cursor-pointer text-left"
+                    className="w-full px-2.5 py-1.5 rounded-xl hover:bg-rose-500/10 text-rose-400 flex items-center gap-2 cursor-pointer text-left"
                   >
                     <Flag className="w-3.5 h-3.5" />
                     <span>Report User</span>
@@ -366,7 +393,7 @@ export const PublicProfilePage = () => {
                   <button
                     type="button"
                     onClick={handleToggleBlock}
-                    className="w-full px-2.5 py-1.5 rounded-xl hover:bg-rose-50 text-rose-600 flex items-center gap-2 cursor-pointer text-left"
+                    className="w-full px-2.5 py-1.5 rounded-xl hover:bg-rose-500/10 text-rose-400 flex items-center gap-2 cursor-pointer text-left"
                   >
                     <UserX className="w-3.5 h-3.5" />
                     <span>{isBlocked ? 'Unblock User' : 'Block User'}</span>
@@ -382,7 +409,7 @@ export const PublicProfilePage = () => {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-white rounded-3xl p-5 sm:p-6 border border-[#FED7AA]/60 shadow-xs space-y-4"
+        className="bg-card rounded-3xl p-5 sm:p-6 border border-line shadow-xs space-y-4"
       >
         <div className="flex items-center gap-5 sm:gap-6">
           {/* Avatar with Story ring */}
@@ -400,22 +427,22 @@ export const PublicProfilePage = () => {
           {/* Counts Row */}
           <div className="flex-1 flex items-center justify-around text-center text-xs">
             <div>
-              <p className="text-base font-black text-[#1F2937]">{profile.postsCount || 0}</p>
-              <p className="text-[#6B7280]">posts</p>
+              <p className="text-base font-black text-ink">{profile.postsCount || 0}</p>
+              <p className="text-muted">posts</p>
             </div>
             <div
               onClick={() => setActiveFollowModal('followers')}
               className="cursor-pointer hover:opacity-80"
             >
-              <p className="text-base font-black text-[#1F2937]">{followersCount}</p>
-              <p className="text-[#6B7280]">followers</p>
+              <p className="text-base font-black text-ink">{followersCount}</p>
+              <p className="text-muted">followers</p>
             </div>
             <div
               onClick={() => setActiveFollowModal('following')}
               className="cursor-pointer hover:opacity-80"
             >
-              <p className="text-base font-black text-[#1F2937]">{profile.followingCount || 0}</p>
-              <p className="text-[#6B7280]">following</p>
+              <p className="text-base font-black text-ink">{profile.followingCount || 0}</p>
+              <p className="text-muted">following</p>
             </div>
           </div>
         </div>
@@ -423,23 +450,23 @@ export const PublicProfilePage = () => {
         {/* Bio Section */}
         <div className="space-y-1">
           <div className="flex items-center gap-1.5">
-            <h2 className="text-sm font-bold text-[#1F2937]">{profile.name}</h2>
+            <h2 className="text-sm font-bold text-ink">{profile.name}</h2>
             {profile.isVerified && (
-              <span className="w-3.5 h-3.5 rounded-full bg-[#F97316] text-white text-[9px] flex items-center justify-center font-bold">
+              <span className="w-3.5 h-3.5 rounded-full bg-primary text-white text-[9px] flex items-center justify-center font-bold">
                 ✓
               </span>
             )}
             {profile.isPrivateAccount && (
-              <span className="px-1.5 py-0.2 rounded-full bg-orange-100 text-[#F97316] text-[10px] font-bold">
+              <span className="px-1.5 py-0.2 rounded-full bg-primary/20 text-primary border border-primary/30 text-[10px] font-bold">
                 Private
               </span>
             )}
           </div>
-          <p className="text-xs text-[#1F2937] whitespace-pre-line leading-relaxed">
+          <p className="text-xs text-ink whitespace-pre-line leading-relaxed">
             {profile.bio || '⚡ Hey there! I am using Flash Chat.'}
           </p>
-          <div className="flex items-center gap-1.5 text-[10px] text-[#6B7280] pt-0.5">
-            <Calendar className="w-3 h-3 text-[#F97316]" />
+          <div className="flex items-center gap-1.5 text-[10px] text-muted pt-0.5">
+            <Calendar className="w-3 h-3 text-primary" />
             <span>Joined {new Date(profile.createdAt).toLocaleDateString()}</span>
           </div>
         </div>
@@ -451,16 +478,16 @@ export const PublicProfilePage = () => {
               <button
                 type="button"
                 onClick={() => navigate('/profile')}
-                className="flex-1 py-2 rounded-xl bg-[#FFF7ED] border border-[#FED7AA] text-xs font-bold text-[#1F2937] hover:border-[#F97316] transition flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 py-2 rounded-xl bg-card border border-line text-xs font-bold text-ink hover:border-primary transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <Edit3 className="w-3.5 h-3.5 text-[#F97316]" />
+                <Edit3 className="w-3.5 h-3.5 text-primary" />
                 <span>Edit Profile</span>
               </button>
               {profile.isPrivateAccount && (
                 <button
                   type="button"
                   onClick={() => setShowRequestsModal(true)}
-                  className="px-3 py-2 rounded-xl bg-orange-100 text-[#F97316] text-xs font-bold hover:bg-orange-200 transition flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-2 rounded-xl bg-primary/20 border border-primary/30 text-primary text-xs font-bold hover:bg-primary/30 transition flex items-center gap-1 cursor-pointer"
                 >
                   <ShieldCheck className="w-4 h-4" />
                   <span>Requests</span>
@@ -474,7 +501,7 @@ export const PublicProfilePage = () => {
                 <button
                   type="button"
                   onClick={handleToggleBlock}
-                  className="flex-1 py-2 rounded-xl bg-rose-100 text-rose-600 text-xs font-bold cursor-pointer"
+                  className="flex-1 py-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-bold cursor-pointer"
                 >
                   Unblock
                 </button>
@@ -484,10 +511,10 @@ export const PublicProfilePage = () => {
                   onClick={handleToggleFollow}
                   className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs ${
                     followStatus === 'accepted'
-                      ? 'bg-[#FFF7ED] border border-[#FED7AA] text-[#1F2937] hover:bg-orange-50'
+                      ? 'bg-card border border-line text-ink hover:bg-line/40'
                       : followStatus === 'pending'
-                      ? 'bg-neutral-100 text-[#6B7280] border border-neutral-300'
-                      : 'bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white shadow-orange-500/15'
+                      ? 'bg-card/40 text-muted border border-line'
+                      : 'bg-brand-gradient text-white shadow-primary/15'
                   }`}
                 >
                   {followStatus === 'accepted' ? (
@@ -513,9 +540,9 @@ export const PublicProfilePage = () => {
               <button
                 type="button"
                 onClick={handleStartChat}
-                className="flex-1 py-2 rounded-xl bg-white border border-[#FED7AA] text-xs font-bold text-[#1F2937] hover:border-[#F97316] transition flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 py-2 rounded-xl bg-card border border-line text-xs font-bold text-ink hover:border-primary transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <MessageSquare className="w-3.5 h-3.5 text-[#F97316]" />
+                <MessageSquare className="w-3.5 h-3.5 text-primary" />
                 <span>Message</span>
               </button>
 
@@ -524,7 +551,7 @@ export const PublicProfilePage = () => {
                 type="button"
                 disabled={callState !== 'idle'}
                 onClick={() => handleStartCall('audio')}
-                className="p-2 rounded-xl bg-white border border-[#FED7AA] text-[#1F2937] hover:border-[#F97316] hover:text-[#F97316] disabled:opacity-50 transition cursor-pointer"
+                className="p-2 rounded-xl bg-card border border-line text-ink hover:border-primary hover:text-primary disabled:opacity-50 transition cursor-pointer"
                 title="Voice Call"
               >
                 <Phone className="w-4 h-4" />
@@ -535,10 +562,39 @@ export const PublicProfilePage = () => {
                 type="button"
                 disabled={callState !== 'idle'}
                 onClick={() => handleStartCall('video')}
-                className="p-2 rounded-xl bg-white border border-[#FED7AA] text-[#1F2937] hover:border-[#F97316] hover:text-[#F97316] disabled:opacity-50 transition cursor-pointer"
+                className="p-2 rounded-xl bg-card border border-line text-ink hover:border-primary hover:text-primary disabled:opacity-50 transition cursor-pointer"
                 title="Video Call"
               >
                 <Video className="w-4 h-4" />
+              </button>
+
+              {/* Saved Contact Toggle */}
+              <button
+                type="button"
+                onClick={async () => {
+                  const existingContact = contacts.find(
+                    (c) => String(c.linkedUser?._id || c.linkedUser) === String(profile._id)
+                  );
+                  if (existingContact) {
+                    if (window.confirm(`Remove ${profile.name} from saved contacts?`)) {
+                      await deleteContact(existingContact._id);
+                    }
+                  } else {
+                    await addContact({ userId: profile._id, name: profile.name });
+                  }
+                }}
+                className={`p-2 rounded-xl border transition cursor-pointer ${
+                  contacts.some((c) => String(c.linkedUser?._id || c.linkedUser) === String(profile._id))
+                    ? 'bg-primary/20 border-primary text-primary'
+                    : 'bg-card border-line text-ink hover:border-primary hover:text-primary'
+                }`}
+                title={
+                  contacts.some((c) => String(c.linkedUser?._id || c.linkedUser) === String(profile._id))
+                    ? 'Saved in contacts'
+                    : 'Add to contacts'
+                }
+              >
+                <BookUser className="w-4 h-4" />
               </button>
             </>
           )}
@@ -546,14 +602,14 @@ export const PublicProfilePage = () => {
       </motion.div>
 
       {/* Tabs Row: Posts | Reels | Saved (own only) */}
-      <div className="flex items-center justify-around bg-white rounded-2xl border border-[#FED7AA]/60 p-1 shadow-xs">
+      <div className="flex items-center justify-around bg-card rounded-2xl border border-line p-1 shadow-xs">
         <button
           type="button"
           onClick={() => setActiveTab('posts')}
           className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'posts'
-              ? 'bg-[#FFF7ED] text-[#F97316] shadow-xs'
-              : 'text-[#6B7280] hover:text-[#1F2937]'
+              ? 'bg-primary/20 text-primary border border-primary/30 shadow-xs'
+              : 'text-muted hover:text-ink'
           }`}
         >
           <Grid className="w-3.5 h-3.5" />
@@ -565,8 +621,8 @@ export const PublicProfilePage = () => {
           onClick={() => setActiveTab('reels')}
           className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'reels'
-              ? 'bg-[#FFF7ED] text-[#F97316] shadow-xs'
-              : 'text-[#6B7280] hover:text-[#1F2937]'
+              ? 'bg-primary/20 text-primary border border-primary/30 shadow-xs'
+              : 'text-muted hover:text-ink'
           }`}
         >
           <Film className="w-3.5 h-3.5" />
@@ -579,8 +635,8 @@ export const PublicProfilePage = () => {
             onClick={() => setActiveTab('saved')}
             className={`flex-1 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
               activeTab === 'saved'
-                ? 'bg-[#FFF7ED] text-[#F97316] shadow-xs'
-                : 'text-[#6B7280] hover:text-[#1F2937]'
+                ? 'bg-primary/20 text-primary border border-primary/30 shadow-xs'
+                : 'text-muted hover:text-ink'
             }`}
           >
             <Bookmark className="w-3.5 h-3.5" />
@@ -591,29 +647,29 @@ export const PublicProfilePage = () => {
 
       {/* Content Display Grid or Private Lock Screen */}
       {isPrivateLocked ? (
-        <div className="bg-white rounded-3xl p-8 border border-[#FED7AA]/60 text-center space-y-3 shadow-xs">
-          <div className="w-12 h-12 rounded-full bg-orange-100 text-[#F97316] flex items-center justify-center mx-auto">
+        <div className="bg-card rounded-3xl p-8 border border-line text-center space-y-3 shadow-xs">
+          <div className="w-12 h-12 rounded-full bg-primary/20 border border-primary/30 text-primary flex items-center justify-center mx-auto">
             <Lock className="w-6 h-6 stroke-[2.5]" />
           </div>
-          <h3 className="text-sm font-bold text-[#1F2937]">This Account is Private</h3>
-          <p className="text-xs text-[#6B7280] max-w-xs mx-auto">
+          <h3 className="text-sm font-bold text-ink">This Account is Private</h3>
+          <p className="text-xs text-muted max-w-xs mx-auto">
             Follow this account to see their photos, reels, and shared moments.
           </p>
         </div>
       ) : (
-        <div className="bg-white rounded-3xl p-2 sm:p-3 border border-[#FED7AA]/60 shadow-xs min-h-[220px]">
+        <div className="bg-card rounded-3xl p-2 sm:p-3 border border-line shadow-xs min-h-[220px]">
           {loadingContent ? (
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div
                   key={i}
-                  className="aspect-square rounded-2xl bg-[#FED7AA]/30 animate-pulse"
+                  className="aspect-square rounded-2xl bg-line/30 animate-pulse"
                 />
               ))}
             </div>
           ) : activeTab === 'posts' ? (
             userPosts.length === 0 ? (
-              <p className="text-xs text-[#6B7280] text-center py-12">No posts yet.</p>
+              <p className="text-xs text-muted text-center py-12">No posts yet.</p>
             ) : (
               <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                 {userPosts.map((post) => (
@@ -639,7 +695,7 @@ export const PublicProfilePage = () => {
             )
           ) : activeTab === 'reels' ? (
             userReels.length === 0 ? (
-              <p className="text-xs text-[#6B7280] text-center py-12">No reels yet.</p>
+              <p className="text-xs text-muted text-center py-12">No reels yet.</p>
             ) : (
               <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                 {userReels.map((reel) => (
@@ -649,7 +705,7 @@ export const PublicProfilePage = () => {
                     className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-neutral-900 cursor-pointer group shadow-xs"
                   >
                     <img
-                      src={reel.media?.thumbnail || reel.media?.url}
+                      src={reel.media?.thumbnail || reel.video?.thumbnail || reel.thumbnail || reel.media?.url || reel.video?.url}
                       alt="Reel"
                       loading="lazy"
                       className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
@@ -662,9 +718,53 @@ export const PublicProfilePage = () => {
               </div>
             )
           ) : (
-            <p className="text-xs text-[#6B7280] text-center py-12">
-              Saved posts are private to you.
-            </p>
+            <div className="space-y-3">
+              {/* Collection Filter Pills */}
+              {savedCollections.length > 1 && (
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                  {savedCollections.map((colName) => (
+                    <button
+                      key={colName}
+                      type="button"
+                      onClick={() => setSelectedCollection(colName)}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition shrink-0 cursor-pointer ${
+                        selectedCollection === colName
+                          ? 'bg-primary text-white shadow-xs'
+                          : 'bg-cream text-muted hover:text-ink border border-line'
+                      }`}
+                    >
+                      {colName}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {savedPosts.length === 0 ? (
+                <p className="text-xs text-muted text-center py-12">No saved posts in this collection.</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                  {savedPosts.map((post) => (
+                    <div
+                      key={post._id}
+                      onClick={() => setActivePostId(post._id)}
+                      className="relative aspect-square rounded-2xl overflow-hidden bg-neutral-900 cursor-pointer group shadow-xs"
+                    >
+                      <img
+                        src={post.media?.[0]?.url || post.media?.[0]?.thumbnail}
+                        alt="Saved Post"
+                        loading="lazy"
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                      />
+                      {post.media?.length > 1 && (
+                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-black/50 flex items-center justify-center text-white">
+                          <Layers className="w-2.5 h-2.5" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

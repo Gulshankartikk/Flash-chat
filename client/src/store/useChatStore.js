@@ -20,6 +20,23 @@ export const useChatStore = create((set, get) => ({
   starredMessages: [],
   isSearchingMessages: false,
   searchResults: [],
+  pendingConversations: [],
+  isLoadingPending: false,
+
+  resetChatState: () =>
+    set({
+      conversations: [],
+      chats: [],
+      activeConversation: null,
+      activeChat: null,
+      messages: [],
+      messagesByConv: {},
+      nextCursor: null,
+      hasMore: false,
+      pendingConversations: [],
+      onlineUsers: new Set(),
+      typingUsers: {}
+    }),
 
   setOnlineUsers: (users) => set({ onlineUsers: new Set(users) }),
 
@@ -27,20 +44,135 @@ export const useChatStore = create((set, get) => ({
    * Fetch all conversations for current user
    */
   fetchConversations: async () => {
+    const token = localStorage.getItem('flash_chat_token');
+    if (!token || token === 'null' || token === 'undefined') return [];
+
     set({ isLoadingConversations: true });
     try {
       const res = await api.get('/chats');
       const convs = res.data.conversations || [];
-      set({
-        conversations: convs,
-        chats: convs,
-        isLoadingConversations: false
+      set((state) => {
+        let updatedActive = state.activeConversation;
+        if (updatedActive?._id) {
+          const fresh = convs.find((c) => String(c._id) === String(updatedActive._id));
+          if (fresh) {
+            updatedActive = { ...updatedActive, ...fresh };
+          }
+        }
+        return {
+          conversations: convs,
+          chats: convs,
+          activeConversation: updatedActive,
+          activeChat: updatedActive,
+          isLoadingConversations: false
+        };
       });
       return convs;
     } catch (err) {
       console.error('Failed to fetch conversations:', err.message);
       set({ isLoadingConversations: false });
       return [];
+    }
+  },
+
+  /**
+   * Fetch pending/queued conversations for current user
+   */
+  fetchPendingConversations: async () => {
+    const token = localStorage.getItem('flash_chat_token');
+    if (!token || token === 'null' || token === 'undefined') return [];
+
+    set({ isLoadingPending: true });
+    try {
+      const res = await api.get('/chats/pending');
+      const pendingList = res.data.pendingConversations || [];
+      set({ pendingConversations: pendingList, isLoadingPending: false });
+      return pendingList;
+    } catch (err) {
+      console.error('Failed to fetch pending conversations:', err.message);
+      set({ isLoadingPending: false });
+      return [];
+    }
+  },
+
+  /**
+   * Queue message to a pending conversation
+   */
+  queuePendingMessage: async (pendingId, text) => {
+    try {
+      const res = await api.post(`/chats/pending/${pendingId}/messages`, { text });
+      await get().fetchPendingConversations();
+      return res.data;
+    } catch (err) {
+      console.error('Failed to queue pending message:', err.message);
+      throw err;
+    }
+  },
+
+  /**
+   * Delete / cancel a pending conversation
+   */
+  deletePendingConversation: async (pendingId) => {
+    try {
+      const res = await api.delete(`/chats/pending/${pendingId}`);
+      set((state) => ({
+        pendingConversations: state.pendingConversations.filter((p) => p._id !== pendingId)
+      }));
+      return res.data;
+    } catch (err) {
+      console.error('Failed to delete pending conversation:', err.message);
+      throw err;
+    }
+  },
+
+  /**
+   * Accept a message request
+   */
+  acceptMessageRequest: async (convId) => {
+    try {
+      const res = await api.post(`/chats/${convId}/accept`);
+      const updated = res.data.conversation;
+      set((state) => {
+        const convs = state.conversations.map((c) =>
+          String(c._id) === String(convId) ? { ...c, status: 'active' } : c
+        );
+        return {
+          conversations: convs,
+          chats: convs,
+          activeConversation:
+            state.activeConversation && String(state.activeConversation._id) === String(convId)
+              ? { ...state.activeConversation, status: 'active' }
+              : state.activeConversation
+        };
+      });
+      return updated;
+    } catch (err) {
+      console.error('Failed to accept message request:', err.message);
+      throw err;
+    }
+  },
+
+  /**
+   * Reject / delete a message request
+   */
+  rejectMessageRequest: async (convId) => {
+    try {
+      const res = await api.post(`/chats/${convId}/reject`);
+      set((state) => {
+        const filtered = state.conversations.filter((c) => String(c._id) !== String(convId));
+        return {
+          conversations: filtered,
+          chats: filtered,
+          activeConversation:
+            state.activeConversation && String(state.activeConversation._id) === String(convId)
+              ? null
+              : state.activeConversation
+        };
+      });
+      return res.data;
+    } catch (err) {
+      console.error('Failed to reject message request:', err.message);
+      throw err;
     }
   },
 
@@ -104,39 +236,53 @@ export const useChatStore = create((set, get) => ({
     }
 
     let conversation =
-      typeof convOrId === 'object'
+      typeof convOrId === 'object' && convOrId?.displayName
         ? convOrId
         : get().conversations.find((c) => String(c._id) === String(convId));
 
-    if (!conversation) {
+    if (!conversation || !conversation.displayName) {
       try {
         const res = await api.get(`/chats/${convId}`);
-        conversation = res.data.conversation;
+        if (res.data?.conversation) {
+          conversation = res.data.conversation;
+        }
       } catch (err) {
         console.error('Failed to load conversation details:', err.message);
       }
     }
 
-    set({
-      activeConversation: conversation,
-      activeChat: conversation,
-      messages: get().messagesByConv[convId] || [],
-      nextCursor: null,
-      hasMore: false
+    set((state) => {
+      let updatedConvs = state.conversations;
+      if (conversation) {
+        const exists = state.conversations.some((c) => String(c._id) === String(convId));
+        if (exists) {
+          updatedConvs = state.conversations.map((c) =>
+            String(c._id) === String(convId) ? { ...c, ...conversation, unreadCount: 0 } : c
+          );
+        } else {
+          updatedConvs = [{ ...conversation, unreadCount: 0 }, ...state.conversations];
+        }
+      }
+
+      const activeConvObj = conversation || (convId ? { _id: convId } : null) || state.activeConversation;
+      const cachedMessages = state.messagesByConv[convId] || [];
+
+      return {
+        conversations: updatedConvs,
+        chats: updatedConvs,
+        activeConversation: activeConvObj,
+        activeChat: activeConvObj,
+        messages: cachedMessages,
+        nextCursor: null,
+        hasMore: false
+      };
     });
 
     const socket = getSocket();
     if (socket && socket.connected) {
+      socket.emit('conversation:join', { conversationId: convId });
       socket.emit('message:read', { conversationId: convId });
     }
-
-    // Reset unread count locally
-    set((state) => {
-      const updatedConvs = state.conversations.map((c) =>
-        String(c._id) === String(convId) ? { ...c, unreadCount: 0 } : c
-      );
-      return { conversations: updatedConvs, chats: updatedConvs };
-    });
 
     // Fetch latest messages from API
     await get().fetchMessages(convId);
@@ -165,9 +311,26 @@ export const useChatStore = create((set, get) => ({
         const existing = cursor ? state.messagesByConv[targetId] || [] : [];
         const combined = cursor ? [...messages, ...existing] : messages;
 
+        // Deduplicate messages by _id or clientId
+        const seen = new Set();
+        const deduplicated = [];
+        for (const m of combined) {
+          const key = m._id || m.clientId;
+          if (key && !seen.has(key)) {
+            seen.add(key);
+            deduplicated.push(m);
+          } else if (!key) {
+            deduplicated.push(m);
+          }
+        }
+
+        const isCurrentActive =
+          !state.activeConversation ||
+          String(state.activeConversation._id) === String(targetId);
+
         return {
-          messagesByConv: { ...state.messagesByConv, [targetId]: combined },
-          messages: String(state.activeConversation?._id) === String(targetId) ? combined : state.messages,
+          messagesByConv: { ...state.messagesByConv, [targetId]: deduplicated },
+          messages: isCurrentActive ? deduplicated : state.messages,
           nextCursor,
           hasMore: !!nextCursor,
           isLoadingMessages: false
@@ -269,9 +432,35 @@ export const useChatStore = create((set, get) => ({
     set((state) => {
       const list = state.messagesByConv[convId] || [];
       const updated = list.map((m) => (m.clientId === clientId ? realMessage : m));
+
+      let convFound = false;
+      const updatedConvs = (state.conversations || []).map((c) => {
+        if (String(c._id) === String(convId)) {
+          convFound = true;
+          return {
+            ...c,
+            lastMessage: realMessage,
+            updatedAt: realMessage.createdAt || new Date().toISOString()
+          };
+        }
+        return c;
+      });
+
+      // Sort so pinned are on top, then newest updatedAt / lastMessage.createdAt
+      const sortedConvs = [...updatedConvs].sort((a, b) => {
+        if (Boolean(a.isPinned) !== Boolean(b.isPinned)) {
+          return a.isPinned ? -1 : 1;
+        }
+        const timeA = new Date(a.lastMessage?.createdAt || a.updatedAt || 0).getTime();
+        const timeB = new Date(b.lastMessage?.createdAt || b.updatedAt || 0).getTime();
+        return timeB - timeA;
+      });
+
       return {
         messagesByConv: { ...state.messagesByConv, [convId]: updated },
-        messages: String(state.activeConversation?._id) === String(convId) ? updated : state.messages
+        messages: String(state.activeConversation?._id) === String(convId) ? updated : state.messages,
+        conversations: sortedConvs,
+        chats: sortedConvs
       };
     });
   },
@@ -444,6 +633,7 @@ export const useChatStore = create((set, get) => ({
     socket.off('presence:update');
     socket.off('users:online_list');
     socket.off('conversation:updated');
+    socket.off('user:updated');
 
     // New Message
     socket.on('message:new', (msg) => {
@@ -453,36 +643,57 @@ export const useChatStore = create((set, get) => ({
 
       set((state) => {
         const list = state.messagesByConv[convId] || [];
-        // Prevent duplicate if already received via ack
-        if (list.some((m) => m._id === msg._id || (m.clientId && m.clientId === msg.clientId))) {
-          return {};
-        }
-
-        const updated = [...list, msg];
+        const alreadyHasMsg = list.some(
+          (m) => m._id === msg._id || (m.clientId && m.clientId === msg.clientId)
+        );
+        const updated = alreadyHasMsg ? list : [...list, msg];
 
         // Update conversation preview and unread count
-        const updatedConvs = state.conversations.map((c) => {
+        let convFound = false;
+        const updatedConvs = (state.conversations || []).map((c) => {
           if (String(c._id) === String(convId)) {
+            convFound = true;
             return {
               ...c,
               lastMessage: msg,
-              unreadCount: isCurrentChat ? 0 : (c.unreadCount || 0) + 1
+              updatedAt: msg.createdAt || new Date().toISOString(),
+              unreadCount: isCurrentChat ? 0 : (c.unreadCount || 0) + (alreadyHasMsg ? 0 : 1)
             };
           }
           return c;
         });
 
+        if (!convFound) {
+          get().fetchConversations();
+        }
+
+        // Keep pinned at top, then newest message
+        const sortedConvs = [...updatedConvs].sort((a, b) => {
+          if (Boolean(a.isPinned) !== Boolean(b.isPinned)) {
+            return a.isPinned ? -1 : 1;
+          }
+          const timeA = new Date(a.lastMessage?.createdAt || a.updatedAt || 0).getTime();
+          const timeB = new Date(b.lastMessage?.createdAt || b.updatedAt || 0).getTime();
+          return timeB - timeA;
+        });
+
         return {
           messagesByConv: { ...state.messagesByConv, [convId]: updated },
           messages: isCurrentChat ? updated : state.messages,
-          conversations: updatedConvs,
-          chats: updatedConvs
+          conversations: sortedConvs,
+          chats: sortedConvs
         };
       });
 
       // If viewing this chat, automatically mark read
       if (isCurrentChat) {
         socket.emit('message:read', { conversationId: convId, upToMessageId: msg._id });
+      } else if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('in_app_message_notification', {
+            detail: { message: msg, conversationId: convId }
+          })
+        );
       }
     });
 
@@ -571,25 +782,147 @@ export const useChatStore = create((set, get) => ({
     });
 
     // Presence update
-    socket.on('presence:update', ({ userId, isOnline }) => {
+    socket.on('presence:update', ({ userId, isOnline, lastSeen }) => {
       set((state) => {
         const updated = new Set(state.onlineUsers);
         if (isOnline) updated.add(userId);
         else updated.delete(userId);
-        return { onlineUsers: updated };
+
+        const updatedConvs = state.conversations.map((c) => {
+          if (c.otherUser && String(c.otherUser._id) === String(userId)) {
+            return {
+              ...c,
+              otherUser: {
+                ...c.otherUser,
+                isOnline,
+                ...(lastSeen ? { lastSeen } : {})
+              }
+            };
+          }
+          return c;
+        });
+
+        const activeConv = state.activeConversation;
+        const updatedActive =
+          activeConv && activeConv.otherUser && String(activeConv.otherUser._id) === String(userId)
+            ? {
+                ...activeConv,
+                otherUser: {
+                  ...activeConv.otherUser,
+                  isOnline,
+                  ...(lastSeen ? { lastSeen } : {})
+                }
+              }
+            : activeConv;
+
+        return {
+          onlineUsers: updated,
+          conversations: updatedConvs,
+          chats: updatedConvs,
+          activeConversation: updatedActive
+        };
       });
     });
 
     // Online list on connect
     socket.on('users:online_list', (users) => {
-      set({ onlineUsers: new Set(users) });
+      const userSet = new Set(users);
+      set((state) => {
+        const updatedConvs = state.conversations.map((c) => {
+          if (c.otherUser?._id) {
+            const isUserOnline = userSet.has(String(c.otherUser._id));
+            return {
+              ...c,
+              otherUser: { ...c.otherUser, isOnline: isUserOnline }
+            };
+          }
+          return c;
+        });
+
+        const activeConv = state.activeConversation;
+        const updatedActive =
+          activeConv && activeConv.otherUser?._id
+            ? {
+                ...activeConv,
+                otherUser: {
+                  ...activeConv.otherUser,
+                  isOnline: userSet.has(String(activeConv.otherUser._id))
+                }
+              }
+            : activeConv;
+
+        return {
+          onlineUsers: userSet,
+          conversations: updatedConvs,
+          chats: updatedConvs,
+          activeConversation: updatedActive
+        };
+      });
     });
 
     // Conversation Updated
     socket.on('conversation:updated', () => {
       get().fetchConversations();
+      get().fetchPendingConversations();
+    });
+
+    // Message request or pending delivered
+    socket.on('pending:delivered', () => {
+      get().fetchConversations();
+      get().fetchPendingConversations();
+    });
+
+    socket.on('conversation:request', () => {
+      get().fetchConversations();
+    });
+
+    // Profile & user updates synchronization
+    socket.on('user:updated', ({ userId, user }) => {
+      if (!userId || !user) return;
+      set((state) => {
+        const updateParticipant = (p) => {
+          if (!p) return p;
+          if (String(p._id || p) === String(userId)) {
+            return typeof p === 'object' ? { ...p, ...user } : p;
+          }
+          return p;
+        };
+
+        const updatedConversations = (state.conversations || []).map((c) => {
+          if (!c.participants) return c;
+          const hasUser = c.participants.some((p) => String(p._id || p) === String(userId));
+          if (!hasUser) return c;
+          return {
+            ...c,
+            participants: c.participants.map(updateParticipant)
+          };
+        });
+
+        let updatedActive = state.activeConversation;
+        if (updatedActive?.participants) {
+          const hasUser = updatedActive.participants.some((p) => String(p._id || p) === String(userId));
+          if (hasUser) {
+            updatedActive = {
+              ...updatedActive,
+              participants: updatedActive.participants.map(updateParticipant)
+            };
+          }
+        }
+
+        return {
+          conversations: updatedConversations,
+          chats: updatedConversations,
+          activeConversation: updatedActive
+        };
+      });
     });
   }
 }));
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('flash_chat_auth_logout', () => {
+    useChatStore.getState().resetChatState?.();
+  });
+}
 
 export default useChatStore;

@@ -1,6 +1,8 @@
 const { z } = require('zod');
 const chatService = require('../services/chatService');
+const schedulerService = require('../services/schedulerService');
 const Message = require('../models/Message');
+const Conversation = require('../models/Conversation');
 
 const sendMessageSchema = z.object({
   conversationId: z.string().min(1, 'conversationId is required'),
@@ -16,6 +18,7 @@ const sendMessageSchema = z.object({
       'location',
       'contact',
       'system',
+      'poll',
       'shared_post',
       'shared_reel',
       'shared_story'
@@ -40,7 +43,22 @@ const sendMessageSchema = z.object({
     .object({
       lat: z.number(),
       lng: z.number(),
-      label: z.string().optional()
+      label: z.string().optional(),
+      isLive: z.boolean().optional(),
+      liveUntil: z.string().or(z.date()).optional()
+    })
+    .optional(),
+  poll: z
+    .object({
+      question: z.string().min(1, 'Poll question is required'),
+      options: z
+        .array(
+          z.object({
+            text: z.string().min(1, 'Option text cannot be empty')
+          })
+        )
+        .min(2, 'At least 2 poll options are required'),
+      allowMultiple: z.boolean().optional().default(false)
     })
     .optional(),
   contact: z
@@ -51,6 +69,21 @@ const sendMessageSchema = z.object({
     .optional(),
   replyTo: z.string().optional(),
   forwardedFrom: z.string().optional()
+});
+
+const scheduleMessageSchema = z.object({
+  conversationId: z.string().min(1, 'conversationId is required'),
+  type: z.string().optional().default('text'),
+  text: z.string().optional().default(''),
+  media: z.array(z.any()).optional().default([]),
+  location: z.any().optional(),
+  poll: z.any().optional(),
+  replyTo: z.string().optional(),
+  scheduledFor: z.string().min(1, 'scheduledFor date is required')
+});
+
+const pollVoteSchema = z.object({
+  optionIndex: z.number().int().min(0)
 });
 
 const editMessageSchema = z.object({
@@ -78,9 +111,26 @@ const sendMessage = async (req, res, next) => {
 
     const message = await chatService.sendMessage(req.user._id, parsed.data);
 
-    // Broadcast to room if Socket.IO is attached
+    // Broadcast to room and member user rooms if Socket.IO is attached
     if (req.io) {
       req.io.to(`conv:${parsed.data.conversationId}`).emit('message:new', message);
+      try {
+        const conv = await Conversation.findById(parsed.data.conversationId).select('members').lean();
+        if (conv?.members) {
+          conv.members.forEach((m) => {
+            const mId = String(m.user);
+            req.io.to(`user:${mId}`).emit('conversation:updated', {
+              conversationId: conv._id,
+              lastMessage: message
+            });
+            if (mId !== String(req.user._id)) {
+              req.io.to(`user:${mId}`).emit('message:new', message);
+            }
+          });
+        }
+      } catch (e) {
+        // non-blocking
+      }
     }
 
     return res.status(201).json({ success: true, message });
@@ -212,9 +262,82 @@ const markChatAsRead = async (req, res, next) => {
         readByUserId: req.user._id,
         status: 'read'
       });
+      // Multi-device sync: notify user's other sessions
+      req.io.to(`user:${req.user._id}`).emit('chat:sync', {
+        type: 'read',
+        conversationId: chatId,
+        readByUserId: req.user._id,
+        upToMessageId
+      });
     }
 
     return res.status(200).json({ success: true, message: 'Chat marked as read' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/messages/:id/poll/vote
+ */
+const votePoll = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const parsed = pollVoteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, message: parsed.error.issues[0].message });
+    }
+
+    const updated = await chatService.votePoll(req.user._id, id, parsed.data.optionIndex);
+
+    if (req.io) {
+      req.io.to(`conv:${updated.conversation}`).emit('message:updated', updated);
+    }
+
+    return res.status(200).json({ success: true, message: updated });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/messages/schedule
+ */
+const scheduleMessage = async (req, res, next) => {
+  try {
+    const parsed = scheduleMessageSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, message: parsed.error.issues[0].message });
+    }
+
+    const scheduled = await schedulerService.scheduleMessage(req.user._id, parsed.data);
+    return res.status(201).json({ success: true, data: scheduled });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/messages/scheduled
+ */
+const getScheduledMessages = async (req, res, next) => {
+  try {
+    const { conversationId } = req.query;
+    const list = await schedulerService.getScheduledMessages(req.user._id, conversationId);
+    return res.status(200).json({ success: true, data: list });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * DELETE /api/messages/scheduled/:id
+ */
+const cancelScheduledMessage = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await schedulerService.cancelScheduledMessage(req.user._id, id);
+    return res.status(200).json(result);
   } catch (error) {
     next(error);
   }
@@ -227,5 +350,9 @@ module.exports = {
   reactMessage,
   starMessage,
   forwardMessage,
-  markChatAsRead
+  markChatAsRead,
+  votePoll,
+  scheduleMessage,
+  getScheduledMessages,
+  cancelScheduledMessage
 };

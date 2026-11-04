@@ -293,10 +293,10 @@ export const AdminSupportPage = () => {
                     onClick={() => setSelectedTicket(ticket)}
                     className={`p-3 cursor-pointer transition text-xs relative ${
                       isSelected
-                        ? 'bg-orange-50/70 border-l-4 border-l-primary'
+                        ? 'bg-primary/10 border-l-4 border-l-primary'
                         : needsReply
-                        ? 'bg-amber-500/5 hover:bg-cream/50'
-                        : 'hover:bg-cream/50'
+                        ? 'bg-amber-500/5 hover:bg-card/50'
+                        : 'hover:bg-card/50'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-1 mb-1">
@@ -346,7 +346,7 @@ export const AdminSupportPage = () => {
                   <button
                     type="button"
                     onClick={() => setSelectedTicket(null)}
-                    className="md:hidden p-1.5 rounded-xl bg-cream hover:bg-orange-50/50 border border-line text-ink"
+                    className="md:hidden p-1.5 rounded-xl bg-card hover:bg-line/40 border border-line text-ink"
                   >
                     <ArrowLeft className="w-4 h-4" />
                   </button>
@@ -414,7 +414,7 @@ export const AdminSupportPage = () => {
                           input.focus();
                         }
                       }}
-                      className="px-2.5 py-1 rounded-full bg-cream hover:bg-orange-50/50 border border-line text-[11px] text-ink font-semibold whitespace-nowrap transition cursor-pointer"
+                      className="px-2.5 py-1 rounded-full bg-card hover:bg-line/40 border border-line text-[11px] text-ink font-semibold whitespace-nowrap transition cursor-pointer"
                       title={c.content}
                     >
                       {c.title}

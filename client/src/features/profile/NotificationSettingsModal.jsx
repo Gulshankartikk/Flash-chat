@@ -91,21 +91,21 @@ export const NotificationSettingsModal = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-[#1F2937] rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[#FED7AA] dark:border-white/10 p-6 space-y-6 animate-scale-up">
+      <div className="bg-card rounded-3xl max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-line p-6 space-y-6 animate-scale-up text-ink">
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-white/10">
+        <div className="flex items-center justify-between pb-4 border-b border-line">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-orange-50 text-[#F97316] flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-primary/15 text-primary flex items-center justify-center">
               <Bell className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-[#1F2937] dark:text-white">Push Notifications</h2>
-              <p className="text-xs text-[#6B7280] dark:text-white/60">Manage your alerts & quiet hours</p>
+              <h2 className="text-base font-bold text-ink">Push Notifications</h2>
+              <p className="text-xs text-muted">Manage your alerts & quiet hours</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-xl text-[#6B7280] hover:bg-gray-100 dark:hover:bg-white/10 transition"
+            className="p-2 rounded-xl text-muted hover:text-ink hover:bg-primary/10 transition"
             aria-label="Close notification settings"
           >
             <X className="w-4 h-4" />
@@ -114,11 +114,11 @@ export const NotificationSettingsModal = ({ isOpen, onClose }) => {
 
         {/* Permission State Feedback Banner */}
         {permission === 'denied' && (
-          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 dark:bg-rose-950/40 dark:border-rose-900 text-rose-700 dark:text-rose-300 text-xs flex items-start gap-3">
-            <ShieldAlert className="w-5 h-5 flex-shrink-0 text-[#F43F5E] mt-0.5" />
+          <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-accent text-xs flex items-start gap-3">
+            <ShieldAlert className="w-5 h-5 flex-shrink-0 text-accent mt-0.5" />
             <div>
               <p className="font-bold">Notifications Blocked by Browser</p>
-              <p className="text-[11px] mt-1 text-rose-600 dark:text-rose-400">
+              <p className="text-[11px] mt-1 text-accent/80">
                 Tap the lock or site settings icon in your browser address bar and set Notifications to "Allow".
               </p>
             </div>
@@ -126,21 +126,21 @@ export const NotificationSettingsModal = ({ isOpen, onClose }) => {
         )}
 
         {!isSupported && (
-          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center gap-3">
-            <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-600" />
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-500 text-xs flex items-center gap-3">
+            <AlertCircle className="w-4 h-4 flex-shrink-0 text-amber-500" />
             <span>Web Push notifications are not supported in this browser version.</span>
           </div>
         )}
 
         {/* Master Push Toggle */}
-        <div className="flex items-center justify-between p-4 rounded-2xl bg-[#FFF7ED] dark:bg-white/5 border border-[#FED7AA] dark:border-white/10">
+        <div className="flex items-center justify-between p-4 rounded-2xl bg-canvas border border-line">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#F97316] to-[#EC4899] flex items-center justify-center text-white">
+            <div className="w-8 h-8 rounded-xl bg-brand-gradient flex items-center justify-center text-white">
               {isSubscribed ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
             </div>
             <div>
-              <p className="text-xs font-bold text-[#1F2937] dark:text-white">Enable Push Notifications</p>
-              <p className="text-[11px] text-[#6B7280] dark:text-white/60">
+              <p className="text-xs font-bold text-ink">Enable Push Notifications</p>
+              <p className="text-[11px] text-muted">
                 {isSubscribed ? 'Active on this device' : 'Receive alerts even when app is closed'}
               </p>
             </div>
@@ -154,84 +154,84 @@ export const NotificationSettingsModal = ({ isOpen, onClose }) => {
               onChange={handleMasterToggle}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#F97316]"></div>
+            <div className="w-11 h-6 bg-line peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-line after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
           </label>
         </div>
 
         {/* Granular Notification Channels */}
         <div className="space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[#6B7280] dark:text-white/50 px-1">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted px-1">
             Notification Categories
           </h3>
 
           <div className="space-y-2">
             {/* Chat Messages */}
-            <div className="flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-white/5 hover:bg-gray-50/60 dark:hover:bg-white/5 transition">
+            <div className="flex items-center justify-between p-3 rounded-xl border border-line hover:bg-primary/5 transition">
               <div className="flex items-center gap-2.5">
-                <MessageSquare className="w-4 h-4 text-[#F97316]" />
-                <span className="text-xs font-medium text-[#1F2937] dark:text-white">Chat Messages</span>
+                <MessageSquare className="w-4 h-4 text-primary" />
+                <span className="text-xs font-medium text-ink">Chat Messages</span>
               </div>
               <input
                 type="checkbox"
                 checked={settings.pushMessages !== false}
                 onChange={(e) => handleSettingChange('pushMessages', e.target.checked)}
-                className="w-4 h-4 text-[#F97316] rounded border-gray-300 focus:ring-[#F97316]"
+                className="w-4 h-4 text-primary rounded border-line focus:ring-primary"
               />
             </div>
 
             {/* Calls */}
-            <div className="flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-white/5 hover:bg-gray-50/60 dark:hover:bg-white/5 transition">
+            <div className="flex items-center justify-between p-3 rounded-xl border border-line hover:bg-primary/5 transition">
               <div className="flex items-center gap-2.5">
-                <PhoneCall className="w-4 h-4 text-[#EC4899]" />
-                <span className="text-xs font-medium text-[#1F2937] dark:text-white">Incoming Calls</span>
+                <PhoneCall className="w-4 h-4 text-secondary" />
+                <span className="text-xs font-medium text-ink">Incoming Calls</span>
               </div>
               <input
                 type="checkbox"
                 checked={settings.pushCalls !== false}
                 onChange={(e) => handleSettingChange('pushCalls', e.target.checked)}
-                className="w-4 h-4 text-[#F97316] rounded border-gray-300 focus:ring-[#F97316]"
+                className="w-4 h-4 text-primary rounded border-line focus:ring-primary"
               />
             </div>
 
             {/* Social */}
-            <div className="flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-white/5 hover:bg-gray-50/60 dark:hover:bg-white/5 transition">
+            <div className="flex items-center justify-between p-3 rounded-xl border border-line hover:bg-primary/5 transition">
               <div className="flex items-center gap-2.5">
-                <Heart className="w-4 h-4 text-[#F43F5E]" />
-                <span className="text-xs font-medium text-[#1F2937] dark:text-white">Social Activity (Likes, Follows)</span>
+                <Heart className="w-4 h-4 text-accent" />
+                <span className="text-xs font-medium text-ink">Social Activity (Likes, Follows)</span>
               </div>
               <input
                 type="checkbox"
                 checked={settings.pushSocial !== false}
                 onChange={(e) => handleSettingChange('pushSocial', e.target.checked)}
-                className="w-4 h-4 text-[#F97316] rounded border-gray-300 focus:ring-[#F97316]"
+                className="w-4 h-4 text-primary rounded border-line focus:ring-primary"
               />
             </div>
 
             {/* Message Previews */}
-            <div className="flex items-center justify-between p-3 rounded-xl border border-gray-100 dark:border-white/5 hover:bg-gray-50/60 dark:hover:bg-white/5 transition">
+            <div className="flex items-center justify-between p-3 rounded-xl border border-line hover:bg-primary/5 transition">
               <div className="flex items-center gap-2.5">
-                <Eye className="w-4 h-4 text-[#6B7280]" />
+                <Eye className="w-4 h-4 text-muted" />
                 <div>
-                  <span className="text-xs font-medium text-[#1F2937] dark:text-white block">Show Message Previews</span>
-                  <span className="text-[10px] text-[#6B7280] dark:text-white/50">Display sender text in banner</span>
+                  <span className="text-xs font-medium text-ink block">Show Message Previews</span>
+                  <span className="text-[10px] text-muted">Display sender text in banner</span>
                 </div>
               </div>
               <input
                 type="checkbox"
                 checked={settings.pushPreview !== false}
                 onChange={(e) => handleSettingChange('pushPreview', e.target.checked)}
-                className="w-4 h-4 text-[#F97316] rounded border-gray-300 focus:ring-[#F97316]"
+                className="w-4 h-4 text-primary rounded border-line focus:ring-primary"
               />
             </div>
           </div>
         </div>
 
         {/* Quiet Hours Section */}
-        <div className="p-4 rounded-2xl bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 space-y-3">
+        <div className="p-4 rounded-2xl bg-canvas border border-line space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-[#F97316]" />
-              <h3 className="text-xs font-bold text-[#1F2937] dark:text-white">Quiet Hours</h3>
+              <Clock className="w-4 h-4 text-primary" />
+              <h3 className="text-xs font-bold text-ink">Quiet Hours</h3>
             </div>
             <input
               type="checkbox"
@@ -241,18 +241,18 @@ export const NotificationSettingsModal = ({ isOpen, onClose }) => {
                 setLocalQuiet(next);
                 updatePushSettings({ quietHours: next });
               }}
-              className="w-4 h-4 text-[#F97316] rounded border-gray-300 focus:ring-[#F97316]"
+              className="w-4 h-4 text-primary rounded border-line focus:ring-primary"
             />
           </div>
 
-          <p className="text-[11px] text-[#6B7280] dark:text-white/60">
+          <p className="text-[11px] text-muted">
             Mutes push notifications during sleep (urgent calls will still ring).
           </p>
 
           {localQuiet.enabled && (
             <div className="grid grid-cols-2 gap-3 pt-2">
               <div>
-                <label className="text-[10px] font-bold text-[#6B7280] uppercase">Starts At</label>
+                <label className="text-[10px] font-bold text-muted uppercase">Starts At</label>
                 <input
                   type="time"
                   value={localQuiet.start}
@@ -261,11 +261,11 @@ export const NotificationSettingsModal = ({ isOpen, onClose }) => {
                     setLocalQuiet(next);
                   }}
                   onBlur={handleQuietHoursSave}
-                  className="w-full mt-1 p-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1F2937] text-xs font-semibold"
+                  className="w-full mt-1 p-2 rounded-xl border border-line bg-card text-ink text-xs font-semibold"
                 />
               </div>
               <div>
-                <label className="text-[10px] font-bold text-[#6B7280] uppercase">Ends At</label>
+                <label className="text-[10px] font-bold text-muted uppercase">Ends At</label>
                 <input
                   type="time"
                   value={localQuiet.end}
@@ -274,7 +274,7 @@ export const NotificationSettingsModal = ({ isOpen, onClose }) => {
                     setLocalQuiet(next);
                   }}
                   onBlur={handleQuietHoursSave}
-                  className="w-full mt-1 p-2 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-[#1F2937] text-xs font-semibold"
+                  className="w-full mt-1 p-2 rounded-xl border border-line bg-card text-ink text-xs font-semibold"
                 />
               </div>
             </div>
@@ -286,7 +286,7 @@ export const NotificationSettingsModal = ({ isOpen, onClose }) => {
           <button
             onClick={handleSendTest}
             disabled={!isSubscribed || testStatus === 'sending'}
-            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[#FED7AA] bg-[#FFF7ED] text-xs font-bold text-[#F97316] hover:bg-orange-100/60 disabled:opacity-50 transition active:scale-95"
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-line bg-canvas text-xs font-bold text-primary hover:bg-primary/10 disabled:opacity-50 transition active:scale-95"
           >
             {testStatus === 'sending' ? (
               <span>Sending test alert...</span>

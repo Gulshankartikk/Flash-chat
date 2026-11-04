@@ -2,20 +2,39 @@ const express = require('express');
 const router = express.Router();
 const chatController = require('../controllers/chatController');
 const authMiddleware = require('../middleware/authMiddleware');
+const { chatByPhoneLimiter, dailyLookupLimiter } = require('../middleware/rateLimiter');
 
 router.use(authMiddleware);
 
 // Core conversation routes
 router.get('/', chatController.getUserChats);
+router.post('/', (req, res, next) => {
+  if (req.body && (req.body.isGroup || req.body.type === 'group' || Array.isArray(req.body.memberIds))) {
+    return chatController.createGroupChat(req, res, next);
+  }
+  return chatController.createOrGetDirectChat(req, res, next);
+});
 router.post('/direct', chatController.createOrGetDirectChat);
 router.post('/group', chatController.createGroupChat);
 router.get('/search/messages', chatController.searchMessages);
+
+// Start chat by phone & Pending conversation routes
+router.post('/by-phone', chatByPhoneLimiter, dailyLookupLimiter, chatController.startChatByPhone);
+router.get('/pending', chatController.getPendingConversations);
+router.post('/pending/:id/messages', chatController.queuePendingMessage);
+router.delete('/pending/:id', chatController.deletePendingConversation);
+
+// Message request actions
+router.post('/:id/accept', chatController.acceptMessageRequest);
+router.post('/:id/reject', chatController.rejectMessageRequest);
 
 // Invite routes
 router.get('/join/:inviteCode', chatController.joinByInvite);
 router.post('/join/:inviteCode', chatController.joinByInvite);
 
 // Specific conversation endpoints
+router.get('/:id/backup', chatController.exportBackup);
+router.post('/restore', chatController.restoreBackup);
 router.get('/:id', chatController.getChatById);
 router.patch('/:id', chatController.updateChat);
 router.patch('/:id/settings', chatController.updateChatSettings);

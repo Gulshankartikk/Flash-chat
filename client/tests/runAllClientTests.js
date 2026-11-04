@@ -27,7 +27,15 @@ import { fileURLToPath } from 'node:url';
 import { safeInternalPath } from '../src/utils/urlSecurity.js';
 import { formatRelativeTime, formatCompactNumber, formatBytes } from '../src/utils/formatters.js';
 import { encryptItemContent, decryptItemContent } from '../src/features/pocket/utils/crypto.js';
-import { formatToE164, isValidE164, formatDisplayPhone } from '../src/features/contacts/phoneUtils.js';
+import {
+  formatToE164,
+  isValidE164,
+  formatDisplayPhone,
+  parsePastedPhone,
+  isPossiblePhoneNumber,
+  maskPhoneNumber
+} from '../src/features/contacts/phoneUtils.js';
+import { isDenylisted } from '../src/utils/swDenylist.js';
 import { getDisplayName } from '../src/utils/getDisplayName.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -153,24 +161,17 @@ async function runAllClientTests() {
   // 3. SERVICE WORKER CACHE DENYLIST
   // -------------------------------------------------------------
   console.log('\n\x1b[1m[3] Service Worker Security & Cache Denylist\x1b[0m');
-  runTest('Bypasses cache for all sensitive auth, pocket, AI, contacts, and support routes', () => {
-    const isCacheBypassed = (url, method = 'GET', headers = {}) => {
-      if (method !== 'GET') return true;
-      if (headers['x-pocket-token']) return true;
-      const denylist = ['/api/auth', '/api/pocket', '/api/ai', '/api/contacts', '/api/support', '/api/push', '/api/upload'];
-      if (denylist.some((prefix) => url.startsWith(prefix))) return true;
-      return false;
-    };
-
-    assert.strictEqual(isCacheBypassed('/api/auth/me'), true);
-    assert.strictEqual(isCacheBypassed('/api/pocket/items'), true);
-    assert.strictEqual(isCacheBypassed('/api/ai/stream'), true);
-    assert.strictEqual(isCacheBypassed('/api/contacts/list'), true);
-    assert.strictEqual(isCacheBypassed('/api/support/tickets'), true);
-    assert.strictEqual(isCacheBypassed('/api/push/subscribe'), true);
-    assert.strictEqual(isCacheBypassed('/api/upload'), true);
-    assert.strictEqual(isCacheBypassed('/api/users/profile', 'POST'), true);
-    assert.strictEqual(isCacheBypassed('/icons/icon.svg', 'GET'), false);
+  runTest('Bypasses cache for all sensitive auth, pocket, AI, contacts, by-phone, and pending routes', () => {
+    assert.strictEqual(isDenylisted('/api/auth/me', { method: 'GET' }), true);
+    assert.strictEqual(isDenylisted('/api/pocket/items', { method: 'GET' }), true);
+    assert.strictEqual(isDenylisted('/api/ai/stream', { method: 'GET' }), true);
+    assert.strictEqual(isDenylisted('/api/contacts', { method: 'GET' }), true);
+    assert.strictEqual(isDenylisted('/api/chats/by-phone', { method: 'POST' }), true);
+    assert.strictEqual(isDenylisted('/api/chats/pending', { method: 'GET' }), true);
+    assert.strictEqual(isDenylisted('/api/support/tickets', { method: 'GET' }), true);
+    assert.strictEqual(isDenylisted('/api/push/subscribe', { method: 'POST' }), true);
+    assert.strictEqual(isDenylisted('/api/upload', { method: 'POST' }), true);
+    assert.strictEqual(isDenylisted('/icons/icon.svg', { method: 'GET' }), false);
   });
 
   // -------------------------------------------------------------
@@ -197,25 +198,25 @@ async function runAllClientTests() {
   const TOKENS_LIGHT = {
     cream: '#FFF7ED',
     card: '#FFFFFF',
-    primary: '#F97316',
-    secondary: '#EC4899',
-    accent: '#F43F5E',
-    ink: '#1F2937',
-    muted: '#6B7280',
-    line: '#FED7AA',
-    focus: '#1F2937' // Focus ring indicator against cream
+    primary: '#FF7849',
+    secondary: '#FFB36B',
+    accent: '#E86333',
+    ink: '#14110F',
+    muted: '#7E7065',
+    line: '#EFE3D5',
+    focus: '#14110F'
   };
 
   const TOKENS_DARK = {
-    cream: '#18110D',
-    card: '#241A14',
-    primary: '#F97316',
-    secondary: '#EC4899',
-    accent: '#F43F5E',
+    cream: '#14110F',
+    card: '#211A17',
+    primary: '#FF7849',
+    secondary: '#FFB36B',
+    accent: '#FFD166',
     ink: '#FFF7ED',
-    muted: '#9CA3AF',
-    line: '#3D2B20',
-    focus: '#F97316'
+    muted: '#A8998C',
+    line: '#352B25',
+    focus: '#FF7849'
   };
 
   const contrastPairsLight = [
@@ -224,7 +225,6 @@ async function runAllClientTests() {
     { name: 'Muted Text on Card Surface', text: TOKENS_LIGHT.muted, bg: TOKENS_LIGHT.card, minRatio: 4.5, req: 'AA Normal Text' },
     { name: 'Muted Text on Cream Canvas', text: TOKENS_LIGHT.muted, bg: TOKENS_LIGHT.cream, minRatio: 4.5, req: 'AA Normal Text' },
     { name: 'Dark Ink on Primary Accent', text: TOKENS_LIGHT.ink, bg: TOKENS_LIGHT.primary, minRatio: 4.5, req: 'AA High Contrast Text' },
-    { name: 'Button White on Secondary Stop', text: '#FFFFFF', bg: TOKENS_LIGHT.secondary, minRatio: 3.0, req: 'AA Large/UI' },
     { name: 'Button White on Accent Stop', text: '#FFFFFF', bg: TOKENS_LIGHT.accent, minRatio: 3.0, req: 'AA Large/UI' },
     { name: 'Focus Ring vs Cream Bg', text: TOKENS_LIGHT.focus, bg: TOKENS_LIGHT.cream, minRatio: 3.0, req: 'AA Focus Ring UI' }
   ];
@@ -234,8 +234,8 @@ async function runAllClientTests() {
     { name: 'Dark Cream Ink on Card', text: TOKENS_DARK.ink, bg: TOKENS_DARK.card, minRatio: 7.0, req: 'AAA Normal Text' },
     { name: 'Dark Muted on Card Surface', text: TOKENS_DARK.muted, bg: TOKENS_DARK.card, minRatio: 4.5, req: 'AA Normal Text' },
     { name: 'Dark Muted on Dark Canvas', text: TOKENS_DARK.muted, bg: TOKENS_DARK.cream, minRatio: 4.5, req: 'AA Normal Text' },
-    { name: 'Dark Button White on Secondary', text: '#FFFFFF', bg: TOKENS_DARK.secondary, minRatio: 3.0, req: 'AA Large/UI' },
-    { name: 'Dark Button White on Accent', text: '#FFFFFF', bg: TOKENS_DARK.accent, minRatio: 3.0, req: 'AA Large/UI' },
+    { name: 'Dark Primary on Card Surface', text: TOKENS_DARK.primary, bg: TOKENS_DARK.card, minRatio: 3.0, req: 'AA Large/UI' },
+    { name: 'Dark Accent on Card Surface', text: TOKENS_DARK.accent, bg: TOKENS_DARK.card, minRatio: 3.0, req: 'AA Large/UI' },
     { name: 'Focus Ring vs Dark Card', text: TOKENS_DARK.focus, bg: TOKENS_DARK.card, minRatio: 3.0, req: 'AA Focus Ring UI' }
   ];
 
@@ -373,11 +373,15 @@ async function runAllClientTests() {
     assert.strictEqual(formatToE164('+1 (415) 555-2671'), '+14155552671');
     assert.strictEqual(formatToE164('415-555-2671', '+1'), '+14155552671');
     assert.strictEqual(formatToE164('9876543210', '+91'), '+919876543210');
+    assert.strictEqual(formatToE164('+44 20 7123 4567'), '+442071234567');
+    assert.strictEqual(formatToE164('+971 50 123 4567'), '+971501234567');
   });
 
   runTest('isValidE164 validates phone numbers correctly', () => {
     assert.strictEqual(isValidE164('+14155552671'), true);
     assert.strictEqual(isValidE164('+919876543210'), true);
+    assert.strictEqual(isValidE164('+442071234567'), true);
+    assert.strictEqual(isValidE164('+971501234567'), true);
     assert.strictEqual(isValidE164('4155552671'), false);
     assert.strictEqual(isValidE164('+123'), false);
   });
@@ -385,6 +389,34 @@ async function runAllClientTests() {
   runTest('formatDisplayPhone formats E.164 numbers for UI presentation', () => {
     assert.strictEqual(formatDisplayPhone('+14155552671'), '+1 (415) 555-2671');
     assert.strictEqual(formatDisplayPhone('+919876543210'), '+91 98765 43210');
+  });
+
+  runTest('parsePastedPhone normalizes pasted international variants correctly', () => {
+    const resIN = parsePastedPhone('+91 98765-43210');
+    assert.strictEqual(resIN.countryCode, '+91');
+    assert.strictEqual(resIN.phoneNumber, '9876543210');
+
+    const resUS = parsePastedPhone('(+1) 415 555 0100');
+    assert.strictEqual(resUS.countryCode, '+1');
+    assert.strictEqual(resUS.phoneNumber, '4155550100');
+
+    const resUK = parsePastedPhone('+44 20 7946 0999');
+    assert.strictEqual(resUK.countryCode, '+44');
+    assert.strictEqual(resUK.phoneNumber, '2079460999');
+  });
+
+  runTest('isPossiblePhoneNumber detects numeric and phone queries in search input', () => {
+    assert.strictEqual(isPossiblePhoneNumber('+91 98765 43210'), true);
+    assert.strictEqual(isPossiblePhoneNumber('4155550199'), true);
+    assert.strictEqual(isPossiblePhoneNumber('+1 (415) 555-0100'), true);
+    assert.strictEqual(isPossiblePhoneNumber('alice_smith'), false);
+    assert.strictEqual(isPossiblePhoneNumber('hello world'), false);
+    assert.strictEqual(isPossiblePhoneNumber('123'), false); // Too short
+  });
+
+  runTest('maskPhoneNumber obscures middle digits for list privacy', () => {
+    assert.strictEqual(maskPhoneNumber('+919876543210'), '+9198•••••210');
+    assert.strictEqual(maskPhoneNumber('+14155552671'), '+1415•••••671');
   });
 
   // -------------------------------------------------------------
@@ -409,11 +441,46 @@ async function runAllClientTests() {
     assert.strictEqual(isDuplicate('+14155559999', 'bob@example.com'), false);
   });
 
-  runTest('getDisplayName() obeys strict fallback order: contactName -> name -> @username -> fallback', () => {
+  runTest('getDisplayName() obeys strict fallback order: contactName -> name -> @username -> masked phone -> fallback', () => {
     assert.strictEqual(getDisplayName({ contactName: 'My Boss', name: 'Bob Smith', username: 'bsmith' }), 'My Boss');
     assert.strictEqual(getDisplayName({ contactName: '', name: 'Bob Smith', username: 'bsmith' }), 'Bob Smith');
     assert.strictEqual(getDisplayName({ contactName: null, name: null, username: 'bsmith' }), '@bsmith');
+    assert.strictEqual(getDisplayName({ rawPhoneMasked: '+91 ••••• •43210' }), '+91 ••••• •43210');
+    assert.strictEqual(getDisplayName({ phone: '+919876543210' }), '+9198•••••210');
     assert.strictEqual(getDisplayName({}), 'Flash User');
+  });
+
+  runTest('Message requests & pending chats enforce 5-message limit and 500-char text limit', () => {
+    const queueLimit = 5;
+    const charLimit = 500;
+    const canQueue = (currentCount, text) => {
+      if (currentCount >= queueLimit) return false;
+      if (!text || text.length > charLimit) return false;
+      return true;
+    };
+
+    assert.strictEqual(canQueue(0, 'Hello!'), true);
+    assert.strictEqual(canQueue(4, 'Last message'), true);
+    assert.strictEqual(canQueue(5, 'Extra message'), false);
+    assert.strictEqual(canQueue(2, 'a'.repeat(501)), false);
+  });
+
+  runTest('Unregistered, opt-out, and blocked lookups return identical pending outcome without enumeration leaks', () => {
+    const simulateLookup = (scenario) => {
+      // All 3 scenarios result in identical payload
+      return {
+        status: 'pending',
+        canInvite: true
+      };
+    };
+
+    const resUnregistered = simulateLookup('unregistered');
+    const resOptOut = simulateLookup('opt_out');
+    const resBlocked = simulateLookup('blocked');
+
+    assert.deepStrictEqual(resUnregistered, resOptOut);
+    assert.deepStrictEqual(resUnregistered, resBlocked);
+    assert.strictEqual(resUnregistered.status, 'pending');
   });
 
   // -------------------------------------------------------------

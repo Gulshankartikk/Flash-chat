@@ -122,12 +122,12 @@ export const AiComposer = ({
   const isNearLimit = text.length > maxChars * 0.85;
 
   return (
-    <div className="p-3 sm:p-4 bg-card dark:bg-zinc-900 border-t border-line dark:border-zinc-800 shrink-0">
+    <div className="p-3 sm:p-4 bg-card border-t border-line shrink-0">
       {/* Attachment Previews */}
       {attachments.length > 0 && (
         <div className="flex items-center gap-2 mb-2.5 overflow-x-auto pb-1">
           {attachments.map((att, idx) => (
-            <div key={idx} className="relative group shrink-0 w-14 h-14 rounded-xl overflow-hidden border border-line dark:border-zinc-700 bg-cream">
+            <div key={idx} className="relative group shrink-0 w-14 h-14 rounded-xl overflow-hidden border border-line bg-cream">
               <img src={att.url} alt={att.name || 'Attachment'} className="w-full h-full object-cover" />
               <button
                 type="button"
@@ -141,7 +141,7 @@ export const AiComposer = ({
         </div>
       )}
 
-      <div className="relative flex items-end gap-2 bg-cream dark:bg-zinc-800 rounded-2xl border border-line dark:border-zinc-700 p-2 focus-within:ring-2 focus-within:ring-primary/40 focus-within:border-primary">
+      <div className="relative flex items-end gap-2 bg-cream rounded-2xl border border-line p-2 focus-within:ring-2 focus-within:ring-primary/40 focus-within:border-primary">
         {/* Hidden File Input */}
         <input
           type="file"
@@ -157,7 +157,7 @@ export const AiComposer = ({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={attachments.length >= 4 || isStreaming || disabled}
-          className="p-2 text-muted hover:text-primary dark:hover:text-pink-400 rounded-xl hover:bg-orange-50 dark:hover:bg-zinc-700 transition-colors disabled:opacity-40"
+          className="p-2 text-muted hover:text-primary rounded-xl hover:bg-primary/10 transition-colors disabled:opacity-40"
           title="Attach image (up to 4, max 5MB)"
           aria-label="Attach images"
         >

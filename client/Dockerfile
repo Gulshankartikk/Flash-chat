@@ -1,10 +1,10 @@
 # Build stage
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+RUN npm ci || npm install --no-audit --no-fund
 
 COPY . .
 RUN npm run build

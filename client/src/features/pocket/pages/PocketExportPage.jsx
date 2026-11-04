@@ -76,49 +76,49 @@ export const PocketExportPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FFF7ED] p-3 sm:p-6 max-w-3xl mx-auto space-y-6">
+    <div className="min-h-screen bg-canvas p-3 sm:p-6 max-w-3xl mx-auto space-y-6">
       {/* Navbar */}
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigate('/pocket/settings')}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#FED7AA] text-xs font-bold text-[#1F2937] hover:bg-[#FED7AA]/40 transition-colors shadow-sm"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-line text-xs font-bold text-ink hover:bg-line/40 transition-colors shadow-sm cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Settings</span>
         </button>
 
-        <h1 className="text-sm font-black text-[#1F2937]">Vault Data Export</h1>
+        <h1 className="text-sm font-black text-ink">Vault Data Export</h1>
       </div>
 
       {/* Main Export Box */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-[#FED7AA] shadow-sm space-y-6">
+      <div className="bg-card rounded-3xl p-6 sm:p-8 border border-line shadow-sm space-y-6">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-[#F97316] to-[#EC4899] text-white flex items-center justify-center shadow-md shadow-orange-500/20 flex-shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-brand-gradient text-white flex items-center justify-center shadow-md shadow-primary/20 flex-shrink-0">
             <FileArchive className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-base font-black text-[#1F2937]">Download Pocket Archive (.ZIP)</h2>
-            <p className="text-xs text-[#6B7280] mt-1 leading-relaxed">
+            <h2 className="text-base font-black text-ink">Download Pocket Archive (.ZIP)</h2>
+            <p className="text-xs text-muted mt-1 leading-relaxed">
               Generate a portable backup containing all your notes (as organized Markdown files), media links,
-              and a comprehensive <code className="text-[#F97316] font-mono font-bold">manifest.json</code>.
+              and a comprehensive <code className="text-primary font-mono font-bold">manifest.json</code>.
             </p>
           </div>
         </div>
 
         {/* Status Indicators & Progress */}
         {jobStatus === 'processing' && (
-          <div className="p-5 rounded-2xl bg-[#FFF7ED] border border-[#FED7AA] space-y-3">
-            <div className="flex items-center justify-between text-xs font-bold text-[#1F2937]">
+          <div className="p-5 rounded-2xl bg-canvas border border-line space-y-3">
+            <div className="flex items-center justify-between text-xs font-bold text-ink">
               <span className="flex items-center gap-2">
-                <Loader2 className="w-4 h-4 text-[#F97316] animate-spin" />
+                <Loader2 className="w-4 h-4 text-primary animate-spin" />
                 <span>Generating archive... ({progress}%)</span>
               </span>
               <span>Please keep this page open</span>
             </div>
 
-            <div className="w-full h-2 rounded-full bg-[#FED7AA]/50 overflow-hidden">
+            <div className="w-full h-2 rounded-full bg-line/50 overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-[#F97316] to-[#EC4899] transition-all duration-300"
+                className="h-full bg-brand-gradient transition-all duration-300"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -126,7 +126,7 @@ export const PocketExportPage = () => {
         )}
 
         {jobStatus === 'completed' && downloadUrl && (
-          <div className="p-5 rounded-2xl bg-cream border border-line space-y-3">
+          <div className="p-5 rounded-2xl bg-canvas border border-line space-y-3">
             <div className="flex items-center gap-2 text-xs font-bold text-ink">
               <CheckCircle2 className="w-4 h-4 text-primary" />
               <span>Archive ready for download!</span>
@@ -137,7 +137,7 @@ export const PocketExportPage = () => {
             <a
               href={downloadUrl}
               download
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-brand-gradient text-white text-xs font-bold shadow-soft transition-colors"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-brand-gradient text-white text-xs font-bold shadow-soft transition-colors cursor-pointer"
             >
               <Download className="w-4 h-4" />
               <span>Download ZIP Archive</span>
@@ -146,15 +146,15 @@ export const PocketExportPage = () => {
         )}
 
         {jobStatus === 'failed' && (
-          <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-700 space-y-2">
+          <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 space-y-2">
             <div className="flex items-center gap-1.5 font-bold">
-              <AlertCircle className="w-4 h-4 text-rose-600" />
+              <AlertCircle className="w-4 h-4 text-rose-400" />
               <span>Export Failed</span>
             </div>
             <p>{errorMessage}</p>
             <button
               onClick={handleStartExport}
-              className="px-3.5 py-1.5 rounded-xl bg-white border border-rose-300 text-rose-700 font-bold text-xs hover:bg-rose-100 flex items-center gap-1"
+              className="px-3.5 py-1.5 rounded-xl bg-card border border-rose-500/30 text-rose-300 font-bold text-xs hover:bg-rose-500/20 flex items-center gap-1 cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Retry Export</span>
@@ -166,7 +166,7 @@ export const PocketExportPage = () => {
         {jobStatus === 'idle' && (
           <button
             onClick={handleStartExport}
-            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white text-xs font-bold shadow-md shadow-orange-500/20 hover:opacity-95 transition-opacity flex items-center justify-center gap-2"
+            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-brand-gradient text-white text-xs font-bold shadow-md shadow-primary/20 hover:opacity-95 transition-opacity flex items-center justify-center gap-2 cursor-pointer"
           >
             <Download className="w-4 h-4" />
             <span>Start Vault Export</span>
@@ -174,12 +174,12 @@ export const PocketExportPage = () => {
         )}
 
         {/* Security Disclaimers & Details */}
-        <div className="pt-4 border-t border-[#FED7AA]/60 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <div className="p-3.5 rounded-2xl bg-[#FFF7ED] border border-[#FED7AA]/60 flex items-start gap-2.5">
-            <ShieldCheck className="w-4 h-4 text-[#F97316] flex-shrink-0 mt-0.5" />
+        <div className="pt-4 border-t border-line grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div className="p-3.5 rounded-2xl bg-canvas border border-line flex items-start gap-2.5">
+            <ShieldCheck className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-bold text-[#1F2937]">Locked Items</h4>
-              <p className="text-[11px] text-[#6B7280] mt-0.5">
+              <h4 className="font-bold text-ink">Locked Items</h4>
+              <p className="text-[11px] text-muted mt-0.5">
                 {isUnlocked
                   ? 'Vault is currently unlocked. Locked items will be included in the export.'
                   : 'Vault is currently locked. Locked items are excluded from the export.'}
@@ -187,11 +187,11 @@ export const PocketExportPage = () => {
             </div>
           </div>
 
-          <div className="p-3.5 rounded-2xl bg-[#FFF7ED] border border-[#FED7AA]/60 flex items-start gap-2.5">
+          <div className="p-3.5 rounded-2xl bg-canvas border border-line flex items-start gap-2.5">
             <KeyRound className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="font-bold text-[#1F2937]">Client Encryption</h4>
-              <p className="text-[11px] text-[#6B7280] mt-0.5">
+              <h4 className="font-bold text-ink">Client Encryption</h4>
+              <p className="text-[11px] text-muted mt-0.5">
                 Client-encrypted items are exported as AES ciphertext. They remain zero-knowledge protected.
               </p>
             </div>

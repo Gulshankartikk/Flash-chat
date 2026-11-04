@@ -24,6 +24,9 @@ const notificationSchema = new mongoose.Schema(
         'follow_accepted',
         'mention',
         'story_reply',
+        'story_reaction',
+        'missed_call',
+        'message',
         'share'
       ],
       required: true,
@@ -32,7 +35,7 @@ const notificationSchema = new mongoose.Schema(
     target: {
       kind: {
         type: String,
-        enum: ['post', 'reel', 'story', 'comment', 'user'],
+        enum: ['post', 'reel', 'story', 'comment', 'user', 'conversation', 'call'],
         default: 'post'
       },
       refId: {

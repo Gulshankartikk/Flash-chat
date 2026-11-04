@@ -15,6 +15,8 @@ const redisService = require('../services/redisService');
 const config = require('../config/env');
 const logger = require('../utils/logger');
 
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // --- Zod Validation Schemas ---
 
 const createItemSchema = z.object({
@@ -219,7 +221,7 @@ const pocketController = {
         } else if (type === 'ai') {
           query.type = 'ai_answer';
         } else {
-          query.type = type;
+          query.type = { $eq: type };
         }
       }
 
@@ -227,14 +229,16 @@ const pocketController = {
       if (folder) {
         if (folder === 'none' || folder === 'unorganized') {
           query.folder = null;
+        } else if (typeof folder === 'string' && /^[0-9a-fA-F]{24}$/.test(folder)) {
+          query.folder = { $eq: folder };
         } else {
-          query.folder = folder;
+          return res.status(400).json({ success: false, message: 'Invalid folder ID.' });
         }
       }
 
       // Filter: Tag
-      if (tag) {
-        query.tags = tag.toLowerCase().trim();
+      if (tag && typeof tag === 'string') {
+        query.tags = { $eq: tag.toLowerCase().trim() };
       }
 
       // Filter: Favorite
@@ -249,7 +253,7 @@ const pocketController = {
 
       // Filter: Search query (case-insensitive title/content/tags)
       if (q && q.trim()) {
-        const regex = new RegExp(q.trim(), 'i');
+        const regex = new RegExp(escapeRegex(q.trim()), 'i');
         query.$or = [
           { title: regex },
           { content: regex },
@@ -1170,15 +1174,15 @@ const pocketController = {
       }
 
       if (type && type !== 'all') {
-        query.type = type;
+        query.type = { $eq: type };
       }
 
-      if (tag) {
-        query.tags = tag.toLowerCase().trim();
+      if (tag && typeof tag === 'string') {
+        query.tags = { $eq: tag.toLowerCase().trim() };
       }
 
       if (q && q.trim()) {
-        const regex = new RegExp(q.trim(), 'i');
+        const regex = new RegExp(escapeRegex(q.trim()), 'i');
         // Search text or regex match on title, content, or tags
         // Exclude client-encrypted ciphertext from text regex matching to avoid garbled false positives
         query.$or = [
@@ -1211,7 +1215,7 @@ const pocketController = {
       const { kind = 'chat_message' } = req.query;
       const items = await PocketItem.find({
         owner: req.user._id,
-        'source.kind': kind,
+        'source.kind': { $eq: kind },
         deletedAt: null
       }).select('source.refId').lean();
 

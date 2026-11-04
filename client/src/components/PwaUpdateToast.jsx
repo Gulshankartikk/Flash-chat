@@ -60,21 +60,21 @@ export const PwaUpdateToast = () => {
 
   return (
     <div className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-md w-[92%] sm:w-auto animate-bounce-in">
-      <div className="bg-[#1F2937] text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-white/10 flex items-center justify-between gap-4">
+      <div className="bg-card text-ink px-5 py-3.5 rounded-2xl shadow-2xl border border-line flex items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#F97316] to-[#EC4899] flex items-center justify-center flex-shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-brand-gradient flex items-center justify-center flex-shrink-0">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div className="text-left">
-            <p className="text-xs font-bold text-white leading-tight">New update available</p>
-            <p className="text-[11px] text-white/70">Reload to get the latest features</p>
+            <p className="text-xs font-bold text-ink leading-tight">New update available</p>
+            <p className="text-[11px] text-muted">Reload to get the latest features</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
           <button
             onClick={handleReload}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#F97316] to-[#EC4899] hover:opacity-90 text-white text-xs font-bold shadow-md transition active:scale-95"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-gradient hover:opacity-90 text-white text-xs font-bold shadow-md transition active:scale-95"
           >
             <RefreshCw className="w-3.5 h-3.5 animate-spin-slow" />
             <span>Reload</span>

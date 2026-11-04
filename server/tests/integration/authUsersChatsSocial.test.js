@@ -205,6 +205,7 @@ async function runAuthUsersChatsSocialTests() {
   console.log('======================================================\n');
 
   if (failed > 0) process.exit(1);
+  process.exit(0);
 }
 
 if (require.main === module) {

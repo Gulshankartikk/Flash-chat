@@ -33,4 +33,31 @@
   .min-h-dvh {
     min-height: 100dvh;
   }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 120, 73, 0.45) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 120, 73, 0.4);
+    border-radius: 9999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 120, 73, 0.75);
+  }
+  .dark .scrollbar-thin {
+    scrollbar-color: rgba(255, 179, 107, 0.35) transparent;
+  }
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 179, 107, 0.3);
+  }
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 179, 107, 0.6);
+  }
 }

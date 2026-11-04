@@ -24,13 +24,13 @@ export const AiButton = ({
 
   const variantClasses = {
     primary:
-      'bg-gradient-to-r from-primary via-secondary to-accent text-white shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35 hover:brightness-105',
+      'bg-brand-gradient text-white shadow-md shadow-primary/25 hover:shadow-lg hover:shadow-primary/35 hover:brightness-105',
     secondary:
-      'bg-cream dark:bg-zinc-800 text-ink dark:text-cream border border-line dark:border-zinc-700 hover:border-primary/50 hover:bg-orange-50 dark:hover:bg-zinc-700',
+      'bg-cream text-ink border border-line hover:border-primary/50 hover:bg-primary/10',
     ghost:
-      'text-primary hover:bg-primary/10 dark:text-pink-400 dark:hover:bg-pink-400/10',
+      'text-primary hover:bg-primary/10',
     chip:
-      'bg-card dark:bg-zinc-800 border border-line dark:border-zinc-700 text-ink dark:text-zinc-200 text-xs px-3 py-1.5 rounded-full hover:border-primary hover:text-primary dark:hover:border-pink-400 dark:hover:text-pink-400 shadow-sm'
+      'bg-card border border-line text-ink text-xs px-3 py-1.5 rounded-full hover:border-primary hover:text-primary shadow-sm'
   }[variant];
 
   return (

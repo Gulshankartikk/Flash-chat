@@ -22,36 +22,41 @@ class MediaService {
     const resourceType = options.resource_type || 'auto';
 
     if (isCloudinaryConfigured) {
-      return new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(
-          {
-            folder,
-            resource_type: resourceType
-          },
-          (error, result) => {
-            if (error) {
-              logger.error({ err: error.message }, 'Cloudinary upload error');
-              return reject(error);
+      try {
+        return await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              folder,
+              resource_type: resourceType
+            },
+            (error, result) => {
+              if (error) {
+                logger.error({ err: error.message }, 'Cloudinary upload error - falling back to local storage');
+                return reject(error);
+              }
+              resolve({
+                url: result.secure_url,
+                public_id: result.public_id,
+                resource_type: result.resource_type,
+                bytes: result.bytes,
+                format: result.format
+              });
             }
-            resolve({
-              url: result.secure_url,
-              public_id: result.public_id,
-              resource_type: result.resource_type,
-              bytes: result.bytes,
-              format: result.format
-            });
-          }
-        );
+          );
 
-        if (file.buffer) {
-          uploadStream.end(file.buffer);
-        } else if (file.path) {
-          fs.createReadStream(file.path).pipe(uploadStream);
-        } else {
-          reject(new Error('Invalid file payload: No buffer or path provided.'));
-        }
-      });
+          if (file.buffer) {
+            uploadStream.end(file.buffer);
+          } else if (file.path) {
+            fs.createReadStream(file.path).pipe(uploadStream);
+          } else {
+            reject(new Error('Invalid file payload: No buffer or path provided.'));
+          }
+        });
+      } catch (err) {
+        logger.warn({ err: err.message }, 'Cloudinary upload stream failed, using local disk fallback');
+      }
     }
+
 
     // Fallback: Local disk storage
     const ext = path.extname(file.originalname || '.png') || '.png';

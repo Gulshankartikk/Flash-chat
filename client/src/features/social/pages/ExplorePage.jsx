@@ -9,9 +9,12 @@ import {
   TrendingUp,
   Users,
   Hash,
-  FileText
+  FileText,
+  Sparkles,
+  UserPlus,
+  UserCheck
 } from 'lucide-react';
-import { fetchExplore, searchSocialApi } from '../api/api';
+import { fetchExplore, searchSocialApi, fetchRecommendationsApi, followUserApi } from '../api/api';
 import { SocialAvatar } from '../components/SocialAvatar';
 import { PostViewerModal } from '../components/PostViewerModal';
 
@@ -37,7 +40,31 @@ export const ExplorePage = () => {
   // Selected item modal viewer
   const [activePostId, setActivePostId] = useState(null);
 
+  // Recommendations state
+  const [recommendations, setRecommendations] = useState([]);
+  const [followedMap, setFollowedMap] = useState({});
+
   const observerRef = useRef(null);
+
+  // Load recommendations
+  useEffect(() => {
+    fetchRecommendationsApi()
+      .then((res) => {
+        if (res.success && Array.isArray(res.data)) {
+          setRecommendations(res.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleFollowRecommendation = async (userId) => {
+    setFollowedMap((prev) => ({ ...prev, [userId]: true }));
+    try {
+      await followUserApi(userId);
+    } catch (e) {
+      setFollowedMap((prev) => ({ ...prev, [userId]: false }));
+    }
+  };
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -137,21 +164,21 @@ export const ExplorePage = () => {
   return (
     <div className="w-full max-w-2xl mx-auto space-y-4 pb-20">
       {/* Sticky Search Bar */}
-      <div className="sticky top-14 z-20 bg-[#FFF7ED]/95 backdrop-blur-md pt-1 pb-2 space-y-2">
-        <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-white border border-[#FED7AA] shadow-xs">
-          <Search className="w-4 h-4 text-[#6B7280]" />
+      <div className="sticky top-14 z-20 bg-canvas/95 backdrop-blur-md pt-1 pb-2 space-y-2">
+        <div className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-card border border-line shadow-xs">
+          <Search className="w-4 h-4 text-muted" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search creators, #hashtags, or posts..."
-            className="w-full text-xs text-[#1F2937] bg-transparent focus:outline-hidden"
+            className="w-full text-xs text-ink bg-transparent focus:outline-hidden"
           />
           {query && (
             <button
               type="button"
               onClick={() => setQuery('')}
-              className="p-1 rounded-full text-[#6B7280] hover:text-[#1F2937] hover:bg-orange-50 cursor-pointer"
+              className="p-1 rounded-full text-muted hover:text-ink hover:bg-primary/10 cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -175,8 +202,8 @@ export const ExplorePage = () => {
                   onClick={() => setSearchTab(tab.id)}
                   className={`px-3 py-1 rounded-full text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
                     isActive
-                      ? 'bg-gradient-to-r from-[#F97316] to-[#EC4899] text-white shadow-xs'
-                      : 'bg-white border border-[#FED7AA] text-[#6B7280] hover:text-[#1F2937]'
+                      ? 'bg-brand-gradient text-white shadow-xs'
+                      : 'bg-card border border-line text-muted hover:text-ink'
                   }`}
                 >
                   <Icon className="w-3 h-3" />
@@ -190,13 +217,13 @@ export const ExplorePage = () => {
 
       {/* Mode 1: Search Active */}
       {query.trim() ? (
-        <div className="bg-white rounded-3xl border border-[#FED7AA]/60 p-4 shadow-xs">
+        <div className="bg-card rounded-3xl border border-line p-4 shadow-xs">
           {isSearching ? (
             <div className="py-8 flex justify-center">
-              <div className="w-6 h-6 border-2 border-[#F97316] border-t-transparent rounded-full animate-spin" />
+              <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : searchResults.length === 0 ? (
-            <div className="py-8 text-center text-[#6B7280] text-xs">
+            <div className="py-8 text-center text-muted text-xs">
               No results found for "{query}".
             </div>
           ) : (
@@ -213,26 +240,26 @@ export const ExplorePage = () => {
                       });
                       navigate(`/u/${user.username}`);
                     }}
-                    className="flex items-center justify-between p-2 rounded-2xl hover:bg-orange-50/70 transition cursor-pointer"
+                    className="flex items-center justify-between p-2 rounded-2xl hover:bg-primary/10 transition cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
                       <SocialAvatar src={user.avatar} alt={user.username} size="sm" />
                       <div>
                         <div className="flex items-center gap-1">
-                          <span className="text-xs font-bold text-[#1F2937]">
+                          <span className="text-xs font-bold text-ink">
                             {user.username}
                           </span>
                           {user.isVerified && (
-                            <span className="w-3 h-3 rounded-full bg-[#F97316] text-white text-[8px] flex items-center justify-center font-bold">
+                            <span className="w-3 h-3 rounded-full bg-primary text-white text-[8px] flex items-center justify-center font-bold">
                               ✓
                             </span>
                           )}
                         </div>
-                        <span className="text-[11px] text-[#6B7280]">{user.name}</span>
+                        <span className="text-[11px] text-muted">{user.name}</span>
                       </div>
                     </div>
                     {user.followersCount !== undefined && (
-                      <span className="text-[11px] text-[#6B7280]">
+                      <span className="text-[11px] text-muted">
                         {user.followersCount} followers
                       </span>
                     )}
@@ -247,15 +274,15 @@ export const ExplorePage = () => {
                       saveRecentSearch({ type: 'tag', value: t.tag, label: `#${t.tag}` });
                       navigate(`/social/hashtag/${t.tag}`);
                     }}
-                    className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-orange-50/70 transition cursor-pointer"
+                    className="flex items-center justify-between p-2.5 rounded-2xl hover:bg-primary/10 transition cursor-pointer"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-orange-100 text-[#F97316] flex items-center justify-center font-black text-sm">
+                      <div className="w-9 h-9 rounded-full bg-primary/20 text-primary flex items-center justify-center font-black text-sm">
                         #
                       </div>
                       <div>
-                        <span className="text-xs font-bold text-[#1F2937]">#{t.tag}</span>
-                        <p className="text-[10px] text-[#6B7280]">{t.count} posts</p>
+                        <span className="text-xs font-bold text-ink">#{t.tag}</span>
+                        <p className="text-[10px] text-muted">{t.count} posts</p>
                       </div>
                     </div>
                   </div>
@@ -286,16 +313,16 @@ export const ExplorePage = () => {
         <>
           {/* Recent Searches (if any) */}
           {recentSearches.length > 0 && (
-            <div className="bg-white rounded-3xl border border-[#FED7AA]/60 p-3.5 shadow-xs space-y-2">
+            <div className="bg-card rounded-3xl border border-line p-3.5 shadow-xs space-y-2">
               <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-bold text-[#1F2937] flex items-center gap-1.5">
-                  <History className="w-3.5 h-3.5 text-[#F97316]" />
+                <span className="text-xs font-bold text-ink flex items-center gap-1.5">
+                  <History className="w-3.5 h-3.5 text-primary" />
                   <span>Recent Searches</span>
                 </span>
                 <button
                   type="button"
                   onClick={clearAllRecent}
-                  className="text-[11px] font-bold text-[#F97316] hover:underline cursor-pointer"
+                  className="text-[11px] font-bold text-primary hover:underline cursor-pointer"
                 >
                   Clear all
                 </button>
@@ -309,7 +336,7 @@ export const ExplorePage = () => {
                       if (item.type === 'tag') navigate(`/social/hashtag/${item.value}`);
                       else navigate(`/u/${item.value}`);
                     }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#FFF7ED] border border-[#FED7AA] text-xs font-semibold text-[#1F2937] hover:border-[#F97316] transition cursor-pointer flex-shrink-0"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-canvas border border-line text-xs font-semibold text-ink hover:border-primary transition cursor-pointer flex-shrink-0"
                   >
                     <span>{item.label}</span>
                     <button
@@ -318,7 +345,7 @@ export const ExplorePage = () => {
                         e.stopPropagation();
                         removeRecentSearch(item.value);
                       }}
-                      className="text-[#6B7280] hover:text-[#F43F5E]"
+                      className="text-muted hover:text-accent"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -328,11 +355,75 @@ export const ExplorePage = () => {
             </div>
           )}
 
+          {/* Suggested Creators Carousel */}
+          {recommendations.length > 0 && (
+            <div className="bg-card rounded-3xl border border-line p-3.5 shadow-xs space-y-2.5">
+              <div className="flex items-center gap-1.5 px-1">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-bold text-ink">Suggested For You</span>
+              </div>
+              <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
+                {recommendations.map((rec) => {
+                  const isFollowed = Boolean(followedMap[rec._id]);
+                  return (
+                    <div
+                      key={rec._id}
+                      className="flex flex-col items-center p-3 rounded-2xl bg-cream border border-line min-w-[130px] max-w-[140px] text-center shrink-0 space-y-1.5 shadow-xs"
+                    >
+                      <div
+                        onClick={() => navigate(`/u/${rec.username}`)}
+                        className="cursor-pointer"
+                      >
+                        <SocialAvatar
+                          src={rec.avatar}
+                          alt={rec.username}
+                          size="md"
+                        />
+                      </div>
+                      <div
+                        onClick={() => navigate(`/u/${rec.username}`)}
+                        className="w-full cursor-pointer"
+                      >
+                        <p className="text-xs font-bold text-ink truncate">
+                          {rec.name || rec.username}
+                        </p>
+                        <p className="text-[10px] text-muted truncate">
+                          @{rec.username}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleFollowRecommendation(rec._id)}
+                        className={`w-full py-1 rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                          isFollowed
+                            ? 'bg-cream text-muted border border-line'
+                            : 'bg-brand-gradient text-white shadow-xs hover:opacity-95'
+                        }`}
+                      >
+                        {isFollowed ? (
+                          <>
+                            <UserCheck className="w-3 h-3" />
+                            <span>Requested</span>
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="w-3 h-3" />
+                            <span>Follow</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Masonry / Grid of Trending Posts */}
-          <div className="bg-white rounded-3xl border border-[#FED7AA]/60 p-2 sm:p-3 shadow-xs">
+          <div className="bg-card rounded-3xl border border-line p-2 sm:p-3 shadow-xs">
             <div className="flex items-center gap-1.5 px-2 py-1.5 mb-2">
-              <TrendingUp className="w-4 h-4 text-[#F97316]" />
-              <span className="text-xs font-bold text-[#1F2937]">Trending & Discover</span>
+              <TrendingUp className="w-4 h-4 text-primary" />
+              <span className="text-xs font-bold text-ink">Trending & Discover</span>
             </div>
 
             {loading ? (
@@ -340,12 +431,12 @@ export const ExplorePage = () => {
                 {Array.from({ length: 9 }).map((_, i) => (
                   <div
                     key={i}
-                    className="aspect-square rounded-2xl bg-[#FED7AA]/30 animate-pulse"
+                    className="aspect-square rounded-2xl bg-line/30 animate-pulse"
                   />
                 ))}
               </div>
             ) : exploreItems.length === 0 ? (
-              <div className="py-12 text-center text-[#6B7280] text-xs">
+              <div className="py-12 text-center text-muted text-xs">
                 No trending posts found. Start sharing!
               </div>
             ) : (
@@ -399,7 +490,7 @@ export const ExplorePage = () => {
 
             {fetchingMore && (
               <div className="flex justify-center py-4">
-                <div className="w-6 h-6 border-2 border-[#F97316] border-t-transparent rounded-full animate-spin" />
+                <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               </div>
             )}
           </div>

@@ -16,6 +16,7 @@ const { apiLimiter } = require('./middleware/rateLimiter');
 const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
 const mailer = require('./services/mailer/mailerService');
 const { initSocketIO } = require('./sockets/socketHandler');
+const { initScheduler, stopScheduler } = require('./services/schedulerService');
 
 // Route imports
 const authRoutes = require('./routes/authRoutes');
@@ -63,6 +64,7 @@ const io = new Server(server, {
 });
 
 initSocketIO(io);
+initScheduler(io);
 
 // Pass io to Express requests
 app.use((req, res, next) => {
@@ -121,6 +123,13 @@ app.use(mongoSanitize());
 const csrfProtection = (req, res, next) => {
   if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) {
     const origin = req.headers.origin || req.headers.referer;
+    if (!origin && req.cookies?.refreshToken) {
+      return res.status(403).json({
+        success: false,
+        code: 'CSRF_ORIGIN_REQUIRED',
+        message: 'Cross-site request blocked.'
+      });
+    }
     if (origin) {
       try {
         const originUrl = new URL(origin);
@@ -216,6 +225,7 @@ const pushRoutes = require('./routes/pushRoutes');
 app.use('/api', apiLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/chats', chatRoutes);
+app.use('/api/conversations', chatRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/mail', mailRoutes);
@@ -266,6 +276,15 @@ const startServer = async () => {
     // 1. Connect MongoDB
     await connectDB();
 
+    // Clean up any stale online presence flags from previous crashes/restarts
+    try {
+      const User = require('./models/User');
+      await User.updateMany({ isOnline: true }, { isOnline: false });
+      logger.info('Cleaned up stale online presence flags on server start');
+    } catch (e) {
+      logger.warn({ err: e.message }, 'Failed to reset stale online flags');
+    }
+
     // 2. Verify Nodemailer SMTP at server startup (Item 4 Requirement)
     await mailer.verifyConnection();
 
@@ -273,6 +292,14 @@ const startServer = async () => {
     schedulePocketTrashCleanup();
 
     // 4. Start HTTP + Socket.IO Server
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        logger.error(`Port ${config.PORT} is currently in use. Please ensure previous instances are terminated.`);
+      } else {
+        logger.fatal({ err: err.message }, 'Server encountered an unexpected error');
+      }
+    });
+
     server.listen(config.PORT, () => {
       logger.info(
         `⚡ Flash Chat Server is actively listening on http://localhost:${config.PORT} [${config.NODE_ENV}]`
@@ -294,6 +321,7 @@ const gracefulShutdown = async (signal) => {
   server.close(async () => {
     logger.info('HTTP & Socket.IO server closed.');
     try {
+      stopScheduler();
       await mailer.close();
       const mongoose = require('mongoose');
       await mongoose.connection.close(false);

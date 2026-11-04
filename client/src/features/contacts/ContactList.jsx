@@ -11,12 +11,15 @@ import {
   Send,
   AlertCircle,
   RefreshCw,
-  Sparkles
+  Sparkles,
+  MessageSquare
 } from 'lucide-react';
 import { Avatar } from '../../components/Avatar';
 import { Skeleton } from '../../components/Skeleton';
 import { EmptyState } from '../../components/EmptyState';
 import { Button } from '../../components/Button';
+import { useChatStore } from '../../store/useChatStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { formatDisplayPhone } from './phoneUtils';
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('');
@@ -27,6 +30,7 @@ export const ContactList = ({
   error = null,
   onRetry,
   onSelectContact,
+  onMessageContact,
   onAddContact,
   onInviteContact
 }) => {
@@ -35,14 +39,15 @@ export const ContactList = ({
 
   // Filter contacts by search query
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim().toLowerCase().replace(/^@/, '');
     if (!q) return contacts;
     return contacts.filter((c) => {
       const nameMatch = c.name?.toLowerCase().includes(q);
+      const usernameMatch = c.linkedUser?.username?.toLowerCase().includes(q);
       const phoneMatch = c.phone?.includes(q);
       const emailMatch = c.email?.toLowerCase().includes(q);
       const noteMatch = c.note?.toLowerCase().includes(q);
-      return nameMatch || phoneMatch || emailMatch || noteMatch;
+      return nameMatch || usernameMatch || phoneMatch || emailMatch || noteMatch;
     });
   }, [contacts, search]);
 
@@ -167,6 +172,7 @@ export const ContactList = ({
                       key={contact._id}
                       contact={contact}
                       onSelect={() => onSelectContact && onSelectContact(contact)}
+                      onMessage={() => onMessageContact && onMessageContact(contact)}
                       onInvite={(e) => {
                         e.stopPropagation();
                         if (onInviteContact) onInviteContact(contact);
@@ -193,6 +199,7 @@ export const ContactList = ({
                       key={contact._id}
                       contact={contact}
                       onSelect={() => onSelectContact && onSelectContact(contact)}
+                      onMessage={() => onMessageContact && onMessageContact(contact)}
                       onInvite={(e) => {
                         e.stopPropagation();
                         if (onInviteContact) onInviteContact(contact);
@@ -238,29 +245,55 @@ export const ContactList = ({
   );
 };
 
-const ContactRow = ({ contact, onSelect, onInvite }) => {
+const ContactRow = ({ contact, onSelect, onMessage, onInvite }) => {
+  const { onlineUsers } = useChatStore();
+  const { user } = useAuthStore();
+  const currentUserId = user?._id ? String(user._id) : '';
   const isLinked = Boolean(contact.linkedUser);
-  const subtitle = [
-    contact.phone ? formatDisplayPhone(contact.phone) : null,
-    contact.email
-  ].filter(Boolean).join(' • ');
+  const linkedUserId = contact.linkedUser?._id
+    ? String(contact.linkedUser._id)
+    : contact.linkedUser
+    ? String(contact.linkedUser)
+    : null;
+  const isSelf =
+    (linkedUserId && linkedUserId === currentUserId) ||
+    (user?.phoneNumber && contact.phone && contact.phone.trim() === user.phoneNumber.trim()) ||
+    (user?.email && contact.email && contact.email.toLowerCase().trim() === user.email.toLowerCase().trim());
+  const isOnline = isSelf
+    ? true
+    : linkedUserId
+    ? (onlineUsers instanceof Set ? onlineUsers.has(linkedUserId) : false) || Boolean(contact.linkedUser?.isOnline)
+    : false;
+  const subtitle = isSelf
+    ? 'Message yourself'
+    : [
+        contact.phone ? formatDisplayPhone(contact.phone) : null,
+        contact.email
+      ].filter(Boolean).join(' • ');
 
   return (
     <div
       onClick={onSelect}
-      className="flex items-center justify-between p-3 bg-card hover:bg-orange-50/40 border border-line rounded-2xl cursor-pointer transition shadow-xs group"
+      className="flex items-center justify-between p-3 bg-card hover:bg-primary/10 border border-line rounded-2xl cursor-pointer transition shadow-xs group"
     >
       <div className="flex items-center gap-3 min-w-0">
         <Avatar
-          src={contact.avatar || contact.linkedUser?.avatar}
-          name={contact.name}
+          src={contact.avatar || contact.linkedUser?.avatar || (isSelf ? user?.avatar : undefined)}
+          name={isSelf ? 'You' : contact.name}
           size="md"
+          isOnline={isOnline}
+          showStatus={isLinked || isSelf}
         />
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-bold text-ink truncate group-hover:text-primary transition-colors">
               {contact.name}
             </span>
+            {isSelf && (
+              <span className="text-[10px] bg-primary/10 text-primary font-bold px-1.5 py-0.2 rounded-full">
+                You
+              </span>
+            )}
             {contact.isFavorite && (
               <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" />
             )}
@@ -275,8 +308,27 @@ const ContactRow = ({ contact, onSelect, onInvite }) => {
       </div>
 
       <div className="flex items-center gap-2 shrink-0">
-        {isLinked ? (
-          <span className="px-2.5 py-1 rounded-full bg-primary/15 text-primary text-[11px] font-bold flex items-center gap-1">
+        {onMessage && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onMessage(contact);
+            }}
+            className="px-3 py-1.5 rounded-xl bg-primary text-white hover:bg-primary/90 text-xs font-bold flex items-center gap-1.5 shadow-xs transition active:scale-95 cursor-pointer"
+            title="Chat with contact"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>Chat</span>
+          </button>
+        )}
+
+        {isSelf ? (
+          <span className="hidden sm:inline-flex px-2 py-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold items-center gap-1">
+            <span>Note to Self</span>
+          </span>
+        ) : isLinked ? (
+          <span className="hidden sm:inline-flex px-2 py-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold items-center gap-1">
             <span>On Flash Chat</span>
             <Check className="w-3 h-3" />
           </span>
@@ -284,7 +336,7 @@ const ContactRow = ({ contact, onSelect, onInvite }) => {
           <button
             type="button"
             onClick={onInvite}
-            className="px-2.5 py-1 rounded-full bg-cream border border-line hover:border-primary text-ink text-[11px] font-semibold transition"
+            className="px-2.5 py-1 rounded-full bg-cream border border-line hover:border-primary text-ink text-[11px] font-semibold transition cursor-pointer"
           >
             Invite
           </button>

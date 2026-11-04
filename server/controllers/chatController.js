@@ -1,13 +1,36 @@
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 const { z } = require('zod');
 const Conversation = require('../models/Conversation');
 const Message = require('../models/Message');
 const chatService = require('../services/chatService');
 
+const mediaTypes = new Set([
+  'image',
+  'video',
+  'audio',
+  'voice',
+  'document',
+  'location',
+  'contact',
+  'shared_post',
+  'shared_reel',
+  'shared_story',
+  'shared_profile'
+]);
+
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // Zod schemas
-const createDirectSchema = z.object({
-  userId: z.string().min(1, 'Target user ID is required')
-});
+const createDirectSchema = z
+  .object({
+    userId: z.string().min(1).optional(),
+    recipientId: z.string().min(1).optional(),
+    participantId: z.string().min(1).optional()
+  })
+  .refine((data) => data.userId || data.recipientId || data.participantId, {
+    message: 'Target user ID is required'
+  });
 
 const createGroupSchema = z.object({
   name: z.string().min(2, 'Group name must be at least 2 characters').max(100),
@@ -21,7 +44,9 @@ const updateChatSchema = z.object({
   avatar: z.string().url().optional().or(z.literal('')),
   description: z.string().max(500).optional(),
   disappearAfter: z.number().nullable().optional(),
-  allowAi: z.boolean().optional()
+  allowAi: z.boolean().optional(),
+  onlyAdminsCanSend: z.boolean().optional(),
+  onlyAdminsCanEditInfo: z.boolean().optional()
 });
 
 const chatSettingsSchema = z.object({
@@ -40,7 +65,22 @@ const createOrGetDirectChat = async (req, res, next) => {
       return res.status(400).json({ success: false, message: parsed.error.issues[0].message });
     }
 
-    const conversation = await chatService.createDirectConversation(req.user._id, parsed.data.userId);
+    const targetUserId = parsed.data.userId || parsed.data.recipientId || parsed.data.participantId;
+    const rawConv = await chatService.createDirectConversation(req.user._id, targetUserId);
+    const conversation = (await chatService.getFormattedConversation(rawConv._id, req.user._id)) || rawConv;
+
+    if (req.io) {
+      const recipientConv = (await chatService.getFormattedConversation(rawConv._id, targetUserId)) || rawConv;
+      req.io.to(`user:${req.user._id}`).emit('conversation:updated', {
+        conversationId: conversation._id,
+        conversation
+      });
+      req.io.to(`user:${targetUserId}`).emit('conversation:updated', {
+        conversationId: conversation._id,
+        conversation: recipientConv
+      });
+    }
+
     return res.status(200).json({ success: true, conversation });
   } catch (error) {
     next(error);
@@ -82,17 +122,7 @@ const getUserChats = async (req, res, next) => {
 const getChatById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const conversation = await Conversation.findOne({
-      _id: id,
-      'members.user': req.user._id
-    })
-      .populate('members.user', '_id name username avatar isOnline lastSeen privacy')
-      .populate('createdBy', '_id name username')
-      .populate({
-        path: 'lastMessage',
-        populate: { path: 'sender', select: '_id name username' }
-      })
-      .lean();
+    const conversation = await chatService.getFormattedConversation(id, req.user._id);
 
     if (!conversation) {
       return res.status(404).json({ success: false, message: 'Chat room not found or access denied.' });
@@ -347,6 +377,14 @@ const getMessages = async (req, res, next) => {
     const { id } = req.params;
     const { cursor, limit = 30 } = req.query;
 
+    const isMember = await chatService.isMember(id, req.user._id);
+    if (!isMember) {
+      return res.status(403).json({
+        success: false,
+        message: 'Not authorized to access messages in this conversation.'
+      });
+    }
+
     const result = await chatService.getMessages(id, req.user._id, { cursor, limit });
     return res.status(200).json({ success: true, ...result });
   } catch (error) {
@@ -362,18 +400,26 @@ const getChatMedia = async (req, res, next) => {
     const { id } = req.params;
     const { type } = req.query;
 
-    const isMember = await chatService.isMember(id, req.user._id);
+    if (typeof id !== 'string' || !mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid conversation ID.' });
+    }
+    const conversationObjectId = new mongoose.Types.ObjectId(id);
+
+    const isMember = await chatService.isMember(conversationObjectId, req.user._id);
     if (!isMember) {
       return res.status(403).json({ success: false, message: 'Access denied.' });
     }
 
     const query = {
-      conversation: id,
+      conversation: conversationObjectId,
       deletedForEveryone: false,
       'media.0': { $exists: true }
     };
 
     if (type) {
+      if (!mediaTypes.has(type)) {
+        return res.status(400).json({ success: false, message: 'Invalid media filter type.' });
+      }
       query.type = type;
     }
 
@@ -404,19 +450,24 @@ const searchMessages = async (req, res, next) => {
     }
 
     const query = {
-      deletedForEveryone: false,
+      deletedForEveryone: { $ne: true },
       deletedFor: { $ne: req.user._id },
-      text: { $regex: q.trim(), $options: 'i' }
+      text: { $regex: escapeRegex(q.trim()), $options: 'i' }
     };
 
     if (conversationId) {
-      const isMember = await chatService.isMember(conversationId, req.user._id);
+      if (typeof conversationId !== 'string' || !mongoose.isValidObjectId(conversationId)) {
+        return res.status(400).json({ success: false, message: 'Invalid conversation ID.' });
+      }
+      const conversationObjectId = new mongoose.Types.ObjectId(conversationId);
+      const isMember = await chatService.isMember(conversationObjectId, req.user._id);
       if (!isMember) return res.status(403).json({ success: false, message: 'Access denied.' });
-      query.conversation = conversationId;
+      query.$or = [{ conversation: conversationObjectId }, { chatId: conversationObjectId }];
     } else {
       // Find conversations user is a part of
       const userConvs = await Conversation.find({ 'members.user': req.user._id }).select('_id');
-      query.conversation = { $in: userConvs.map((c) => c._id) };
+      const convIds = userConvs.map((c) => c._id);
+      query.$or = [{ conversation: { $in: convIds } }, { chatId: { $in: convIds } }];
     }
 
     const messages = await Message.find(query)
@@ -427,6 +478,110 @@ const searchMessages = async (req, res, next) => {
       .lean();
 
     return res.status(200).json({ success: true, messages });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/chats/by-phone
+ */
+const startChatByPhone = async (req, res, next) => {
+  try {
+    const { phone, name, saveContact } = req.body;
+    const result = await chatService.startChatByPhone(req.user._id, {
+      phone,
+      name,
+      saveContact: saveContact !== false
+    });
+    return res.status(200).json({ success: true, ...result });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/chats/pending/:id/messages
+ */
+const queuePendingMessage = async (req, res, next) => {
+  try {
+    const { text } = req.body;
+    const result = await chatService.queuePendingMessage(req.user._id, req.params.id, text);
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/chats/pending
+ */
+const getPendingConversations = async (req, res, next) => {
+  try {
+    const pendingList = await chatService.getPendingConversations(req.user._id);
+    return res.status(200).json({ success: true, pendingConversations: pendingList });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * DELETE /api/chats/pending/:id
+ */
+const deletePendingConversation = async (req, res, next) => {
+  try {
+    const result = await chatService.deletePendingConversation(req.user._id, req.params.id);
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/chats/:id/accept
+ */
+const acceptMessageRequest = async (req, res, next) => {
+  try {
+    const conversation = await chatService.acceptMessageRequest(req.user._id, req.params.id);
+    return res.status(200).json({ success: true, conversation });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/chats/:id/reject
+ */
+const rejectMessageRequest = async (req, res, next) => {
+  try {
+    const result = await chatService.rejectMessageRequest(req.user._id, req.params.id);
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/chats/:id/backup
+ */
+const exportBackup = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const backup = await chatService.exportChatBackup(req.user._id, id);
+    return res.status(200).json({ success: true, data: backup });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/chats/restore
+ */
+const restoreBackup = async (req, res, next) => {
+  try {
+    const backupData = req.body;
+    const result = await chatService.restoreChatBackup(req.user._id, backupData);
+    return res.status(200).json(result);
   } catch (error) {
     next(error);
   }
@@ -447,5 +602,13 @@ module.exports = {
   updateChatSettings,
   getMessages,
   getChatMedia,
-  searchMessages
+  searchMessages,
+  startChatByPhone,
+  queuePendingMessage,
+  getPendingConversations,
+  deletePendingConversation,
+  acceptMessageRequest,
+  rejectMessageRequest,
+  exportBackup,
+  restoreBackup
 };

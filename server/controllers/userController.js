@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const { z } = require('zod');
 const User = require('../models/User');
 
@@ -11,7 +12,28 @@ const updateProfileSchema = z.object({
     .toLowerCase()
     .optional(),
   bio: z.string().max(160, 'Bio cannot exceed 160 characters').optional(),
-  avatar: z.string().url('Avatar must be a valid URL').optional(),
+  about: z.string().max(160, 'About cannot exceed 160 characters').optional(),
+  avatar: z
+    .string()
+    .refine(
+      (val) => /^https?:\/\//i.test(val) || val.startsWith('/') || val.startsWith('data:image/'),
+      'Avatar must be a valid URL or image path'
+    )
+    .optional(),
+  phoneNumber: z
+    .string()
+    .regex(/^\+[1-9]\d{6,14}$/, 'Must be a valid E.164 phone number (e.g. +14155552671)')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
+  phone: z
+    .string()
+    .regex(/^\+[1-9]\d{6,14}$/, 'Must be a valid E.164 phone number (e.g. +14155552671)')
+    .optional()
+    .nullable()
+    .or(z.literal('')),
+  discoverableByPhone: z.boolean().optional(),
+  discoverableByEmail: z.boolean().optional(),
   privacy: z
     .object({
       lastSeen: z.enum(['everyone', 'contacts', 'nobody']).optional(),
@@ -99,8 +121,31 @@ const updateMe = async (req, res, next) => {
     if (updates.name !== undefined) updateQuery.name = updates.name.trim();
     if (updates.username !== undefined) updateQuery.username = updates.username.trim();
     if (updates.bio !== undefined) updateQuery.bio = updates.bio.trim();
+    if (updates.about !== undefined) updateQuery.bio = updates.about.trim();
     if (updates.avatar !== undefined) updateQuery.avatar = updates.avatar;
     if (updates.theme !== undefined) updateQuery.theme = updates.theme;
+    if (updates.discoverableByPhone !== undefined) updateQuery.discoverableByPhone = updates.discoverableByPhone;
+    if (updates.discoverableByEmail !== undefined) updateQuery.discoverableByEmail = updates.discoverableByEmail;
+
+    const newPhone = updates.phoneNumber !== undefined ? updates.phoneNumber : updates.phone;
+    if (newPhone !== undefined) {
+      if (newPhone && newPhone.trim() !== '') {
+        const normalizedPhone = newPhone.trim();
+        const existingPhone = await User.findOne({
+          phoneNumber: normalizedPhone,
+          _id: { $ne: req.user._id }
+        });
+        if (existingPhone) {
+          return res.status(400).json({
+            success: false,
+            message: 'This phone number is already registered to another account'
+          });
+        }
+        updateQuery.phoneNumber = normalizedPhone;
+      } else {
+        updateQuery.phoneNumber = null;
+      }
+    }
 
     if (updates.isPrivateAccount !== undefined || updates.isPrivate !== undefined) {
       const isPriv = updates.isPrivateAccount !== undefined ? updates.isPrivateAccount : updates.isPrivate;
@@ -123,6 +168,12 @@ const updateMe = async (req, res, next) => {
       }
     }
 
+    if (updates.aiSettings) {
+      if (updates.aiSettings.aiEnabled !== undefined) updateQuery['aiSettings.aiEnabled'] = updates.aiSettings.aiEnabled;
+      if (updates.aiSettings.aiInChats !== undefined) updateQuery['aiSettings.aiInChats'] = updates.aiSettings.aiInChats;
+      if (updates.aiSettings.aiUsesPocket !== undefined) updateQuery['aiSettings.aiUsesPocket'] = updates.aiSettings.aiUsesPocket;
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
       { $set: updateQuery },
@@ -130,6 +181,26 @@ const updateMe = async (req, res, next) => {
     )
       .select('-passwordHash -refreshTokens -pocketPinHash')
       .lean();
+
+    // Broadcast profile update via Socket.IO so other users' chat headers & lists sync immediately
+    try {
+      const { getIO } = require('../sockets/socketHandler');
+      const io = getIO ? getIO() : null;
+      if (io) {
+        io.emit('user:updated', {
+          userId: updatedUser._id.toString(),
+          user: {
+            _id: updatedUser._id,
+            name: updatedUser.name,
+            username: updatedUser.username,
+            avatar: updatedUser.avatar,
+            bio: updatedUser.bio
+          }
+        });
+      }
+    } catch (socketErr) {
+      // Non-blocking socket notification
+    }
 
     return res.status(200).json({
       success: true,
@@ -166,7 +237,6 @@ const searchUsers = async (req, res, next) => {
 
     const filter = {
       _id: { $ne: req.user._id },
-      isOnboarded: true,
       $or: [{ username: regex }, { name: regex }]
     };
 
@@ -192,17 +262,29 @@ const searchUsers = async (req, res, next) => {
 };
 
 /**
- * GET /api/users/:username
+ * GET /api/users/:username (or :userId)
  * Public profile endpoint
  */
 const getPublicProfile = async (req, res, next) => {
   try {
-    const username = (req.params.username || '').toLowerCase().trim();
+    const identifier = (req.params.username || req.params.identifier || req.params.id || '').trim();
+    if (!identifier) {
+      return res.status(404).json({
+        success: false,
+        message: 'User profile not found'
+      });
+    }
+
     const Block = require('../models/Block');
     const Follow = require('../models/Follow');
     const Story = require('../models/Story');
 
-    const user = await User.findOne({ username })
+    const isObjectId = mongoose.Types.ObjectId.isValid(identifier);
+    const userQuery = isObjectId
+      ? { $or: [{ _id: identifier }, { username: identifier.toLowerCase() }] }
+      : { username: identifier.toLowerCase() };
+
+    const user = await User.findOne(userQuery)
       .select(
         '_id name username avatar bio isOnline lastSeen isPrivateAccount followersCount followingCount postsCount createdAt privacy'
       )

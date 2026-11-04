@@ -5,7 +5,7 @@ import { useThemeStore } from '../store/useThemeStore';
 import { useAuthStore } from '../store/useAuthStore';
 import { Avatar } from './Avatar';
 
-export const PageHeader = ({ title, subtitle, onOpenSearch, rightAction }) => {
+export const PageHeader = ({ title, subtitle, onOpenSearch, rightAction, actions }) => {
   const { theme, toggleTheme } = useThemeStore();
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -67,7 +67,7 @@ export const PageHeader = ({ title, subtitle, onOpenSearch, rightAction }) => {
           {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
         </button>
 
-        {rightAction}
+        {rightAction || actions}
 
         <div className="md:hidden cursor-pointer" onClick={() => navigate('/profile')}>
           <Avatar src={user?.avatar} alt={user?.name} size="xs" />

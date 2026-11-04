@@ -7,10 +7,6 @@ import {
   ExplorePage,
   HashtagPage,
   PostDetailPage,
-  StoryViewerModal,
-  CreateSocialModal,
-  CommentsSheet,
-  ShareSheet,
   NotificationsPage
 } from '../features/social';
 
@@ -27,7 +23,7 @@ export const SocialPage = () => {
   const isPostDetailRoute = path.startsWith('/social/post/');
 
   return (
-    <div className="min-h-screen bg-[#FFF7ED] flex flex-col">
+    <div className="min-h-full bg-cream flex flex-col">
       {/* Social Tab Header with Feed | Reels | Explore | Activity sub-tabs, Create (+) and DM icon */}
       <SocialHeader activeTab={activeTab} />
 
@@ -46,12 +42,6 @@ export const SocialPage = () => {
           </>
         )}
       </main>
-
-      {/* Global Modals for Social Engine */}
-      <StoryViewerModal />
-      <CreateSocialModal />
-      <CommentsSheet />
-      <ShareSheet />
     </div>
   );
 };

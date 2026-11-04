@@ -230,6 +230,7 @@ router.post(
 // ---------------------------------------------------------------------------
 router.get('/usage', aiController.getUsage);
 router.get('/disclosure', aiController.getDisclosure);
+router.get('/recommendations', require('../controllers/exploreController').getRecommendations);
 
 router.post(
   '/feedback',

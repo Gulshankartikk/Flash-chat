@@ -63,20 +63,20 @@ export const PostViewerModal = ({ postId, isOpen, onClose }) => {
           </button>
 
           {loading ? (
-            <div className="w-full aspect-square rounded-3xl bg-white border border-[#FED7AA] flex items-center justify-center">
-              <div className="w-8 h-8 border-4 border-[#F97316] border-t-transparent rounded-full animate-spin" />
+            <div className="w-full aspect-square rounded-3xl bg-card border border-line flex items-center justify-center">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : error ? (
-            <div className="w-full p-8 rounded-3xl bg-white border border-[#FED7AA] text-center space-y-3">
-              <AlertCircle className="w-10 h-10 text-[#F43F5E] mx-auto stroke-1" />
-              <h3 className="text-sm font-bold text-[#1F2937]">{error}</h3>
-              <p className="text-xs text-[#6B7280]">
+            <div className="w-full p-8 rounded-3xl bg-card border border-line text-center space-y-3">
+              <AlertCircle className="w-10 h-10 text-accent mx-auto stroke-1" />
+              <h3 className="text-sm font-bold text-ink">{error}</h3>
+              <p className="text-xs text-muted">
                 It may have been deleted or account privacy settings were updated.
               </p>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl bg-[#FFF7ED] text-[#F97316] text-xs font-bold hover:bg-orange-100 transition cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-canvas border border-line text-primary text-xs font-bold hover:bg-primary/10 transition cursor-pointer"
               >
                 Close
               </button>

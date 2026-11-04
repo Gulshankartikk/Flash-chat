@@ -6,6 +6,8 @@ const { PROMPT_TEMPLATES, SYSTEM_INJECTION_DEFENSE } = require('../services/ai/p
 const aiService = require('../services/ai.service');
 
 async function runTests() {
+  aiService.isConfigured = false;
+  aiService.forceMock = true;
   console.log('🧪 Starting Flash AI Integration & Security Verification Suite...\n');
 
   // 1. Prompt-Injection Defenses
@@ -71,9 +73,11 @@ async function runTests() {
   console.log('  ✓ Moderation mock output:', moderationMock);
 
   console.log('\n🎉 ALL FLASH AI SECURITY & INTEGRATION TESTS PASSED (0 ERRORS)!');
+  process.exit(0);
 }
 
 runTests().catch((err) => {
   console.error('❌ Test failed:', err);
   process.exit(1);
 });
+

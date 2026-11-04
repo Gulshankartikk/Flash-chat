@@ -15,6 +15,14 @@ const reelSchema = new mongoose.Schema(
       width: { type: Number, default: 1080 },
       height: { type: Number, default: 1920 }
     },
+    media: {
+      url: { type: String },
+      type: { type: String, default: 'video' },
+      thumbnail: { type: String, default: '' },
+      duration: { type: Number, default: 0 },
+      width: { type: Number, default: 1080 },
+      height: { type: Number, default: 1920 }
+    },
     thumbnail: {
       type: String,
       default: ''

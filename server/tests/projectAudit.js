@@ -67,7 +67,12 @@ function scanForPlaceholders(dir) {
 // 3. Env Variables Audit
 function auditEnvVars() {
   const repoRoot = path.join(__dirname, '../..');
-  const envExamplePath = path.join(repoRoot, '.env.example');
+  const envExamplePath = fs.existsSync(path.join(repoRoot, '.env.example'))
+    ? path.join(repoRoot, '.env.example')
+    : fs.existsSync(path.join(__dirname, '../.env.example'))
+    ? path.join(__dirname, '../.env.example')
+    : path.join(__dirname, '../../.env.example');
+
   if (!fs.existsSync(envExamplePath)) {
     recordIssue('high', '.env.example', '.env.example missing in root', 'Create .env.example with all keys');
     return;

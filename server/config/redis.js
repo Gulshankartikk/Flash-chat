@@ -8,7 +8,9 @@ if (config.REDIS_URL) {
   try {
     redisClient = new Redis(config.REDIS_URL, {
       maxRetriesPerRequest: 3,
+      lazyConnect: process.env.NODE_ENV === 'test',
       retryStrategy(times) {
+        if (process.env.NODE_ENV === 'test') return null;
         const delay = Math.min(times * 200, 2000);
         return delay;
       }

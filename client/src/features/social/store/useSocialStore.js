@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { fetchUnreadNotificationsCount } from '../api/api';
 
 export const useSocialStore = create((set, get) => ({
   // --- STORY VIEWER STATE ---
@@ -113,5 +114,20 @@ export const useSocialStore = create((set, get) => ({
   setUnreadNotificationsCount: (count) => set({ unreadNotificationsCount: count }),
   incrementUnreadNotifications: () =>
     set((state) => ({ unreadNotificationsCount: state.unreadNotificationsCount + 1 })),
-  clearUnreadNotifications: () => set({ unreadNotificationsCount: 0 })
+  clearUnreadNotifications: () => set({ unreadNotificationsCount: 0 }),
+  fetchUnreadNotifications: async () => {
+    const token = localStorage.getItem('flash_chat_token');
+    if (!token || token === 'null' || token === 'undefined') return 0;
+
+    try {
+      const res = await fetchUnreadNotificationsCount();
+      if (res && typeof res.count === 'number') {
+        set({ unreadNotificationsCount: res.count });
+        return res.count;
+      }
+    } catch (_) {
+      // silent
+    }
+    return 0;
+  }
 }));
