@@ -16,6 +16,7 @@ const { apiLimiter } = require('./middleware/rateLimiter');
 const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
 const mailer = require('./services/mailer/mailerService');
 const { initSocketIO } = require('./sockets/socketHandler');
+const { initScheduler, stopScheduler } = require('./services/schedulerService');
 
 // Route imports
 const authRoutes = require('./routes/authRoutes');
@@ -63,6 +64,7 @@ const io = new Server(server, {
 });
 
 initSocketIO(io);
+initScheduler(io);
 
 // Pass io to Express requests
 app.use((req, res, next) => {
@@ -319,6 +321,7 @@ const gracefulShutdown = async (signal) => {
   server.close(async () => {
     logger.info('HTTP & Socket.IO server closed.');
     try {
+      stopScheduler();
       await mailer.close();
       const mongoose = require('mongoose');
       await mongoose.connection.close(false);

@@ -12,7 +12,9 @@ import {
   Camera,
   Check,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  Download,
+  Upload
 } from 'lucide-react';
 import { Avatar } from '../Avatar';
 import { Button } from '../Button';
@@ -116,6 +118,43 @@ export const GroupInfoPanel = ({
     } catch (err) {
       toast.error(err.message || 'Failed to leave group');
     }
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      const res = await api.get(`/chats/${conversation._id}/backup`);
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(res.data.data, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute('href', dataStr);
+      downloadAnchor.setAttribute('download', `flash-chat-backup-${conversation._id}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      toast.success('Chat history backup exported successfully');
+    } catch (err) {
+      toast.error('Failed to export chat backup');
+    }
+  };
+
+  const handleRestoreBackup = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const parsed = JSON.parse(event.target.result);
+        const res = await api.post('/chats/restore', parsed);
+        toast.success(`Restored ${res.data.restoredCount || 0} messages`);
+        if (onUpdateConversation) {
+          onUpdateConversation({ ...conversation });
+        }
+      } catch (err) {
+        toast.error('Failed to restore backup: invalid JSON format');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   return (
@@ -240,6 +279,95 @@ export const GroupInfoPanel = ({
             </div>
           </div>
         )}
+
+        {/* Group Administration Permissions (Admin Only) */}
+        {isAdmin && (
+          <div className="p-3.5 rounded-2xl bg-cream border border-line space-y-3">
+            <h4 className="text-xs font-bold text-ink flex items-center gap-1.5">
+              <Shield className="w-3.5 h-3.5 text-primary" />
+              <span>Group Permissions</span>
+            </h4>
+
+            {/* Only Admins Can Send */}
+            <div className="flex items-center justify-between pt-1 border-t border-line/60">
+              <div className="flex-1 pr-2">
+                <span className="text-xs font-semibold text-ink">Only Admins Can Send Messages</span>
+                <p className="text-[10px] text-muted">Members cannot send messages when enabled</p>
+              </div>
+              <Switch
+                checked={Boolean(conversation.onlyAdminsCanSend)}
+                onChange={async (newVal) => {
+                  try {
+                    await api.patch(`/chats/${conversation._id}`, { onlyAdminsCanSend: newVal });
+                    toast.success(newVal ? 'Admin-only messaging enabled' : 'All members can send messages');
+                    if (onUpdateConversation) {
+                      onUpdateConversation({ ...conversation, onlyAdminsCanSend: newVal });
+                    }
+                  } catch (err) {
+                    toast.error('Failed to update send permissions');
+                  }
+                }}
+              />
+            </div>
+
+            {/* Only Admins Can Edit Info */}
+            <div className="flex items-center justify-between pt-1 border-t border-line/60">
+              <div className="flex-1 pr-2">
+                <span className="text-xs font-semibold text-ink">Only Admins Can Edit Info</span>
+                <p className="text-[10px] text-muted">Lock group name, icon and description</p>
+              </div>
+              <Switch
+                checked={Boolean(conversation.onlyAdminsCanEditInfo)}
+                onChange={async (newVal) => {
+                  try {
+                    await api.patch(`/chats/${conversation._id}`, { onlyAdminsCanEditInfo: newVal });
+                    toast.success(newVal ? 'Group info locked to admins' : 'Members can edit group info');
+                    if (onUpdateConversation) {
+                      onUpdateConversation({ ...conversation, onlyAdminsCanEditInfo: newVal });
+                    }
+                  } catch (err) {
+                    toast.error('Failed to update info permissions');
+                  }
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Chat History Backup & Restore */}
+        <div className="p-3.5 rounded-2xl bg-cream border border-line space-y-2">
+          <h4 className="text-xs font-bold text-ink flex items-center gap-1.5">
+            <Download className="w-3.5 h-3.5 text-primary" />
+            <span>Chat Backup & Restore</span>
+          </h4>
+          <p className="text-[10px] text-muted">
+            Export a full JSON backup of messages or restore past conversations.
+          </p>
+          <div className="flex items-center gap-2 pt-1">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleExportBackup}
+              icon={<Download className="w-3.5 h-3.5" />}
+              className="flex-1 text-xs"
+            >
+              Export
+            </Button>
+            <label className="flex-1">
+              <input
+                type="file"
+                accept=".json"
+                onChange={handleRestoreBackup}
+                className="hidden"
+              />
+              <span className="w-full py-1.5 px-3 rounded-xl border border-line bg-card hover:bg-cream text-ink text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition">
+                <Upload className="w-3.5 h-3.5 text-primary" />
+                <span>Restore</span>
+              </span>
+            </label>
+          </div>
+        </div>
 
         {/* Participants List */}
         <div className="space-y-2.5">

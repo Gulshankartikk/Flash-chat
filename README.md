@@ -16,7 +16,15 @@ Flash Chat is built from the ground up for speed, reliability, and security.
 - 📜 **Cursor-based Message Pagination**: Infinite scroll upwards with zero skipped messages and fast indexed queries.
 - 📎 **Rich Media & Attachments**: Image previews, audio playback, file downloads, and emoji picker.
 - ✏️ **Message Lifecycle**: In-place edit with `(edited)` indicator and soft-deletion (`isDeleted`).
-- 🤖 **Flash AI Integration**: Rebranded native assistant ("Flash AI") powered by Gemini with streaming responses, `@ai` chat prompts, Pocket RAG search, and honest provider disclosures (`AiProviderDisclosure`).
+- 📊 **Interactive Chat Polls**: Native single and multiple-choice polls with live percentage visualization, real-time Socket.IO synchronization, and optimistic UI updates.
+- 🕒 **Message Scheduling**: Schedule messages for future dispatch with background worker polling, auto-broadcasting, and cancellation support.
+- 🎙️ **Voice Messages & Waveform Visualizer**: Permanent Cloudinary/server audio uploads, playback speed toggle (1x, 1.5x, 2x), progress scrubber, and animated waveform bars.
+- 🛡️ **Advanced Group Administration**: Granular admin permissions including "Only Admins Can Send Messages" and "Only Admins Can Edit Info", with promotion/demotion and invite codes.
+- 📍 **Live Location Sharing**: Real-time GPS location sharing with duration badges (15m, 1h, 8h) and Google Maps deep links.
+- 💾 **Chat History Backup & Restore**: One-click JSON backup export and validated message restoration with SHA-256 integrity checksums.
+- 🔄 **Multi-Device Synchronization**: Instant cross-device session synchronization for read receipts, reactions, and starred messages via personal user rooms (`user:${userId}`).
+- 📸 **Instagram Social Networking**: Feed posts with multi-image carousels, 9:16 vertical Reels player, 24-hour Stories with viewers sheet, Explore page with hashtag discovery, and Saved Posts collections.
+- 🤖 **Flash AI Integration**: Rebranded native assistant ("Flash AI") powered by Gemini with streaming responses, `@ai` chat prompts, Pocket RAG search, context-aware account recommendations, and honest provider disclosures (`AiProviderDisclosure`).
 - 👥 **Manual Contacts System**: Private, owner-isolated address book (`/contacts`) with international E.164 phone formatting, automatic registered user discovery (`On Flash Chat`), deduplication, SMS/email invite generation with 7-day cooldowns, CSV / Contact Picker API import, and custom saved contact names across chats and calls.
 - 💬 **"Chat with us" Support Desk**: Dedicated customer support portal (`/support`) with searchable FAQ knowledge base, diagnostic payload attachment, automated Flash AI first response, "Talk to a human" live handoff, reusable `ChatWindow`, satisfaction rating (1-5 stars, once only), and role-guarded agent management console (`/admin/support`).
 - 🎨 **Unified Design System**: Single-source-of-truth tokens (`cream`, `card`, `primary`, `secondary`, `accent`, `ink`, `muted`, `line`, `brand`) with verified WCAG AA contrast, light/dark themes, and `/dev/ui` component styleguide.

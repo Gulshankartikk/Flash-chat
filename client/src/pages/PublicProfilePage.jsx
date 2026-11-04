@@ -45,6 +45,7 @@ import { SocialAvatar } from '../features/social/components/SocialAvatar';
 import { FollowListModal } from '../features/social/components/FollowListModal';
 import { FollowRequestsModal } from '../features/social/components/FollowRequestsModal';
 import { PostViewerModal } from '../features/social/components/PostViewerModal';
+import api from '../services/api';
 
 export const PublicProfilePage = () => {
   const { username } = useParams();
@@ -66,6 +67,9 @@ export const PublicProfilePage = () => {
   const [activeTab, setActiveTab] = useState('posts'); // 'posts' | 'reels' | 'saved'
   const [userPosts, setUserPosts] = useState([]);
   const [userReels, setUserReels] = useState([]);
+  const [savedPosts, setSavedPosts] = useState([]);
+  const [savedCollections, setSavedCollections] = useState(['All Posts']);
+  const [selectedCollection, setSelectedCollection] = useState('All Posts');
   const [loadingContent, setLoadingContent] = useState(false);
   const [isPrivateLocked, setIsPrivateLocked] = useState(false);
 
@@ -136,6 +140,19 @@ export const PublicProfilePage = () => {
             setIsPrivateLocked(Boolean(res.isPrivate));
             setUserReels(res.data || []);
           }
+        } else if (activeTab === 'saved') {
+          const [postsRes, colsRes] = await Promise.all([
+            api.get('/posts/saved', {
+              params: selectedCollection !== 'All Posts' ? { collectionName: selectedCollection } : {}
+            }),
+            api.get('/posts/collections')
+          ]);
+          if (postsRes.data?.success) {
+            setSavedPosts(postsRes.data.data || []);
+          }
+          if (colsRes.data?.success && Array.isArray(colsRes.data.data)) {
+            setSavedCollections(colsRes.data.data);
+          }
         }
       } catch (err) {
         console.error('Failed to load user content:', err);
@@ -145,7 +162,7 @@ export const PublicProfilePage = () => {
     };
 
     loadPostsAndReels();
-  }, [profile?._id, activeTab, followStatus]);
+  }, [profile?._id, activeTab, followStatus, selectedCollection]);
 
   // Tap avatar to open story
   const handleAvatarClick = async () => {
@@ -701,9 +718,53 @@ export const PublicProfilePage = () => {
               </div>
             )
           ) : (
-            <p className="text-xs text-muted text-center py-12">
-              Saved posts are private to you.
-            </p>
+            <div className="space-y-3">
+              {/* Collection Filter Pills */}
+              {savedCollections.length > 1 && (
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                  {savedCollections.map((colName) => (
+                    <button
+                      key={colName}
+                      type="button"
+                      onClick={() => setSelectedCollection(colName)}
+                      className={`px-3 py-1 rounded-full text-xs font-bold transition shrink-0 cursor-pointer ${
+                        selectedCollection === colName
+                          ? 'bg-primary text-white shadow-xs'
+                          : 'bg-cream text-muted hover:text-ink border border-line'
+                      }`}
+                    >
+                      {colName}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {savedPosts.length === 0 ? (
+                <p className="text-xs text-muted text-center py-12">No saved posts in this collection.</p>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                  {savedPosts.map((post) => (
+                    <div
+                      key={post._id}
+                      onClick={() => setActivePostId(post._id)}
+                      className="relative aspect-square rounded-2xl overflow-hidden bg-neutral-900 cursor-pointer group shadow-xs"
+                    >
+                      <img
+                        src={post.media?.[0]?.url || post.media?.[0]?.thumbnail}
+                        alt="Saved Post"
+                        loading="lazy"
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                      />
+                      {post.media?.length > 1 && (
+                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-black/50 flex items-center justify-center text-white">
+                          <Layers className="w-2.5 h-2.5" />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

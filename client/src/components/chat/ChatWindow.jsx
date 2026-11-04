@@ -11,7 +11,8 @@ import {
   Clock,
   Sparkles,
   X,
-  User
+  User,
+  Shield
 } from 'lucide-react';
 import { Avatar } from '../Avatar';
 import { MessageBubble } from './MessageBubble';
@@ -664,6 +665,11 @@ export const ChatWindow = ({ conversationId, onBack }) => {
               Report
             </button>
           </div>
+        </div>
+      ) : isGroup && activeConversation.onlyAdminsCanSend && activeConversation.members?.find((m) => String(m.user?._id || m.user) === String(currentUserId))?.role !== 'admin' ? (
+        <div className="p-4 bg-card border-t border-line text-center text-xs text-muted flex items-center justify-center gap-2 select-none">
+          <Shield className="w-4 h-4 text-primary" />
+          <span>Only group admins can send messages to this group.</span>
         </div>
       ) : (
         <MessageInput

@@ -26,6 +26,8 @@ import {
   Languages
 } from 'lucide-react';
 import { Avatar } from '../Avatar';
+import { PollBubble } from './PollBubble';
+import { VoiceNotePlayer } from './VoiceNotePlayer';
 import { PostViewerModal } from '../../features/social/components/PostViewerModal';
 import { useSocialStore } from '../../features/social/store/useSocialStore';
 import { fetchStoriesTray } from '../../features/social/api/api';
@@ -507,6 +509,16 @@ export const MessageBubble = React.memo(function MessageBubble({
             </div>
           )}
 
+          {/* Poll Card */}
+          {message.type === 'poll' && message.poll && (
+            <PollBubble
+              poll={message.poll}
+              messageId={message._id}
+              currentUserId={currentUserId}
+              isOwn={isOwn}
+            />
+          )}
+
           {/* Media Attachments */}
           {message.media && message.media.length > 0 && (
             <div className="space-y-2 mb-2">
@@ -538,31 +550,12 @@ export const MessageBubble = React.memo(function MessageBubble({
 
                 if (med.mimeType?.startsWith('audio/') || message.type === 'voice' || message.type === 'audio') {
                   return (
-                    <div
+                    <VoiceNotePlayer
                       key={idx}
-                      className={`flex items-center gap-3 p-3 rounded-2xl ${
-                        isOwn ? 'bg-white/20' : 'bg-cream/60'
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => handleAudioToggle(med.url)}
-                        className={`w-9 h-9 rounded-full flex items-center justify-center shadow-md transition ${
-                          isOwn ? 'bg-white text-primary' : 'bg-primary text-white'
-                        }`}
-                      >
-                        {isPlayingAudio ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
-                      </button>
-                      <div className="flex-1 min-w-0">
-                        <div className="h-1.5 w-full bg-black/10 rounded-full overflow-hidden">
-                          <div className={`h-full ${isPlayingAudio ? 'w-2/3 animate-pulse bg-current' : 'w-0'}`} />
-                        </div>
-                        <div className="flex justify-between text-[10px] mt-1 opacity-80">
-                          <span>{message.type === 'voice' ? 'Voice Memo' : 'Audio Note'}</span>
-                          <span>{med.duration ? `${Math.round(med.duration)}s` : '0:15'}</span>
-                        </div>
-                      </div>
-                    </div>
+                      url={med.url}
+                      duration={med.duration}
+                      isOwn={isOwn}
+                    />
                   );
                 }
 
@@ -593,13 +586,36 @@ export const MessageBubble = React.memo(function MessageBubble({
           {/* Location Card */}
           {message.location && (
             <div className={`p-3 rounded-2xl mb-2 flex items-start gap-2.5 ${isOwn ? 'bg-white/20' : 'bg-cream/60 border border-line'}`}>
-              <MapPin className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
-              <div className="text-xs">
-                <p className="font-bold">{message.location.label || 'Shared Location'}</p>
+              <div className="relative mt-0.5">
+                <MapPin className="w-5 h-5 text-primary flex-shrink-0" />
+                {message.location.isLive && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full animate-ping" />
+                )}
+              </div>
+              <div className="text-xs flex-1">
+                <div className="flex items-center gap-1.5 font-bold">
+                  <span>{message.location.label || (message.location.isLive ? 'Live Location' : 'Shared Location')}</span>
+                  {message.location.isLive && (
+                    <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary border border-primary/30">
+                      Live
+                    </span>
+                  )}
+                </div>
                 {(message.location.lat != null || message.location.latitude != null || message.location.lng != null || message.location.longitude != null) && (
-                  <p className="text-[10px] opacity-80">
-                    Lat: {Number(message.location.lat ?? message.location.latitude ?? 0).toFixed(4)}, Lng: {Number(message.location.lng ?? message.location.longitude ?? 0).toFixed(4)}
-                  </p>
+                  <div className="flex items-center justify-between gap-2 mt-1">
+                    <p className="text-[10px] opacity-80">
+                      {Number(message.location.lat ?? message.location.latitude ?? 0).toFixed(4)}, {Number(message.location.lng ?? message.location.longitude ?? 0).toFixed(4)}
+                    </p>
+                    <a
+                      href={`https://maps.google.com/?q=${message.location.lat ?? message.location.latitude},${message.location.lng ?? message.location.longitude}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] font-bold underline hover:opacity-90 flex items-center gap-0.5"
+                    >
+                      <span>View Map</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
                 )}
               </div>
             </div>

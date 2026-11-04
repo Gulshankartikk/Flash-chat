@@ -204,8 +204,45 @@ const searchSocial = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/explore/recommendations - Recommended users to follow
+ */
+const getRecommendations = async (req, res, next) => {
+  try {
+    const Follow = require('../models/Follow');
+    const blockedIds = await getBlockedUserIds(req.user._id);
+
+    // Get IDs already followed
+    const followedDocs = await Follow.find({
+      follower: req.user._id,
+      status: { $in: ['accepted', 'pending'] }
+    }).select('following');
+    const followedIds = followedDocs.map((f) => f.following);
+
+    const excludedIds = [
+      req.user._id,
+      ...followedIds,
+      ...blockedIds
+    ];
+
+    const users = await User.find({
+      _id: { $nin: excludedIds }
+    })
+      .sort({ isVerified: -1, followersCount: -1, createdAt: -1 })
+      .limit(10)
+      .select('_id name username avatar bio isVerified isPrivateAccount followersCount')
+      .lean();
+
+    return res.status(200).json({ success: true, data: users });
+  } catch (err) {
+    logger.error({ err: err.message }, 'Error in getRecommendations');
+    next(err);
+  }
+};
+
 module.exports = {
   getExplore,
   getHashtagPosts,
-  searchSocial
+  searchSocial,
+  getRecommendations
 };

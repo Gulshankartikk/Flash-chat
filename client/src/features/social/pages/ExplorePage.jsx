@@ -9,9 +9,12 @@ import {
   TrendingUp,
   Users,
   Hash,
-  FileText
+  FileText,
+  Sparkles,
+  UserPlus,
+  UserCheck
 } from 'lucide-react';
-import { fetchExplore, searchSocialApi } from '../api/api';
+import { fetchExplore, searchSocialApi, fetchRecommendationsApi, followUserApi } from '../api/api';
 import { SocialAvatar } from '../components/SocialAvatar';
 import { PostViewerModal } from '../components/PostViewerModal';
 
@@ -37,7 +40,31 @@ export const ExplorePage = () => {
   // Selected item modal viewer
   const [activePostId, setActivePostId] = useState(null);
 
+  // Recommendations state
+  const [recommendations, setRecommendations] = useState([]);
+  const [followedMap, setFollowedMap] = useState({});
+
   const observerRef = useRef(null);
+
+  // Load recommendations
+  useEffect(() => {
+    fetchRecommendationsApi()
+      .then((res) => {
+        if (res.success && Array.isArray(res.data)) {
+          setRecommendations(res.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleFollowRecommendation = async (userId) => {
+    setFollowedMap((prev) => ({ ...prev, [userId]: true }));
+    try {
+      await followUserApi(userId);
+    } catch (e) {
+      setFollowedMap((prev) => ({ ...prev, [userId]: false }));
+    }
+  };
 
   // Load recent searches from localStorage
   useEffect(() => {
@@ -324,6 +351,70 @@ export const ExplorePage = () => {
                     </button>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Suggested Creators Carousel */}
+          {recommendations.length > 0 && (
+            <div className="bg-card rounded-3xl border border-line p-3.5 shadow-xs space-y-2.5">
+              <div className="flex items-center gap-1.5 px-1">
+                <Sparkles className="w-3.5 h-3.5 text-primary" />
+                <span className="text-xs font-bold text-ink">Suggested For You</span>
+              </div>
+              <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
+                {recommendations.map((rec) => {
+                  const isFollowed = Boolean(followedMap[rec._id]);
+                  return (
+                    <div
+                      key={rec._id}
+                      className="flex flex-col items-center p-3 rounded-2xl bg-cream border border-line min-w-[130px] max-w-[140px] text-center shrink-0 space-y-1.5 shadow-xs"
+                    >
+                      <div
+                        onClick={() => navigate(`/u/${rec.username}`)}
+                        className="cursor-pointer"
+                      >
+                        <SocialAvatar
+                          src={rec.avatar}
+                          alt={rec.username}
+                          size="md"
+                        />
+                      </div>
+                      <div
+                        onClick={() => navigate(`/u/${rec.username}`)}
+                        className="w-full cursor-pointer"
+                      >
+                        <p className="text-xs font-bold text-ink truncate">
+                          {rec.name || rec.username}
+                        </p>
+                        <p className="text-[10px] text-muted truncate">
+                          @{rec.username}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleFollowRecommendation(rec._id)}
+                        className={`w-full py-1 rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer ${
+                          isFollowed
+                            ? 'bg-cream text-muted border border-line'
+                            : 'bg-brand-gradient text-white shadow-xs hover:opacity-95'
+                        }`}
+                      >
+                        {isFollowed ? (
+                          <>
+                            <UserCheck className="w-3 h-3" />
+                            <span>Requested</span>
+                          </>
+                        ) : (
+                          <>
+                            <UserPlus className="w-3 h-3" />
+                            <span>Follow</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

@@ -15,9 +15,14 @@ import {
   Phone,
   RefreshCw,
   Wand2,
-  Undo
+  Undo,
+  BarChart2,
+  Calendar,
+  Radio
 } from 'lucide-react';
 import api from '../../services/api';
+import { CreatePollModal } from './CreatePollModal';
+import { ScheduleMessageModal } from './ScheduleMessageModal';
 import { fetchSmartReplies, rewriteChatMessage, AiBadge, AiThinking } from '../../features/ai';
 import { FlashAiLogo } from '../common/FlashAiLogo';
 
@@ -42,6 +47,8 @@ export const MessageInput = ({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingDuration, setRecordingDuration] = useState(0);
+  const [showPollModal, setShowPollModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
 
   // AI states
   const [smartReplies, setSmartReplies] = useState([]);
@@ -206,28 +213,59 @@ export const MessageInput = ({
     }
   };
 
-  // Location Sharing Handler
-  const handleShareLocation = () => {
+  // Location Sharing Handler (Static or Live)
+  const handleShareLocation = (isLive = false) => {
     setShowAttachments(false);
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           onSend({
-            text: '📍 Shared current location',
+            text: isLive ? '📍 Shared live location' : '📍 Shared current location',
             type: 'location',
             location: {
               lat: pos.coords.latitude,
               lng: pos.coords.longitude,
-              label: 'My Current Location'
+              label: isLive ? 'Live Location (1 Hour)' : 'My Current Location',
+              isLive: Boolean(isLive),
+              liveUntil: isLive ? new Date(Date.now() + 60 * 60 * 1000).toISOString() : null
             },
             replyTo: replyingTo
           });
           if (onCancelReply) onCancelReply();
         },
-        (err) => {
+        () => {
           alert('Unable to retrieve location. Please grant permission in browser.');
         }
       );
+    }
+  };
+
+  // Poll Creation Handler
+  const handleCreatePoll = (pollData) => {
+    onSend({
+      text: `📊 Poll: ${pollData.question}`,
+      type: 'poll',
+      poll: pollData,
+      replyTo: replyingTo
+    });
+    if (onCancelReply) onCancelReply();
+  };
+
+  // Schedule Message Handler
+  const handleScheduleMessage = async (scheduledFor) => {
+    if (!text.trim()) return;
+    try {
+      await api.post('/messages/schedule', {
+        conversationId,
+        text: text.trim(),
+        scheduledFor,
+        replyTo: replyingTo?._id
+      });
+      setText('');
+      if (onCancelReply) onCancelReply();
+      alert('Message scheduled successfully!');
+    } catch (err) {
+      alert(err.response?.data?.message || err.message || 'Failed to schedule message');
     }
   };
 
@@ -252,13 +290,26 @@ export const MessageInput = ({
 
         if (recordingDuration < 1) return; // Discard accidental clicks
 
-        const audioUrl = URL.createObjectURL(audioBlob);
+        let finalUrl = URL.createObjectURL(audioBlob);
+        try {
+          const formData = new FormData();
+          formData.append('file', audioBlob, `voice_${Date.now()}.webm`);
+          const res = await api.post('/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          });
+          if (res.data?.url || res.data?.file?.url) {
+            finalUrl = res.data?.url || res.data?.file?.url;
+          }
+        } catch (e) {
+          console.warn('Voice upload failed, using local stream fallback', e.message);
+        }
+
         onSend({
           text: '',
           type: 'voice',
           media: [
             {
-              url: audioUrl,
+              url: finalUrl,
               mimeType: 'audio/webm',
               duration: recordingDuration
             }
@@ -317,10 +368,10 @@ export const MessageInput = ({
 
       {/* Attachment Menu Popup */}
       {showAttachments && (
-        <div className="absolute bottom-20 left-4 z-30 p-3 rounded-2xl bg-card border border-line shadow-xl grid grid-cols-4 gap-3 text-center text-xs animate-scaleUp">
+        <div className="absolute bottom-20 left-4 z-30 p-3 rounded-2xl bg-card border border-line shadow-xl grid grid-cols-3 sm:grid-cols-6 gap-2 text-center text-xs animate-scaleUp">
           <label className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-cream cursor-pointer text-ink transition">
-            <div className="w-10 h-10 rounded-full bg-cream border border-line text-primary flex items-center justify-center shadow-xs">
-              <Image className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-full bg-cream border border-line text-primary flex items-center justify-center shadow-xs">
+              <Image className="w-4 h-4" />
             </div>
             <span className="text-[10px] font-semibold">Image</span>
             <input
@@ -332,8 +383,8 @@ export const MessageInput = ({
           </label>
 
           <label className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-cream cursor-pointer text-ink transition">
-            <div className="w-10 h-10 rounded-full bg-cream border border-line text-secondary flex items-center justify-center shadow-xs">
-              <Video className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-full bg-cream border border-line text-secondary flex items-center justify-center shadow-xs">
+              <Video className="w-4 h-4" />
             </div>
             <span className="text-[10px] font-semibold">Video</span>
             <input
@@ -345,8 +396,8 @@ export const MessageInput = ({
           </label>
 
           <label className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-cream cursor-pointer text-ink transition">
-            <div className="w-10 h-10 rounded-full bg-cream border border-line text-primary flex items-center justify-center shadow-xs">
-              <FileText className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-full bg-cream border border-line text-primary flex items-center justify-center shadow-xs">
+              <FileText className="w-4 h-4" />
             </div>
             <span className="text-[10px] font-semibold">Document</span>
             <input
@@ -359,13 +410,56 @@ export const MessageInput = ({
 
           <button
             type="button"
-            onClick={handleShareLocation}
+            onClick={() => handleShareLocation(false)}
             className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-cream cursor-pointer text-ink transition"
           >
-            <div className="w-10 h-10 rounded-full bg-cream text-primary border border-line flex items-center justify-center shadow-xs">
-              <MapPin className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-full bg-cream text-primary border border-line flex items-center justify-center shadow-xs">
+              <MapPin className="w-4 h-4" />
             </div>
             <span className="text-[10px] font-semibold">Location</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleShareLocation(true)}
+            className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-cream cursor-pointer text-ink transition"
+          >
+            <div className="w-9 h-9 rounded-full bg-cream text-secondary border border-line flex items-center justify-center shadow-xs">
+              <Radio className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-semibold">Live GPS</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowAttachments(false);
+              setShowPollModal(true);
+            }}
+            className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-cream cursor-pointer text-ink transition"
+          >
+            <div className="w-9 h-9 rounded-full bg-cream text-primary border border-line flex items-center justify-center shadow-xs">
+              <BarChart2 className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-semibold">Poll</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowAttachments(false);
+              if (!text.trim()) {
+                alert('Please type the message text you wish to schedule first.');
+                return;
+              }
+              setShowScheduleModal(true);
+            }}
+            className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-cream cursor-pointer text-ink transition"
+          >
+            <div className="w-9 h-9 rounded-full bg-cream text-secondary border border-line flex items-center justify-center shadow-xs">
+              <Calendar className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-semibold">Schedule</span>
           </button>
         </div>
       )}
@@ -598,6 +692,21 @@ export const MessageInput = ({
           )}
         </div>
       )}
+
+      {/* Create Poll Modal */}
+      <CreatePollModal
+        isOpen={showPollModal}
+        onClose={() => setShowPollModal(false)}
+        onCreatePoll={handleCreatePoll}
+      />
+
+      {/* Schedule Message Modal */}
+      <ScheduleMessageModal
+        isOpen={showScheduleModal}
+        onClose={() => setShowScheduleModal(false)}
+        text={text}
+        onSchedule={handleScheduleMessage}
+      />
     </div>
   );
 };

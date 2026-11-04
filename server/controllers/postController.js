@@ -443,6 +443,73 @@ const getUserPosts = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/posts/saved - Get user's saved posts (with optional collection filter)
+ */
+const getSavedPosts = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const { collectionName, cursor, limit = 12 } = req.query;
+    const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 12, 1), 30);
+
+    const query = { user: userId, targetType: 'post' };
+    if (collectionName && collectionName !== 'All Posts' && collectionName !== 'All') {
+      query.collectionName = collectionName;
+    }
+    if (cursor) {
+      query._id = { $lt: cursor };
+    }
+
+    const saves = await Save.find(query)
+      .sort({ _id: -1 })
+      .limit(parsedLimit + 1)
+      .lean();
+
+    const hasMore = saves.length > parsedLimit;
+    const paginated = hasMore ? saves.slice(0, parsedLimit) : saves;
+    const nextCursor = hasMore ? paginated[paginated.length - 1]._id : null;
+
+    const postIds = paginated.map((s) => s.targetId);
+    const posts = await Post.find({ _id: { $in: postIds }, isArchived: false })
+      .populate('author', '_id name username avatar isVerified')
+      .lean();
+
+    const postsMap = new Map(posts.map((p) => [String(p._id), p]));
+    const orderedPosts = [];
+    for (const s of paginated) {
+      const p = postsMap.get(String(s.targetId));
+      if (p) {
+        orderedPosts.push({ ...p, savedCollection: s.collectionName });
+      }
+    }
+
+    const enriched = await enrichPosts(orderedPosts, userId);
+
+    return res.status(200).json({
+      success: true,
+      data: enriched,
+      nextCursor,
+      hasMore
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/posts/collections - Get user's saved collections list
+ */
+const getCollections = async (req, res, next) => {
+  try {
+    const userId = req.user._id;
+    const collections = await Save.distinct('collectionName', { user: userId, targetType: 'post' });
+    const unique = Array.from(new Set(['All Posts', ...collections.filter(Boolean)]));
+    return res.status(200).json({ success: true, data: unique });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   createPost,
   getFeedPosts,
@@ -453,5 +520,7 @@ module.exports = {
   unlikePost,
   savePost,
   unsavePost,
-  getUserPosts
+  getUserPosts,
+  getSavedPosts,
+  getCollections
 };

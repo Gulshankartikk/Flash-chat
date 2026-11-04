@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/authMiddleware');
 router.use(authMiddleware);
 
 // Explore trending grid
+router.get('/explore/recommendations', exploreController.getRecommendations);
 router.get('/explore', exploreController.getExplore);
 
 // Hashtags

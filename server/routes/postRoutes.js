@@ -9,6 +9,8 @@ router.use(authMiddleware);
 
 // Post Feed
 router.get('/feed', postController.getFeedPosts);
+router.get('/saved', postController.getSavedPosts);
+router.get('/collections', postController.getCollections);
 
 // Single Post CRUD
 router.post('/', postController.createPost);

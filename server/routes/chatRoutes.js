@@ -33,6 +33,8 @@ router.get('/join/:inviteCode', chatController.joinByInvite);
 router.post('/join/:inviteCode', chatController.joinByInvite);
 
 // Specific conversation endpoints
+router.get('/:id/backup', chatController.exportBackup);
+router.post('/restore', chatController.restoreBackup);
 router.get('/:id', chatController.getChatById);
 router.patch('/:id', chatController.updateChat);
 router.patch('/:id/settings', chatController.updateChatSettings);

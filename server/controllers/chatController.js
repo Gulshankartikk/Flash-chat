@@ -44,7 +44,9 @@ const updateChatSchema = z.object({
   avatar: z.string().url().optional().or(z.literal('')),
   description: z.string().max(500).optional(),
   disappearAfter: z.number().nullable().optional(),
-  allowAi: z.boolean().optional()
+  allowAi: z.boolean().optional(),
+  onlyAdminsCanSend: z.boolean().optional(),
+  onlyAdminsCanEditInfo: z.boolean().optional()
 });
 
 const chatSettingsSchema = z.object({
@@ -559,6 +561,32 @@ const rejectMessageRequest = async (req, res, next) => {
   }
 };
 
+/**
+ * GET /api/chats/:id/backup
+ */
+const exportBackup = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const backup = await chatService.exportChatBackup(req.user._id, id);
+    return res.status(200).json({ success: true, data: backup });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * POST /api/chats/restore
+ */
+const restoreBackup = async (req, res, next) => {
+  try {
+    const backupData = req.body;
+    const result = await chatService.restoreChatBackup(req.user._id, backupData);
+    return res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createOrGetDirectChat,
   createGroupChat,
@@ -580,5 +608,7 @@ module.exports = {
   getPendingConversations,
   deletePendingConversation,
   acceptMessageRequest,
-  rejectMessageRequest
+  rejectMessageRequest,
+  exportBackup,
+  restoreBackup
 };

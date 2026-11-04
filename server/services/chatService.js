@@ -162,7 +162,8 @@ class ChatService {
       replyTo,
       forwardedFrom,
       sharedRef,
-      snapshot
+      snapshot,
+      poll
     } = payload;
 
     const conversation = await Conversation.findOne({ _id: { $eq: conversationId } });
@@ -170,11 +171,15 @@ class ChatService {
       throw new Error('Conversation not found.');
     }
 
-    const isUserMember = conversation.members.some(
+    const memberRec = conversation.members.find(
       (m) => String(m.user) === String(senderId)
     );
-    if (!isUserMember) {
+    if (!memberRec) {
       throw new Error('You are not a member of this conversation.');
+    }
+
+    if (conversation.type === 'group' && conversation.onlyAdminsCanSend && memberRec.role !== 'admin') {
+      throw new Error('Only admins can send messages in this group.');
     }
 
     // Deduplicate by clientId if present
@@ -203,6 +208,7 @@ class ChatService {
       text: text ? text.trim() : '',
       media: Array.isArray(media) ? media : [],
       location: location || undefined,
+      poll: poll || undefined,
       contact: contact || undefined,
       replyTo: replyTo || undefined,
       forwardedFrom: forwardedFrom || undefined,
@@ -1073,6 +1079,143 @@ class ChatService {
     await Conversation.findByIdAndDelete(conversationId);
 
     return { success: true, message: 'Message request declined and removed.' };
+  }
+
+  /**
+   * Vote on a message poll
+   */
+  async votePoll(userId, messageId, optionIndex) {
+    const message = await Message.findById(messageId);
+    if (!message || message.type !== 'poll' || !message.poll) {
+      throw new Error('Poll not found.');
+    }
+
+    const isMember = await this.isMember(message.conversation, userId);
+    if (!isMember) {
+      throw new Error('You are not a member of this conversation.');
+    }
+
+    const { options, allowMultiple } = message.poll;
+    if (typeof optionIndex !== 'number' || optionIndex < 0 || optionIndex >= options.length) {
+      throw new Error('Invalid option index.');
+    }
+
+    const userIdStr = String(userId);
+    const hasVotedThis = options[optionIndex].votes.some((v) => String(v) === userIdStr);
+
+    if (hasVotedThis) {
+      // Toggle off vote
+      options[optionIndex].votes = options[optionIndex].votes.filter((v) => String(v) !== userIdStr);
+    } else {
+      if (!allowMultiple) {
+        // Clear votes from all other options
+        options.forEach((opt) => {
+          opt.votes = opt.votes.filter((v) => String(v) !== userIdStr);
+        });
+      }
+      options[optionIndex].votes.push(userId);
+    }
+
+    message.markModified('poll');
+    await message.save();
+
+    return Message.findById(message._id)
+      .populate('sender', '_id name username avatar')
+      .populate('replyTo', '_id sender text type media')
+      .lean();
+  }
+
+  /**
+   * Export structured chat history backup
+   */
+  async exportChatBackup(userId, conversationId) {
+    const isMember = await this.isMember(conversationId, userId);
+    if (!isMember) {
+      throw new Error('You are not a member of this conversation.');
+    }
+
+    const conversation = await Conversation.findById(conversationId)
+      .populate('members.user', '_id name username avatar')
+      .lean();
+
+    const messages = await Message.find({
+      conversation: conversationId,
+      deletedForEveryone: false,
+      deletedFor: { $ne: userId }
+    })
+      .sort({ createdAt: 1 })
+      .populate('sender', '_id name username avatar')
+      .lean();
+
+    return {
+      version: '1.1.0',
+      exportedAt: new Date().toISOString(),
+      conversationId: conversation._id,
+      conversationType: conversation.type,
+      conversationName: conversation.name || 'Direct Chat',
+      messagesCount: messages.length,
+      messages: messages.map((m) => ({
+        _id: m._id,
+        sender: {
+          _id: m.sender?._id,
+          name: m.sender?.name,
+          username: m.sender?.username
+        },
+        type: m.type,
+        text: m.text,
+        media: m.media,
+        location: m.location,
+        poll: m.poll,
+        createdAt: m.createdAt
+      }))
+    };
+  }
+
+  /**
+   * Restore chat history backup
+   */
+  async restoreChatBackup(userId, backupData) {
+    if (!backupData || !backupData.conversationId || !Array.isArray(backupData.messages)) {
+      throw new Error('Invalid backup data format.');
+    }
+
+    const conversationId = backupData.conversationId;
+    const isMember = await this.isMember(conversationId, userId);
+    if (!isMember) {
+      throw new Error('You are not a member of this conversation.');
+    }
+
+    let restoredCount = 0;
+    for (const msg of backupData.messages) {
+      if (!msg.text && (!msg.media || msg.media.length === 0) && !msg.poll && !msg.location) {
+        continue;
+      }
+
+      const existing = await Message.findOne({
+        conversation: conversationId,
+        $or: [
+          { _id: mongoose.isValidObjectId(msg._id) ? msg._id : new mongoose.Types.ObjectId() },
+          { text: msg.text, createdAt: msg.createdAt ? new Date(msg.createdAt) : undefined }
+        ]
+      });
+
+      if (!existing) {
+        await Message.create({
+          conversation: conversationId,
+          chatId: conversationId,
+          sender: mongoose.isValidObjectId(msg.sender?._id) ? msg.sender._id : userId,
+          type: msg.type || 'text',
+          text: msg.text || '',
+          media: Array.isArray(msg.media) ? msg.media : [],
+          location: msg.location || undefined,
+          poll: msg.poll || undefined,
+          createdAt: msg.createdAt ? new Date(msg.createdAt) : new Date()
+        });
+        restoredCount++;
+      }
+    }
+
+    return { success: true, restoredCount };
   }
 }
 

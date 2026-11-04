@@ -333,3 +333,8 @@ export const createDirectChatApi = async (userId) => {
   return res.data;
 };
 
+export const fetchRecommendationsApi = async () => {
+  const res = await api.get('/explore/recommendations');
+  return res.data;
+};
+

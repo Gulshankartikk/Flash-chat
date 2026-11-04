@@ -43,6 +43,7 @@ const messageSchema = new mongoose.Schema(
         'location',
         'contact',
         'system',
+        'poll',
         'shared_post',
         'shared_reel',
         'shared_story',
@@ -61,7 +62,19 @@ const messageSchema = new mongoose.Schema(
     location: {
       lat: { type: Number },
       lng: { type: Number },
-      label: { type: String, default: '' }
+      label: { type: String, default: '' },
+      isLive: { type: Boolean, default: false },
+      liveUntil: { type: Date, default: null }
+    },
+    poll: {
+      question: { type: String, default: '' },
+      options: [
+        {
+          text: { type: String, required: true },
+          votes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }]
+        }
+      ],
+      allowMultiple: { type: Boolean, default: false }
     },
     contact: {
       name: { type: String },

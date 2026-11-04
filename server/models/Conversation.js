@@ -83,6 +83,14 @@ const conversationSchema = new mongoose.Schema(
       type: Boolean,
       default: true
     },
+    onlyAdminsCanSend: {
+      type: Boolean,
+      default: false
+    },
+    onlyAdminsCanEditInfo: {
+      type: Boolean,
+      default: false
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
