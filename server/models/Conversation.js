@@ -121,5 +121,6 @@ const conversationSchema = new mongoose.Schema(
 
 // Indexes
 conversationSchema.index({ 'members.user': 1, updatedAt: -1 });
+conversationSchema.index({ 'members.user': 1, 'members.unreadCount': 1 });
 
 module.exports = mongoose.model('Conversation', conversationSchema);

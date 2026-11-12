@@ -14,7 +14,14 @@ const envSchema = z.object({
   // JWT Tokens
   JWT_ACCESS_SECRET: z.string().default('flash_chat_super_secure_access_secret_key_32_chars_min'),
   JWT_REFRESH_SECRET: z.string().default('flash_chat_super_secure_refresh_secret_key_32_chars_min'),
+  JWT_SECRET: z.string().optional().default('flash_chat_super_secure_access_secret_key_32_chars_min'),
   CLIENT_URL: z.string().default('http://localhost:5173'),
+
+  // Google OAuth 2.0
+  GOOGLE_CLIENT_ID: z.string().optional().default(''),
+  GOOGLE_CLIENT_SECRET: z.string().optional().default(''),
+  GOOGLE_REDIRECT_URI: z.string().optional().default('http://localhost:5000/api/auth/google/callback'),
+  PHONE_HASH_SECRET: z.string().optional().default('flash_chat_super_secure_phone_hmac_secret_32_chars_min'),
 
   // Twilio OTP SMS
   TWILIO_ACCOUNT_SID: z.string().optional().default(''),
@@ -31,6 +38,7 @@ const envSchema = z.object({
   // Legacy aliases for backward compatibility
   GMAIL_USER: z.string().optional().default(''),
   GMAIL_APP_PASSWORD: z.string().optional().default(''),
+  GMAIL_REFRESH_TOKEN: z.string().optional().default(''),
 
   // Google Gemini AI
   GEMINI_API_KEY: z.string().optional().default(''),

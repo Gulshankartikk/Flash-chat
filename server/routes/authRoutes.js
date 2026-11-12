@@ -12,6 +12,8 @@ router.post('/onboard', authMiddleware, authController.onboarding);
 router.post('/onboarding', authMiddleware, authController.onboarding);
 router.get('/check-username/:username', authController.checkUsername);
 router.get('/sessions', authMiddleware, authController.getSessions);
+router.delete('/sessions', authMiddleware, authController.revokeOtherSessions);
+router.post('/sessions/revoke-others', authMiddleware, authController.revokeOtherSessions);
 router.delete('/sessions/:sid', authMiddleware, authController.deleteSession);
 router.post('/logout', authMiddleware.optional, authController.logout);
 router.post('/logout-all', authMiddleware.optional, authController.logoutAll);

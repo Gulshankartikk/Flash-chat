@@ -120,6 +120,28 @@ const userSchema = new mongoose.Schema(
         timezone: { type: String, default: 'UTC' }
       }
     },
+    notificationPreferences: {
+      inApp: {
+        messages: { type: Boolean, default: true },
+        calls: { type: Boolean, default: true },
+        social: { type: Boolean, default: true },
+        mentions: { type: Boolean, default: true }
+      },
+      push: {
+        enabled: { type: Boolean, default: true },
+        messages: { type: Boolean, default: true },
+        calls: { type: Boolean, default: true },
+        social: { type: Boolean, default: true }
+      },
+      email: {
+        securityAlerts: { type: Boolean, default: true },
+        missedCalls: { type: Boolean, default: true },
+        digest: { type: Boolean, default: false }
+      },
+      sms: {
+        securityAlerts: { type: Boolean, default: false }
+      }
+    },
     followersCount: {
       type: Number,
       default: 0
@@ -150,6 +172,8 @@ const userSchema = new mongoose.Schema(
         token: { type: String, required: true },
         deviceId: { type: String },
         deviceInfo: { type: String },
+        ipAddress: { type: String, default: '' },
+        lastActiveAt: { type: Date, default: Date.now },
         createdAt: { type: Date, default: Date.now }
       }
     ]
@@ -160,5 +184,6 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ name: 'text', username: 'text' });
+userSchema.index({ isOnline: 1, lastSeen: -1 });
 
 module.exports = mongoose.model('User', userSchema);

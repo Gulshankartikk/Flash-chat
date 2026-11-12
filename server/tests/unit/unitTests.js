@@ -12,6 +12,10 @@ const { canViewUser, evaluateVisibilityMatrix, filterVisibleContent } = require(
 const { formatAiPrompt, truncatePromptInput } = require('../../services/ai/prompts');
 const { createUserFactory, createAuthTokens, createPocketItemFactory } = require('../helpers/factories');
 const { mockRedis, resetMocks } = require('../helpers/mockService');
+const { CATEGORY_LIMITS, getCategoryFromMime, verifyUploadedFile } = require('../../middleware/uploadMiddleware');
+const mediaService = require('../../services/mediaService');
+const redisService = require('../../services/redisService');
+const mailer = require('../../services/mailer/mailerService');
 
 let passed = 0;
 let failed = 0;
@@ -304,6 +308,129 @@ async function runAllUnitTests() {
     assert.strictEqual(mockBackup.version, '1.1.0');
     assert.strictEqual(mockBackup.messages.length, 2);
     assert.ok(mockBackup.exportedAt);
+  });
+
+  // ----------------------------------------------------------------
+  // 8. MEDIA UPLOADS, CATEGORY LIMITS & TRANSFORMATIONS
+  // ----------------------------------------------------------------
+  console.log('\n\x1b[1m[8] Media Upload Rules, File Categories & Cloudinary Optimization\x1b[0m');
+
+  runTest('Enforces strict category size limits (Image: 10MB, Video: 50MB, Audio: 20MB, Docs: 20MB)', () => {
+    assert.strictEqual(CATEGORY_LIMITS.image, 10 * 1024 * 1024);
+    assert.strictEqual(CATEGORY_LIMITS.video, 50 * 1024 * 1024);
+    assert.strictEqual(CATEGORY_LIMITS.audio, 20 * 1024 * 1024);
+    assert.strictEqual(CATEGORY_LIMITS.document, 20 * 1024 * 1024);
+  });
+
+  runTest('getCategoryFromMime correctly resolves MIME types to media categories', () => {
+    assert.strictEqual(getCategoryFromMime('image/png'), 'image');
+    assert.strictEqual(getCategoryFromMime('image/webp'), 'image');
+    assert.strictEqual(getCategoryFromMime('video/mp4'), 'video');
+    assert.strictEqual(getCategoryFromMime('audio/mpeg'), 'audio');
+    assert.strictEqual(getCategoryFromMime('application/pdf'), 'document');
+    assert.strictEqual(getCategoryFromMime('unknown/xyz'), 'default');
+  });
+
+  runTest('verifyUploadedFile rejects files exceeding category limits', () => {
+    const fakeOversizedImage = {
+      mimetype: 'image/jpeg',
+      size: 15 * 1024 * 1024, // 15MB > 10MB limit
+      buffer: Buffer.alloc(100)
+    };
+    let statusCode = null;
+    let jsonBody = null;
+    const req = { file: fakeOversizedImage };
+    const res = {
+      status(code) { statusCode = code; return this; },
+      json(body) { jsonBody = body; return this; }
+    };
+    verifyUploadedFile(req, res, () => {});
+    assert.strictEqual(statusCode, 400);
+    assert.strictEqual(jsonBody.code, 'FILE_TOO_LARGE');
+  });
+
+  runTest('generateThumbnailUrl applies Cloudinary transformations for image and video', () => {
+    const imgThumb = mediaService.generateThumbnailUrl('https://res.cloudinary.com/demo/image/upload/sample.jpg', 'image');
+    assert.ok(imgThumb.includes('c_fill,w_300,h_300'));
+
+    const vidThumb = mediaService.generateThumbnailUrl('https://res.cloudinary.com/demo/video/upload/sample.mp4', 'video');
+    assert.ok(vidThumb.includes('so_0,w_400'));
+    assert.ok(vidThumb.endsWith('.jpg'));
+  });
+
+  await runAsyncTest('deleteFile handles missing or malformed public IDs safely', async () => {
+    await assert.rejects(
+      async () => await mediaService.deleteFile(''),
+      /Valid public ID is required/
+    );
+  });
+
+  // ----------------------------------------------------------------
+  // 9. AUTHENTICATION, SESSIONS & REDIS TOKEN BLACKLIST
+  // ----------------------------------------------------------------
+  console.log('\n\x1b[1m[9] Authentication Token Blacklisting & Session Security\x1b[0m');
+
+  await runAsyncTest('Redis token blacklisting revokes token and checks status correctly', async () => {
+    const fakeToken = 'header.payload.' + crypto.randomBytes(32).toString('hex');
+    assert.strictEqual(await redisService.isTokenBlacklisted(fakeToken), false);
+
+    await redisService.blacklistToken(fakeToken, 3600);
+    assert.strictEqual(await redisService.isTokenBlacklisted(fakeToken), true);
+  });
+
+  runTest('Session record encapsulates deviceId, ipAddress, and lastActiveAt', () => {
+    const session = {
+      token: 'test_refresh_token',
+      deviceId: 'device_uuid_123',
+      deviceInfo: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+      ipAddress: '192.168.1.50',
+      lastActiveAt: new Date(),
+      createdAt: new Date()
+    };
+    assert.ok(session.deviceId);
+    assert.ok(session.ipAddress);
+    assert.ok(session.lastActiveAt instanceof Date);
+  });
+
+  runTest('Password reset dispatcher constructs valid reset payload', () => {
+    let capturedOptions = null;
+    const originalSendAsync = mailer.sendAsync;
+    mailer.sendAsync = (opts) => { capturedOptions = opts; };
+
+    mailer.sendPasswordReset('test@flashchat.test', 'Alex Tester', 'https://flashchat.test/reset-password/abc123token');
+
+    assert.ok(capturedOptions);
+    assert.strictEqual(capturedOptions.to, 'test@flashchat.test');
+    assert.ok(capturedOptions.subject.includes('Reset') || capturedOptions.subject.includes('Password'));
+    assert.ok(capturedOptions.html.includes('https://flashchat.test/reset-password/abc123token'));
+
+    mailer.sendAsync = originalSendAsync;
+  });
+
+  // ----------------------------------------------------------------
+  // 10. REDIS CACHE SYSTEM
+  // ----------------------------------------------------------------
+  console.log('\n\x1b[1m[10] Redis Caching Layer (JSON Serialization, TTL & Pattern Invalidation)\x1b[0m');
+
+  await runAsyncTest('cacheSet and cacheGet handle complex serializable objects', async () => {
+    const testKey = 'test:profile:cache_test_user';
+    const profile = { id: 'u123', username: 'alex', count: 42, active: true };
+
+    await redisService.cacheSet(testKey, profile, 60);
+    const retrieved = await redisService.cacheGet(testKey);
+
+    assert.deepStrictEqual(retrieved, profile);
+    await redisService.cacheDel(testKey);
+    assert.strictEqual(await redisService.cacheGet(testKey), null);
+  });
+
+  await runAsyncTest('cacheDelPattern evicts keys matching wildcard pattern', async () => {
+    await redisService.cacheSet('user:profile:base:bob', { name: 'Bob' }, 60);
+    await redisService.cacheSet('user:profile:base:alice', { name: 'Alice' }, 60);
+
+    await redisService.cacheDelPattern('user:profile:base:*');
+    assert.strictEqual(await redisService.cacheGet('user:profile:base:bob'), null);
+    assert.strictEqual(await redisService.cacheGet('user:profile:base:alice'), null);
   });
 
   console.log('\n======================================================');

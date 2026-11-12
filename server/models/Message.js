@@ -155,6 +155,7 @@ const messageSchema = new mongoose.Schema(
 // High performance cursor pagination index
 messageSchema.index({ conversation: 1, createdAt: -1 });
 messageSchema.index({ chatId: 1, createdAt: -1 });
+messageSchema.index({ sender: 1, createdAt: -1 });
 
 // Full text search index
 messageSchema.index({ text: 'text' });

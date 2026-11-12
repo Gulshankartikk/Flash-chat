@@ -42,6 +42,8 @@ router.post('/', authMiddleware, uploadLimiter, upload.single('file'), verifyUpl
       success: true,
       url: uploaded.url,
       publicId: uploaded.public_id,
+      thumbnail: uploaded.thumbnail,
+      size: uploaded.bytes,
       type
     });
   } catch (error) {
@@ -54,7 +56,7 @@ router.post('/', authMiddleware, uploadLimiter, upload.single('file'), verifyUpl
  * POST /api/upload/avatar
  * Returns { url, publicId, type: 'image' }
  */
-router.post('/avatar', authMiddleware, upload.single('avatar'), async (req, res, next) => {
+router.post('/avatar', authMiddleware, upload.single('avatar'), verifyUploadedFile, async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -72,10 +74,32 @@ router.post('/avatar', authMiddleware, upload.single('avatar'), async (req, res,
       success: true,
       url: uploaded.url,
       publicId: uploaded.public_id,
+      thumbnail: uploaded.thumbnail,
+      size: uploaded.bytes,
       type: 'image'
     });
   } catch (error) {
     logger.error({ err: error.message }, 'Avatar upload handler error');
+    next(error);
+  }
+});
+
+/**
+ * DELETE /api/upload/:publicId
+ */
+router.delete('/:publicId', authMiddleware, uploadLimiter, async (req, res, next) => {
+  try {
+    const { publicId } = req.params;
+    const resourceType = req.query.resourceType || 'image';
+
+    const result = await mediaService.deleteFile(publicId, resourceType);
+    return res.status(200).json({
+      success: true,
+      message: 'Media deleted successfully',
+      data: result
+    });
+  } catch (error) {
+    logger.error({ err: error.message }, 'Delete media handler error');
     next(error);
   }
 });

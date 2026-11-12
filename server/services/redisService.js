@@ -102,6 +102,89 @@ const redisService = {
       return 1;
     }
     return 0;
+  },
+
+  /**
+   * Blacklist a revoked token (Access or Refresh) using its SHA-256 hash
+   */
+  async blacklistToken(token, ttlSeconds = 7 * 24 * 3600) {
+    if (!token) return;
+    const crypto = require('crypto');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const key = `bl:token:${tokenHash}`;
+    await this.set(key, '1', 'EX', ttlSeconds);
+  },
+
+  /**
+   * Check if a token has been explicitly revoked/blacklisted
+   */
+  async isTokenBlacklisted(token) {
+    if (!token) return false;
+    const crypto = require('crypto');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const key = `bl:token:${tokenHash}`;
+    const result = await this.get(key);
+    return Boolean(result);
+  },
+
+  /**
+   * Retrieve parsed JSON from cache
+   */
+  async cacheGet(key) {
+    try {
+      const data = await this.get(key);
+      if (!data) return null;
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  },
+
+  /**
+   * Store serializable object in cache with TTL
+   */
+  async cacheSet(key, value, ttlSeconds = 300) {
+    try {
+      return await this.set(key, JSON.stringify(value), 'EX', ttlSeconds);
+    } catch (err) {
+      logger.warn({ key, err: err.message }, 'Failed to cache data');
+      return null;
+    }
+  },
+
+  /**
+   * Evict single key from cache
+   */
+  async cacheDel(key) {
+    return await this.del(key);
+  },
+
+  /**
+   * Invalidate multiple keys matching wildcard pattern
+   */
+  async cacheDelPattern(pattern) {
+    if (redisClient && redisClient.status === 'ready') {
+      try {
+        const keys = await redisClient.keys(pattern);
+        if (keys && keys.length > 0) {
+          await redisClient.del(...keys);
+        }
+      } catch (err) {
+        logger.warn({ pattern, err: err.message }, 'Redis pattern deletion failed');
+      }
+    }
+
+    // In-memory fallback pattern match
+    try {
+      const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+      for (const k of memoryStore.keys()) {
+        if (regex.test(k)) {
+          this.del(k);
+        }
+      }
+    } catch {
+      // Ignore regex parse errors
+    }
   }
 };
 

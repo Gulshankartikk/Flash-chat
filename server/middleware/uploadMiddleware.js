@@ -130,18 +130,48 @@ const upload = multer({
   fileFilter
 });
 
+// Category-based upload size limits
+const CATEGORY_LIMITS = {
+  image: 10 * 1024 * 1024,     // 10MB for photos/graphics
+  video: 50 * 1024 * 1024,     // 50MB for video
+  audio: 20 * 1024 * 1024,     // 20MB for voice/music
+  document: 20 * 1024 * 1024,  // 20MB for pdf/text
+  default: 20 * 1024 * 1024
+};
+
+const getCategoryFromMime = (mimetype = '') => {
+  if (mimetype.startsWith('image/')) return 'image';
+  if (mimetype.startsWith('video/')) return 'video';
+  if (mimetype.startsWith('audio/')) return 'audio';
+  if (mimetype === 'application/pdf' || mimetype === 'text/plain') return 'document';
+  return 'default';
+};
+
 /**
- * Middleware: Post-upload deep buffer verification
+ * Middleware: Post-upload deep buffer verification and per-category size limits
  */
 const verifyUploadedFile = (req, res, next) => {
   const files = req.files || (req.file ? [req.file] : []);
 
   for (const file of files) {
+    const category = getCategoryFromMime(file.mimetype);
+    const maxAllowed = CATEGORY_LIMITS[category] || CATEGORY_LIMITS.default;
+    const fileSize = file.size || (file.buffer ? file.buffer.length : 0);
+
+    if (fileSize > maxAllowed) {
+      return res.status(400).json({
+        success: false,
+        code: 'FILE_TOO_LARGE',
+        message: `File exceeds maximum allowed size for ${category} (${Math.round(maxAllowed / (1024 * 1024))}MB).`
+      });
+    }
+
     if (file.buffer) {
       const isValid = verifyBufferSignature(file.buffer, file.mimetype);
       if (!isValid) {
         return res.status(400).json({
           success: false,
+          code: 'CONTENT_MISMATCH',
           message: `Security validation failed: File content does not match reported MIME type ${file.mimetype}.`
         });
       }
@@ -154,5 +184,7 @@ const verifyUploadedFile = (req, res, next) => {
 module.exports = {
   upload,
   verifyUploadedFile,
-  verifyBufferSignature
+  verifyBufferSignature,
+  CATEGORY_LIMITS,
+  getCategoryFromMime
 };

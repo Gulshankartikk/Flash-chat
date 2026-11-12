@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const { z } = require('zod');
 const User = require('../models/User');
+const redisService = require('../services/redisService');
 
 const updateProfileSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters').max(60).optional(),
@@ -51,6 +52,39 @@ const updateProfileSchema = z.object({
   isPrivateAccount: z.boolean().optional(),
   isPrivate: z.boolean().optional(),
   theme: z.enum(['light', 'dark', 'system']).optional(),
+  notificationPreferences: z
+    .object({
+      inApp: z
+        .object({
+          messages: z.boolean().optional(),
+          calls: z.boolean().optional(),
+          social: z.boolean().optional(),
+          mentions: z.boolean().optional()
+        })
+        .optional(),
+      push: z
+        .object({
+          enabled: z.boolean().optional(),
+          messages: z.boolean().optional(),
+          calls: z.boolean().optional(),
+          social: z.boolean().optional()
+        })
+        .optional(),
+      email: z
+        .object({
+          securityAlerts: z.boolean().optional(),
+          missedCalls: z.boolean().optional(),
+          digest: z.boolean().optional()
+        })
+        .optional(),
+      sms: z
+        .object({
+          securityAlerts: z.boolean().optional()
+        })
+        .optional()
+    })
+    .optional(),
+  pushSettings: z.any().optional(),
   aiSettings: z
     .object({
       aiEnabled: z.boolean().optional(),
@@ -182,6 +216,19 @@ const updateMe = async (req, res, next) => {
       .select('-passwordHash -refreshTokens -pocketPinHash')
       .lean();
 
+    // Invalidate user profile caches in Redis
+    try {
+      await redisService.cacheDel(`user:profile:base:${updatedUser._id}`);
+      if (updatedUser.username) {
+        await redisService.cacheDel(`user:profile:base:${updatedUser.username.toLowerCase()}`);
+      }
+      if (updates.username && updates.username !== updatedUser.username) {
+        await redisService.cacheDel(`user:profile:base:${updates.username.toLowerCase()}`);
+      }
+    } catch {
+      // Non-blocking cache eviction
+    }
+
     // Broadcast profile update via Socket.IO so other users' chat headers & lists sync immediately
     try {
       const { getIO } = require('../sockets/socketHandler');
@@ -280,22 +327,37 @@ const getPublicProfile = async (req, res, next) => {
     const Story = require('../models/Story');
 
     const isObjectId = mongoose.Types.ObjectId.isValid(identifier);
-    const userQuery = isObjectId
-      ? { $or: [{ _id: identifier }, { username: identifier.toLowerCase() }] }
-      : { username: identifier.toLowerCase() };
+    const cacheKey = `user:profile:base:${identifier.toLowerCase()}`;
+    let baseUser = await redisService.cacheGet(cacheKey);
 
-    const user = await User.findOne(userQuery)
-      .select(
-        '_id name username avatar bio isOnline lastSeen isPrivateAccount followersCount followingCount postsCount createdAt privacy'
-      )
-      .lean();
+    if (!baseUser) {
+      const userQuery = isObjectId
+        ? { $or: [{ _id: identifier }, { username: identifier.toLowerCase() }] }
+        : { username: identifier.toLowerCase() };
 
-    if (!user) {
+      baseUser = await User.findOne(userQuery)
+        .select(
+          '_id name username avatar bio isOnline lastSeen isPrivateAccount followersCount followingCount postsCount createdAt privacy'
+        )
+        .lean();
+
+      if (baseUser) {
+        // Cache base profile for 3 minutes (180s)
+        await redisService.cacheSet(cacheKey, baseUser, 180);
+        // Also cache under its _id if looked up by username
+        await redisService.cacheSet(`user:profile:base:${baseUser._id}`, baseUser, 180);
+      }
+    }
+
+    if (!baseUser) {
       return res.status(404).json({
         success: false,
         message: 'User profile not found'
       });
     }
+
+    // Clone base profile so we don't mutate cached object
+    const user = { ...baseUser };
 
     // Check if target has blocked current user
     const blockedByTarget = await Block.findOne({ blocker: user._id, blocked: req.user._id });

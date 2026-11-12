@@ -9,8 +9,52 @@ const pushService = require('../services/pushService');
 const { registerCallHandlers, handleCallDisconnect } = require('./callSocket');
 const logger = require('../utils/logger');
 
+const Message = require('../models/Message');
+
 // In-memory active sockets map: userId -> Set of socket IDs
 const onlineUserSockets = new Map();
+
+// Clustered Redis presence helpers
+const trackUserPresenceConnect = async (userId) => {
+  if (redisClient && redisClient.status === 'ready') {
+    try {
+      await redisClient.sadd('presence:online_users', userId);
+      await redisClient.incr(`presence:sockets:${userId}`);
+    } catch (e) {
+      // non-blocking
+    }
+  }
+};
+
+const trackUserPresenceDisconnect = async (userId) => {
+  if (redisClient && redisClient.status === 'ready') {
+    try {
+      const remaining = await redisClient.decr(`presence:sockets:${userId}`);
+      if (remaining <= 0) {
+        await redisClient.srem('presence:online_users', userId);
+        await redisClient.del(`presence:sockets:${userId}`);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      // non-blocking
+    }
+  }
+  return true;
+};
+
+const getGlobalOnlineUsers = async () => {
+  const localList = Array.from(onlineUserSockets.keys());
+  if (redisClient && redisClient.status === 'ready') {
+    try {
+      const redisList = await redisClient.smembers('presence:online_users');
+      return Array.from(new Set([...localList, ...(redisList || [])]));
+    } catch (e) {
+      // fallback to local
+    }
+  }
+  return localList;
+};
 
 // Per-user rate limiting map: userId -> [timestamp]
 const userMessageRateMap = new Map();
@@ -126,6 +170,7 @@ const initSocketIO = (io) => {
       onlineUserSockets.set(userId, new Set());
     }
     onlineUserSockets.get(userId).add(socket.id);
+    await trackUserPresenceConnect(userId);
 
     // 1. Join personal room "user:<id>"
     socket.join(`user:${userId}`);
@@ -162,12 +207,55 @@ const initSocketIO = (io) => {
       }
     });
 
-    // Send online users list to connecting client
-    const onlineList = Array.from(onlineUserSockets.keys());
-    socket.emit('users:online_list', onlineList);
+    // Send global online users list to connecting client
+    getGlobalOnlineUsers().then((onlineList) => {
+      socket.emit('users:online_list', onlineList);
+    }).catch(() => {
+      socket.emit('users:online_list', Array.from(onlineUserSockets.keys()));
+    });
 
     // Register Call & WebRTC signaling handlers
     registerCallHandlers(io, socket, { onlineUserSockets });
+
+    // -------------------------------------------------------------------------
+    // Event: messages:sync (Offline message synchronization)
+    // -------------------------------------------------------------------------
+    socket.on('messages:sync', async ({ conversationId, since, lastMessageId } = {}, ack) => {
+      try {
+        if (!conversationId) {
+          if (ack) ack({ success: false, message: 'conversationId required' });
+          return;
+        }
+        const isMember = await chatService.isMember(conversationId, userId);
+        if (!isMember) {
+          if (ack) ack({ success: false, message: 'Access denied' });
+          return;
+        }
+
+        const query = {
+          $or: [{ conversation: conversationId }, { chatId: conversationId }],
+          deletedForEveryone: { $ne: true },
+          deletedFor: { $ne: userId }
+        };
+
+        if (since) {
+          query.createdAt = { $gt: new Date(since) };
+        } else if (lastMessageId) {
+          query._id = { $gt: lastMessageId };
+        }
+
+        const missedMessages = await Message.find(query)
+          .sort({ createdAt: 1 })
+          .limit(100)
+          .populate('sender', '_id name username avatar')
+          .populate('replyTo', '_id sender text type media')
+          .lean();
+
+        if (ack) ack({ success: true, messages: missedMessages });
+      } catch (err) {
+        if (ack) ack({ success: false, message: err.message });
+      }
+    });
 
     // -------------------------------------------------------------------------
     // Event: conversation:join & chat:join
@@ -414,16 +502,20 @@ const initSocketIO = (io) => {
         userSockets.delete(socket.id);
         if (userSockets.size === 0) {
           onlineUserSockets.delete(userId);
-          const lastSeen = new Date();
-          await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen });
+        }
+      }
 
-          // Start 15s grace period for any active call
-          handleCallDisconnect(io, userId);
+      const isCompletelyOffline = await trackUserPresenceDisconnect(userId);
+      if (isCompletelyOffline && (!userSockets || userSockets.size === 0)) {
+        const lastSeen = new Date();
+        await User.findByIdAndUpdate(userId, { isOnline: false, lastSeen });
 
-          const shouldBroadcast = socket.user.privacy?.lastSeen !== 'nobody';
-          if (shouldBroadcast) {
-            io.emit('presence:update', { userId, isOnline: false, lastSeen });
-          }
+        // Start 15s grace period for any active call
+        handleCallDisconnect(io, userId);
+
+        const shouldBroadcast = socket.user.privacy?.lastSeen !== 'nobody';
+        if (shouldBroadcast) {
+          io.emit('presence:update', { userId, isOnline: false, lastSeen });
         }
       }
       logger.info({ userId, socketId: socket.id }, 'Socket disconnected');
@@ -436,5 +528,8 @@ const initSocketIO = (io) => {
 module.exports = {
   initSocketIO,
   getIO: () => ioInstance,
-  onlineUserSockets
+  onlineUserSockets,
+  trackUserPresenceConnect,
+  trackUserPresenceDisconnect,
+  getGlobalOnlineUsers
 };

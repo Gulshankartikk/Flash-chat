@@ -11,8 +11,8 @@ const authMiddleware = async (req, res, next) => {
       if (parts[1] && parts[1] !== 'null' && parts[1] !== 'undefined') {
         token = parts[1];
       }
-    } else if (req.cookies && (req.cookies.token || req.cookies.refreshToken)) {
-      token = req.cookies.token || req.cookies.refreshToken;
+    } else if (req.cookies && req.cookies.token) {
+      token = req.cookies.token;
     }
 
     if (!token) {
@@ -25,9 +25,7 @@ const authMiddleware = async (req, res, next) => {
 
     let decoded = null;
     const accessSecret = config.JWT_ACCESS_SECRET || config.JWT_SECRET;
-    const refreshSecret = config.JWT_REFRESH_SECRET || (config.JWT_SECRET + '_refresh');
 
-    // Try verifying with access secret first, then refresh secret / legacy secret
     try {
       decoded = jwt.verify(token, accessSecret);
     } catch (err) {
@@ -39,9 +37,13 @@ const authMiddleware = async (req, res, next) => {
         });
       }
       try {
-        decoded = jwt.verify(token, refreshSecret);
-      } catch (err2) {
         decoded = jwt.verify(token, config.JWT_SECRET);
+      } catch (legacyErr) {
+        return res.status(401).json({
+          success: false,
+          code: 'INVALID_TOKEN',
+          message: 'Invalid authorization token.'
+        });
       }
     }
 
@@ -81,8 +83,8 @@ const optionalAuth = async (req, res, next) => {
       if (parts[1] && parts[1] !== 'null' && parts[1] !== 'undefined') {
         token = parts[1];
       }
-    } else if (req.cookies && (req.cookies.token || req.cookies.refreshToken)) {
-      token = req.cookies.token || req.cookies.refreshToken;
+    } else if (req.cookies && req.cookies.token) {
+      token = req.cookies.token;
     }
 
     if (!token) {
@@ -91,18 +93,13 @@ const optionalAuth = async (req, res, next) => {
 
     let decoded = null;
     const accessSecret = config.JWT_ACCESS_SECRET || config.JWT_SECRET;
-    const refreshSecret = config.JWT_REFRESH_SECRET || (config.JWT_SECRET + '_refresh');
 
     try {
       decoded = jwt.verify(token, accessSecret);
     } catch (_) {
       try {
-        decoded = jwt.verify(token, refreshSecret);
-      } catch (_) {
-        try {
-          decoded = jwt.verify(token, config.JWT_SECRET);
-        } catch (_) {}
-      }
+        decoded = jwt.verify(token, config.JWT_SECRET);
+      } catch (_) {}
     }
 
     if (decoded?.id) {

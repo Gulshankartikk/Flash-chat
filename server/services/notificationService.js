@@ -43,6 +43,30 @@ class NotificationService {
       // Emit realtime socket event if io is provided
       if (io) {
         io.to(`user:${user}`).emit('notification:new', populated);
+        const unreadCount = await this.getUnreadCount(user);
+        io.to(`user:${user}`).emit('notification:unread_count', { count: unreadCount });
+      }
+
+      // Check offline email notification for missed calls (strictly never for ordinary messages)
+      if (type === 'missed_call') {
+        try {
+          const User = require('../models/User');
+          const recipient = await User.findById(user).select('email name notificationPreferences isOnline');
+          if (recipient && !recipient.isOnline && recipient.email) {
+            const emailAllowed = recipient.notificationPreferences?.email?.missedCalls !== false;
+            if (emailAllowed) {
+              const mailer = require('./mailer/mailerService');
+              mailer.sendAsync({
+                to: recipient.email,
+                subject: `Flash Chat: Missed call from ${populated?.actor?.name || 'someone'}`,
+                html: `<p>Hi ${recipient.name || 'there'},</p><p>You missed a call on Flash Chat from <strong>${populated?.actor?.name || 'someone'}</strong> (@${populated?.actor?.username || 'user'}).</p>`,
+                text: `You missed a call on Flash Chat from ${populated?.actor?.name || 'someone'}.`
+              });
+            }
+          }
+        } catch (e) {
+          logger.warn({ err: e.message }, 'Missed call email notification dispatch failed');
+        }
       }
 
       return populated;
@@ -64,6 +88,8 @@ class NotificationService {
       const deleted = await Notification.findOneAndDelete(query);
       if (deleted && io) {
         io.to(`user:${user}`).emit('notification:deleted', { notificationId: deleted._id });
+        const unreadCount = await this.getUnreadCount(user);
+        io.to(`user:${user}`).emit('notification:unread_count', { count: unreadCount });
       }
       return deleted;
     } catch (err) {
@@ -82,19 +108,28 @@ class NotificationService {
   /**
    * Mark single notification as read
    */
-  async markAsRead(userId, notifId) {
-    return await Notification.findOneAndUpdate(
+  async markAsRead(userId, notifId, io = null) {
+    const updated = await Notification.findOneAndUpdate(
       { _id: notifId, user: userId },
       { isRead: true },
       { new: true }
     );
+    if (io) {
+      const count = await this.getUnreadCount(userId);
+      io.to(`user:${userId}`).emit('notification:unread_count', { count });
+    }
+    return updated;
   }
 
   /**
    * Mark all notifications as read
    */
-  async markAllAsRead(userId) {
-    return await Notification.updateMany({ user: userId, isRead: false }, { isRead: true });
+  async markAllAsRead(userId, io = null) {
+    const result = await Notification.updateMany({ user: userId, isRead: false }, { isRead: true });
+    if (io) {
+      io.to(`user:${userId}`).emit('notification:unread_count', { count: 0 });
+    }
+    return result;
   }
 }
 

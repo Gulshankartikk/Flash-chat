@@ -22,6 +22,34 @@ export const useChatStore = create((set, get) => ({
   searchResults: [],
   pendingConversations: [],
   isLoadingPending: false,
+  offlineMessageQueue: [],
+
+  drainOfflineQueue: async () => {
+    const queue = [...(get().offlineMessageQueue || [])];
+    if (queue.length === 0) return;
+
+    set({ offlineMessageQueue: [] });
+    const socket = getSocket();
+
+    for (const item of queue) {
+      if (socket && socket.connected) {
+        socket.emit('message:send', item.payload, (ack) => {
+          if (ack?.success && ack.message) {
+            get().replaceOptimisticMessage(item.convId, item.clientId, ack.message);
+          }
+        });
+      } else {
+        try {
+          const res = await api.post('/messages', item.payload);
+          get().replaceOptimisticMessage(item.convId, item.clientId, res.data.message);
+        } catch (e) {
+          set((state) => ({
+            offlineMessageQueue: [...state.offlineMessageQueue, item]
+          }));
+        }
+      }
+    }
+  },
 
   resetChatState: () =>
     set({
@@ -35,7 +63,8 @@ export const useChatStore = create((set, get) => ({
       hasMore: false,
       pendingConversations: [],
       onlineUsers: new Set(),
-      typingUsers: {}
+      typingUsers: {},
+      offlineMessageQueue: []
     }),
 
   setOnlineUsers: (users) => set({ onlineUsers: new Set(users) }),
@@ -415,12 +444,15 @@ export const useChatStore = create((set, get) => ({
         }
       });
     } else {
-      // Fallback: REST API
+      // Fallback: REST API with offline retry queue
       try {
         const res = await api.post('/messages', payload);
         get().replaceOptimisticMessage(convId, clientId, res.data.message);
       } catch (err) {
-        console.error('REST fallback message send failed:', err.message);
+        console.warn('Network offline or send failed, message queued for sync on reconnect:', err.message);
+        set((state) => ({
+          offlineMessageQueue: [...(state.offlineMessageQueue || []), { convId, clientId, payload }]
+        }));
       }
     }
   },
@@ -625,6 +657,7 @@ export const useChatStore = create((set, get) => ({
     const socket = getSocket();
     if (!socket) return;
 
+    socket.off('connect');
     socket.off('message:new');
     socket.off('message:updated');
     socket.off('message:deleted');
@@ -634,6 +667,29 @@ export const useChatStore = create((set, get) => ({
     socket.off('users:online_list');
     socket.off('conversation:updated');
     socket.off('user:updated');
+
+    // Reconnection and online sync
+    socket.on('connect', () => {
+      const activeConv = get().activeConversation;
+      if (activeConv?._id) {
+        socket.emit('conversation:join', { conversationId: activeConv._id });
+        const list = get().messagesByConv[activeConv._id] || [];
+        const lastMsg = list[list.length - 1];
+        if (lastMsg?.createdAt) {
+          socket.emit(
+            'messages:sync',
+            { conversationId: activeConv._id, since: lastMsg.createdAt },
+            (res) => {
+              if (res?.success && Array.isArray(res.messages) && res.messages.length > 0) {
+                get().fetchMessages(activeConv._id);
+              }
+            }
+          );
+        }
+      }
+      get().fetchConversations();
+      get().drainOfflineQueue();
+    });
 
     // New Message
     socket.on('message:new', (msg) => {

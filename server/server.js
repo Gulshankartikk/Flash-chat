@@ -135,6 +135,11 @@ app.use((req, res, next) => {
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true
+    },
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
@@ -157,6 +162,15 @@ app.use(
     }
   })
 );
+
+// Explicit Permissions-Policy for WebRTC calling & device features
+app.use((req, res, next) => {
+  res.setHeader(
+    'Permissions-Policy',
+    'camera=(self), microphone=(self), geolocation=(self), payment=()'
+  );
+  next();
+});
 
 app.use(
   cors({

@@ -49,13 +49,15 @@ const signupSchema = z.object({
     .optional(),
   email: z.string().email('Invalid email address').toLowerCase().trim(),
   phoneNumber: z.string().trim().optional(),
-  password: z.string().min(6, 'Password must be at least 6 characters')
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  deviceId: z.string().optional()
 });
 
 const loginSchema = z.object({
   identifier: z.string().min(1, 'Email, username, or phone is required').trim().optional(),
   email: z.string().trim().optional(),
-  password: z.string().min(1, 'Password is required')
+  password: z.string().min(1, 'Password is required'),
+  deviceId: z.string().optional()
 });
 
 const forgotPasswordSchema = z.object({
@@ -68,8 +70,33 @@ const resetPasswordSchema = z.object({
 });
 
 const googleAuthSchema = z.object({
-  credential: z.string().min(1, 'Google credential token is required')
+  credential: z.string().min(1, 'Google credential token is required'),
+  deviceId: z.string().optional()
 });
+
+/**
+ * Helper to record device session metadata uniformly
+ */
+const recordUserSession = (user, req, refreshToken, customDeviceId = null) => {
+  const deviceId = customDeviceId || req.body?.deviceId || crypto.randomUUID();
+  const deviceInfo = req.headers['user-agent'] || 'Web Browser';
+  const ipAddress = req.ip || req.connection?.remoteAddress || '';
+
+  if (!user.refreshTokens) user.refreshTokens = [];
+  user.refreshTokens.push({
+    token: refreshToken,
+    deviceId,
+    deviceInfo,
+    ipAddress,
+    lastActiveAt: new Date(),
+    createdAt: new Date()
+  });
+
+  // Keep at most 10 active sessions
+  if (user.refreshTokens.length > 10) {
+    user.refreshTokens = user.refreshTokens.slice(-10);
+  }
+};
 
 /**
  * 1. Send OTP (Phone via Twilio or Email via Nodemailer)
@@ -162,22 +189,7 @@ const verifyOtp = async (req, res, next) => {
     const refreshToken = authService.generateRefreshToken(user._id);
 
     // Save refresh token session in user document
-    const deviceId = parsed.data.deviceId || crypto.randomUUID();
-    const deviceInfo = req.headers['user-agent'] || 'Web Browser';
-
-    if (!user.refreshTokens) user.refreshTokens = [];
-    user.refreshTokens.push({
-      token: refreshToken,
-      deviceId,
-      deviceInfo,
-      createdAt: new Date()
-    });
-
-    // Keep at most 10 active sessions
-    if (user.refreshTokens.length > 10) {
-      user.refreshTokens = user.refreshTokens.slice(-10);
-    }
-
+    recordUserSession(user, req, refreshToken, parsed.data.deviceId);
     await user.save();
 
     // Set Refresh Token in httpOnly cookie
@@ -224,6 +236,16 @@ const refreshToken = async (req, res, next) => {
       });
     }
 
+    // Check if token has been revoked in distributed blacklist
+    const isRevoked = await redis.isTokenBlacklisted(token);
+    if (isRevoked) {
+      return res.status(401).json({
+        success: false,
+        code: 'TOKEN_REVOKED',
+        message: 'This session has been revoked. Please log in again.'
+      });
+    }
+
     let decoded;
     try {
       decoded = authService.verifyRefreshToken(token);
@@ -249,6 +271,9 @@ const refreshToken = async (req, res, next) => {
     if (sessionIndex === -1) {
       // Reuse detection: a validly signed token that was previously rotated or revoked is being reused
       logger.warn({ userId: user._id }, 'CRITICAL: Refresh token reuse detected. Revoking all sessions.');
+      for (const s of (user.refreshTokens || [])) {
+        await redis.blacklistToken(s.token, 7 * 24 * 3600);
+      }
       user.refreshTokens = [];
       await user.save();
       res.clearCookie('refreshToken', authService.getRefreshCookieOptions());
@@ -263,8 +288,12 @@ const refreshToken = async (req, res, next) => {
     const newAccessToken = authService.generateAccessToken(user._id);
     const newRefreshToken = authService.generateRefreshToken(user._id);
 
+    // Blacklist previous refresh token for 1 hour to prevent replay attacks
+    await redis.blacklistToken(token, 3600);
+
     user.refreshTokens[sessionIndex].token = newRefreshToken;
-    user.refreshTokens[sessionIndex].createdAt = new Date();
+    user.refreshTokens[sessionIndex].lastActiveAt = new Date();
+    user.refreshTokens[sessionIndex].ipAddress = req.ip || req.connection?.remoteAddress || '';
     await user.save();
 
     res.cookie('refreshToken', newRefreshToken, authService.getRefreshCookieOptions());
@@ -289,18 +318,52 @@ const deleteSession = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    const initialLength = user.refreshTokens.length;
-    user.refreshTokens = user.refreshTokens.filter(
-      (s) => String(s._id) !== String(sid) && String(s.deviceId) !== String(sid)
+    const targetSession = (user.refreshTokens || []).find(
+      (s) => String(s._id) === String(sid) || String(s.deviceId) === String(sid)
     );
 
-    if (user.refreshTokens.length < initialLength) {
+    if (targetSession) {
+      await redis.blacklistToken(targetSession.token, 7 * 24 * 3600);
+      user.refreshTokens = user.refreshTokens.filter(
+        (s) => String(s._id) !== String(sid) && String(s.deviceId) !== String(sid)
+      );
       await user.save();
     }
 
     return res.status(200).json({
       success: true,
       message: 'Session revoked successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Revoke all other device sessions except the current one
+ */
+const revokeOtherSessions = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    const currentToken = req.cookies.refreshToken;
+    const otherTokens = (user.refreshTokens || [])
+      .filter((s) => s.token !== currentToken)
+      .map((s) => s.token);
+
+    for (const t of otherTokens) {
+      await redis.blacklistToken(t, 7 * 24 * 3600);
+    }
+
+    user.refreshTokens = (user.refreshTokens || []).filter((s) => s.token === currentToken);
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'All other sessions revoked successfully'
     });
   } catch (error) {
     next(error);
@@ -394,6 +457,8 @@ const getSessions = async (req, res, next) => {
       id: s._id,
       deviceId: s.deviceId,
       deviceInfo: s.deviceInfo,
+      ipAddress: s.ipAddress || '',
+      lastActiveAt: s.lastActiveAt || s.createdAt,
       createdAt: s.createdAt,
       isCurrent: s.token === currentToken
     }));
@@ -413,6 +478,10 @@ const getSessions = async (req, res, next) => {
 const logout = async (req, res, next) => {
   try {
     const currentToken = req.cookies.refreshToken;
+    if (currentToken) {
+      await redis.blacklistToken(currentToken, 7 * 24 * 3600);
+    }
+
     if (req.user && req.user._id) {
       await User.findByIdAndUpdate(req.user._id, {
         isOnline: false,
@@ -449,6 +518,13 @@ const logout = async (req, res, next) => {
 const logoutAll = async (req, res, next) => {
   try {
     if (req.user && req.user._id) {
+      const user = await User.findById(req.user._id).select('refreshTokens');
+      if (user?.refreshTokens) {
+        for (const s of user.refreshTokens) {
+          await redis.blacklistToken(s.token, 7 * 24 * 3600);
+        }
+      }
+
       await User.findByIdAndUpdate(req.user._id, {
         isOnline: false,
         lastSeen: new Date(),
@@ -566,13 +642,7 @@ const signup = async (req, res, next) => {
 
     const accessToken = authService.generateAccessToken(user._id);
     const refreshToken = authService.generateRefreshToken(user._id);
-    user.refreshTokens = [
-      {
-        token: refreshToken,
-        deviceInfo: req.headers['user-agent'] || 'Web Browser',
-        createdAt: new Date()
-      }
-    ];
+    recordUserSession(user, req, refreshToken, parsed.data.deviceId);
     await user.save();
 
     res.cookie('refreshToken', refreshToken, authService.getRefreshCookieOptions());
@@ -649,17 +719,7 @@ const login = async (req, res, next) => {
     const accessToken = authService.generateAccessToken(user._id);
     const refreshToken = authService.generateRefreshToken(user._id);
 
-    if (!user.refreshTokens) user.refreshTokens = [];
-    user.refreshTokens.push({
-      token: refreshToken,
-      deviceInfo: req.headers['user-agent'] || 'Web Browser',
-      createdAt: new Date()
-    });
-
-    if (user.refreshTokens.length > 10) {
-      user.refreshTokens = user.refreshTokens.slice(-10);
-    }
-
+    recordUserSession(user, req, refreshToken, parsed.data.deviceId);
     await user.save();
 
     res.cookie('refreshToken', refreshToken, authService.getRefreshCookieOptions());
@@ -711,6 +771,8 @@ const forgotPassword = async (req, res, next) => {
 
       const clientUrl = config.CLIENT_URL || 'http://localhost:5173';
       const resetUrl = `${clientUrl}/reset-password?token=${resetToken}`;
+
+      mailer.sendPasswordReset(user.email, user.name || 'Flash User', resetUrl);
 
       logger.info(
         {
@@ -804,8 +866,11 @@ const googleAuth = async (req, res, next) => {
 
     if (!user) {
       isNewUser = true;
+      const provisionalSeed = crypto.randomBytes(3).toString('hex');
+      const provisionalUsername = `user_${provisionalSeed}`;
       user = await User.create({
         name: googleProfile.name,
+        username: provisionalUsername,
         email: googleProfile.email,
         googleId: googleProfile.googleId,
         avatar: googleProfile.avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(googleProfile.name)}`,
@@ -814,6 +879,9 @@ const googleAuth = async (req, res, next) => {
         isOnline: true
       });
       mailer.sendWelcome(user.email, user.name);
+      contactService.linkContactsForNewUser(user).catch((e) =>
+        logger.warn({ err: e.message }, 'Failed background contact matching on google registration')
+      );
     } else {
       if (!user.googleId) user.googleId = googleProfile.googleId;
       user.isOnline = true;
@@ -823,8 +891,7 @@ const googleAuth = async (req, res, next) => {
     const accessToken = authService.generateAccessToken(user._id);
     const refreshToken = authService.generateRefreshToken(user._id);
 
-    if (!user.refreshTokens) user.refreshTokens = [];
-    user.refreshTokens.push({ token: refreshToken, deviceInfo: req.headers['user-agent'] || 'Web Browser' });
+    recordUserSession(user, req, refreshToken, parsed.data.deviceId);
     await user.save();
 
     res.cookie('refreshToken', refreshToken, authService.getRefreshCookieOptions());
@@ -854,6 +921,7 @@ module.exports = {
   checkUsername,
   getSessions,
   deleteSession,
+  revokeOtherSessions,
   logout,
   logoutAll,
   getMe,

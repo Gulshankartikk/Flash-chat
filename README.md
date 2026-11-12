@@ -265,7 +265,9 @@ Example email log entry:
 - `POST /api/auth/refresh-token` — Silent access token renewal via httpOnly refresh cookie
 - `POST /api/auth/onboard` — Complete initial profile onboarding (`{ name, username, bio, avatar }`)
 - `GET /api/auth/check-username/:username` — Live username availability verification
-- `GET /api/auth/sessions` — List active device sessions
+- `GET /api/auth/sessions` — List active device sessions with IP, device info, last active time
+- `DELETE /api/auth/sessions/:id` — Terminate and blacklist a specific device session
+- `POST /api/auth/sessions/revoke-others` — Terminate and blacklist all sessions except the current device
 - `POST /api/auth/logout` — Invalidate current session and clear cookies
 - `POST /api/auth/logout-all` — Terminate all active sessions across all devices
 - `POST /api/auth/signup` — Legacy email registration (`{ name, email, password }`)
@@ -309,8 +311,9 @@ Example email log entry:
 - `PATCH /api/messages/read/:chatId` — Mark all unread messages in chat as read
 
 #### Media Uploads (`/api/upload`)
-- `POST /api/upload` — Upload media (`file` in multipart/form-data; 10MB limit; image/video/audio/pdf) -> `{ url, publicId, type }`
-- `POST /api/upload/avatar` — Upload avatar image with face auto-cropping -> `{ url, publicId, type }`
+- `POST /api/upload` — Upload media with buffer sniffing & category limits (Images: 10MB, Videos: 50MB, Audio: 20MB, Docs: 20MB) -> `{ url, publicId, type, size, thumbnail }`
+- `POST /api/upload/avatar` — Upload avatar image with face auto-cropping -> `{ url, publicId, type, thumbnail }`
+- `DELETE /api/upload/:publicId` — Securely delete uploaded media from Cloudinary or local disk
 
 #### Voice & Video Calls (`/api/calls`)
 - `GET /api/calls` — Paginated user call history (`cursor`, `limit=30`)
@@ -388,6 +391,7 @@ Example email log entry:
 | `message:edit` | Client -> Server | `{ conversationId, messageId, text }` | Edit message content in real-time |
 | `message:delete` | Client -> Server | `{ conversationId, messageId, scope }` | Soft-delete message for me or everyone |
 | `message:react` | Client -> Server | `{ conversationId, messageId, emoji }` | Add or toggle emoji reaction |
+| `messages:sync` | Client -> Server | `{ conversationId, lastMessageCreatedAt }` | Fetch missed messages upon socket reconnect |
 | `message:new` | Server -> Client | `Message` | Real-time message broadcast to conversation room `conv:<id>` |
 | `message:updated` | Server -> Client | `Message` | Broadcast edited content or updated reaction pill |
 | `message:deleted` | Server -> Client | `{ conversationId, messageId }` | Broadcast deleted state to room |
@@ -396,6 +400,7 @@ Example email log entry:
 | `presence:update` | Server -> Client | `{ userId, isOnline, lastSeen }` | Broadcast online/offline presence (respects privacy) |
 | `conversation:updated` | Server -> Client | `{ conversationId, lastMessage }` | Update conversation order & unread counters |
 | `users:online_list` | Server -> Client | `[userId, ...]` | List of currently connected users on connection |
+| `notification:unread_count` | Server -> Client | `{ count }` | Live updates to user's unread notification badge |
 
 #### Voice & Video Calling Events (WebRTC Mesh)
 | Event | Direction | Payload | Description |

@@ -54,7 +54,7 @@ const getUnreadCount = async (req, res, next) => {
  */
 const markRead = async (req, res, next) => {
   try {
-    const notif = await notificationService.markAsRead(req.user._id, req.params.id);
+    const notif = await notificationService.markAsRead(req.user._id, req.params.id, req.io);
     return res.status(200).json({ success: true, data: notif });
   } catch (err) {
     next(err);
@@ -66,7 +66,7 @@ const markRead = async (req, res, next) => {
  */
 const markAllRead = async (req, res, next) => {
   try {
-    await notificationService.markAllAsRead(req.user._id);
+    await notificationService.markAllAsRead(req.user._id, req.io);
     return res.status(200).json({ success: true, message: 'All notifications marked as read' });
   } catch (err) {
     next(err);

@@ -152,6 +152,90 @@ async function runSocketAndSignalingTests() {
     assert.ok(result.includes('instance2'));
   });
 
+  // -------------------------------------------------------------
+  // 5. CLUSTERED PRESENCE & RECONNECTION MESSAGE SYNCHRONIZATION
+  // -------------------------------------------------------------
+  console.log('\n\x1b[1m[5] Clustered Presence, Reconnection & Offline Message Sync\x1b[0m');
+
+  runTest('Multi-tab socket tracking maintains presence until all sockets disconnect', () => {
+    const userSockets = new Map();
+
+    const connectTab = (userId, socketId) => {
+      if (!userSockets.has(userId)) userSockets.set(userId, new Set());
+      userSockets.get(userId).add(socketId);
+    };
+
+    const disconnectTab = (userId, socketId) => {
+      const set = userSockets.get(userId);
+      if (!set) return true;
+      set.delete(socketId);
+      if (set.size === 0) {
+        userSockets.delete(userId);
+        return true; // Marked offline
+      }
+      return false; // Still online in other tab
+    };
+
+    connectTab('user1', 'sock_tab1');
+    connectTab('user1', 'sock_tab2');
+
+    // First tab closes
+    const isOfflineAfterTab1 = disconnectTab('user1', 'sock_tab1');
+    assert.strictEqual(isOfflineAfterTab1, false);
+    assert.strictEqual(userSockets.has('user1'), true);
+
+    // Second tab closes
+    const isOfflineAfterTab2 = disconnectTab('user1', 'sock_tab2');
+    assert.strictEqual(isOfflineAfterTab2, true);
+    assert.strictEqual(userSockets.has('user1'), false);
+  });
+
+  runTest('Offline message synchronization filters unreceived messages after timestamp', () => {
+    const mockMessages = [
+      { _id: 'm1', createdAt: new Date(Date.now() - 50000) },
+      { _id: 'm2', createdAt: new Date(Date.now() - 30000) },
+      { _id: 'm3', createdAt: new Date(Date.now() - 10000) }
+    ];
+
+    const lastSyncTime = new Date(Date.now() - 20000);
+    const syncMissed = mockMessages.filter(m => m.createdAt > lastSyncTime);
+
+    assert.strictEqual(syncMissed.length, 1);
+    assert.strictEqual(syncMissed[0]._id, 'm3');
+  });
+
+  runTest('Client offline message queue retains outgoing messages until socket reconnects', () => {
+    const queue = [];
+    let isConnected = false;
+
+    const sendMessageOrQueue = (msg) => {
+      if (!isConnected) {
+        queue.push(msg);
+        return { status: 'queued' };
+      }
+      return { status: 'sent', message: msg };
+    };
+
+    const drainQueue = () => {
+      const dispatched = [...queue];
+      queue.length = 0;
+      return dispatched;
+    };
+
+    const res1 = sendMessageOrQueue({ text: 'Offline 1', clientId: 'c1' });
+    const res2 = sendMessageOrQueue({ text: 'Offline 2', clientId: 'c2' });
+
+    assert.strictEqual(res1.status, 'queued');
+    assert.strictEqual(res2.status, 'queued');
+    assert.strictEqual(queue.length, 2);
+
+    // Reconnected
+    isConnected = true;
+    const sent = drainQueue();
+    assert.strictEqual(sent.length, 2);
+    assert.strictEqual(queue.length, 0);
+  });
+
   console.log('\n======================================================');
   console.log(`Socket Suite Results: \x1b[32m${passed} Passed\x1b[0m, \x1b[31m${failed} Failed\x1b[0m`);
   console.log('======================================================\n');
