@@ -46,13 +46,72 @@ const redisService = require('./services/redisService');
 const app = express();
 const server = http.createServer(app);
 
+// Trust reverse proxies (Render, Cloudflare, Vercel, AWS ALB) for correct client IP & HTTPS detection
+app.set('trust proxy', 1);
+
+// Parse allowed client origins from environment with local dev fallbacks
+const getAllowedOrigins = () => {
+  const configured = (config.CLIENT_URL || '')
+    .split(',')
+    .map((u) => u.trim())
+    .filter(Boolean);
+
+  const localDefaults = [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:5000',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:5000'
+  ];
+
+  return Array.from(new Set([...configured, ...localDefaults]));
+};
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true; // Allow mobile apps, curl, server-to-server health checks
+
+  const allowed = getAllowedOrigins().map((u) => {
+    try {
+      return new URL(u).origin;
+    } catch (_) {
+      return u;
+    }
+  });
+
+  try {
+    const originUrl = new URL(origin);
+    if (allowed.includes(originUrl.origin)) {
+      return true;
+    }
+    // Automatically allow Vercel preview & production deployments
+    if (originUrl.hostname.endsWith('.vercel.app')) {
+      return true;
+    }
+    // Allow Render deployments
+    if (originUrl.hostname.endsWith('.onrender.com')) {
+      return true;
+    }
+  } catch (_) {
+    return false;
+  }
+  return false;
+};
+
 // Initialize Socket.IO with perMessageDeflate tuning and CORS
 const io = new Server(server, {
   cors: {
-    origin: [config.CLIENT_URL, 'http://localhost:5173', 'http://localhost:3000'],
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Socket.IO: Origin not allowed by CORS'));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']
   },
+  transports: ['websocket', 'polling'],
   perMessageDeflate: {
     threshold: 1024, // only compress messages > 1KB
     zlibDeflateOptions: {
@@ -101,7 +160,14 @@ app.use(
 
 app.use(
   cors({
-    origin: [config.CLIENT_URL, 'http://localhost:5173', 'http://localhost:3000'],
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        logger.warn({ origin }, 'CORS: Blocked unauthorized origin');
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Pocket-Token']
@@ -130,33 +196,13 @@ const csrfProtection = (req, res, next) => {
         message: 'Cross-site request blocked.'
       });
     }
-    if (origin) {
-      try {
-        const originUrl = new URL(origin);
-        const allowedOrigins = [
-          config.CLIENT_URL,
-          'http://localhost:5173',
-          'http://localhost:3000',
-          'http://localhost:5000'
-        ].map((u) => {
-          try {
-            return new URL(u).origin;
-          } catch (e) {
-            return u;
-          }
-        });
-
-        if (!allowedOrigins.includes(originUrl.origin)) {
-          logger.warn({ origin }, 'CSRF: Blocked cross-origin request');
-          return res.status(403).json({
-            success: false,
-            code: 'CSRF_ORIGIN_MISMATCH',
-            message: 'Cross-site request blocked.'
-          });
-        }
-      } catch (e) {
-        // Invalid origin URL format
-      }
+    if (origin && !isOriginAllowed(origin)) {
+      logger.warn({ origin }, 'CSRF: Blocked cross-origin request');
+      return res.status(403).json({
+        success: false,
+        code: 'CSRF_ORIGIN_MISMATCH',
+        message: 'Cross-site request blocked.'
+      });
     }
   }
   next();
@@ -170,8 +216,8 @@ app.use(loggerMiddleware);
 // Static uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Health Check Endpoint (Item 7 Requirement)
-app.get('/api/health', (req, res) => {
+// Health Check Endpoint (Render, Docker, AWS ALB & K8s probes)
+const healthCheckHandler = (req, res) => {
   const mongoose = require('mongoose');
   const redisClient = require('./config/redis');
   const memory = process.memoryUsage();
@@ -199,7 +245,10 @@ app.get('/api/health', (req, res) => {
       heapUsedMB: Math.round(memory.heapUsed / 1024 / 1024)
     }
   });
-});
+};
+
+app.get('/health', healthCheckHandler);
+app.get('/api/health', healthCheckHandler);
 
 // Readiness Probe Endpoint
 app.get('/api/ready', (req, res) => {

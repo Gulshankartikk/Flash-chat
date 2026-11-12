@@ -116,7 +116,7 @@ const AppLayoutInner = () => {
   }, []);
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-cream text-ink">
+    <div className="flex h-screen w-screen overflow-hidden bg-transparent text-ink">
       {/* Desktop Left Sidebar */}
       <Sidebar onOpenSearch={() => setIsSearchOpen(true)} />
 

@@ -1,8 +1,12 @@
 import axios from 'axios';
 import { updateSocketToken } from './socket';
 
+const rawApiUrl = import.meta.env.VITE_API_URL
+  ? import.meta.env.VITE_API_URL.replace(/\/+$/, '')
+  : '';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api',
+  baseURL: rawApiUrl ? `${rawApiUrl}/api` : '/api',
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
@@ -84,8 +88,8 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshUrl = import.meta.env.VITE_API_URL
-          ? `${import.meta.env.VITE_API_URL}/api/auth/refresh-token`
+        const refreshUrl = rawApiUrl
+          ? `${rawApiUrl}/api/auth/refresh-token`
           : '/api/auth/refresh-token';
         const res = await axios.post(
           refreshUrl,

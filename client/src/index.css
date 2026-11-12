@@ -9,15 +9,82 @@
     box-sizing: border-box;
   }
 
-  html, body {
+  html {
+    min-height: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
     background-color: var(--cream);
     color: var(--ink);
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     overflow-x: hidden;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  body {
+    min-height: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    color: var(--ink);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+    /* Step 2: Body background with fixed 2 radial-gradients + 1 linear-gradient */
+    background-image:
+      radial-gradient(circle at top left, var(--bg-b) 0%, transparent 60%),
+      radial-gradient(circle at bottom right, var(--bg-a) 0%, transparent 60%),
+      linear-gradient(135deg, var(--bg-c) 0%, var(--bg-a) 100%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    background-size: cover;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
 }
 
 @layer utilities {
+  /* Step 2: .glass utility */
+  .glass {
+    background: var(--glass);
+    border: 1px solid var(--edge);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 12px 32px -4px rgba(42, 23, 18, 0.22);
+    backdrop-filter: blur(22px) saturate(150%);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    border-radius: 26px; /* 24-28px */
+  }
+
+  .dark .glass {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 14px 36px -4px rgba(0, 0, 0, 0.55);
+  }
+
+  .glass-2 {
+    background: var(--glass-2);
+    border: 1px solid var(--edge);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 14px 36px -4px rgba(42, 23, 18, 0.25);
+    backdrop-filter: blur(22px) saturate(150%);
+    -webkit-backdrop-filter: blur(22px) saturate(150%);
+    border-radius: 26px;
+  }
+
+  .dark .glass-2 {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 16px 40px -4px rgba(0, 0, 0, 0.65);
+  }
+
+  /* Step 2: .coral-card utility */
+  .coral-card {
+    background: linear-gradient(135deg, var(--coral-a) 0%, var(--coral-b) 100%);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 16px 36px -6px rgba(217, 80, 63, 0.4);
+    border-radius: 26px;
+  }
+
+  /* Instrument Serif italic for accent headings */
+  .font-serif-italic {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-style: italic;
+    font-weight: 400;
+  }
+
   .text-balance {
     text-wrap: balance;
   }
@@ -35,7 +102,7 @@
   }
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 120, 73, 0.45) transparent;
+    scrollbar-color: rgba(240, 115, 95, 0.45) transparent;
   }
   .scrollbar-thin::-webkit-scrollbar {
     width: 7px;
@@ -45,19 +112,29 @@
     background: transparent;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 120, 73, 0.4);
+    background-color: rgba(240, 115, 95, 0.4);
     border-radius: 9999px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(255, 120, 73, 0.75);
+    background-color: rgba(240, 115, 95, 0.75);
   }
   .dark .scrollbar-thin {
-    scrollbar-color: rgba(255, 179, 107, 0.35) transparent;
+    scrollbar-color: rgba(255, 220, 205, 0.35) transparent;
   }
   .dark .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: rgba(255, 179, 107, 0.3);
+    background-color: rgba(255, 220, 205, 0.3);
   }
   .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: rgba(255, 179, 107, 0.6);
+    background-color: rgba(255, 220, 205, 0.6);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

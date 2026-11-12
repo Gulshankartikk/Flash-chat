@@ -2,16 +2,38 @@ import { create } from 'zustand';
 
 const applyThemeToDOM = (theme) => {
   if (typeof document !== 'undefined') {
+    const root = document.documentElement;
     if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
+      root.classList.add('dark');
+      root.classList.remove('light');
+      root.setAttribute('data-theme', 'dark');
+      root.style.colorScheme = 'dark';
     } else {
-      document.documentElement.classList.remove('dark');
+      root.classList.remove('dark');
+      root.classList.add('light');
+      root.setAttribute('data-theme', 'light');
+      root.style.colorScheme = 'light';
     }
   }
 };
 
+const getInitialTheme = () => {
+  if (typeof localStorage !== 'undefined') {
+    const saved = localStorage.getItem('flash_chat_theme');
+    if (saved === 'dark' || saved === 'light') return saved;
+  }
+  if (
+    typeof window !== 'undefined' &&
+    window.matchMedia &&
+    window.matchMedia('(prefers-color-scheme: light)').matches
+  ) {
+    return 'light';
+  }
+  return 'dark';
+};
+
 export const useThemeStore = create((set, get) => {
-  const initialTheme = (typeof localStorage !== 'undefined' && localStorage.getItem('flash_chat_theme')) || 'dark';
+  const initialTheme = getInitialTheme();
   applyThemeToDOM(initialTheme);
 
   return {

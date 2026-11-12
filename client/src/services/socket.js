@@ -21,7 +21,12 @@ export const connectSocket = (token) => {
     return socket;
   }
 
-  const socketUrl = import.meta.env.VITE_SOCKET_URL || window.location.origin;
+  const rawSocketUrl =
+    import.meta.env.VITE_SOCKET_URL ||
+    import.meta.env.VITE_API_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : '');
+
+  const socketUrl = rawSocketUrl ? rawSocketUrl.replace(/\/+$/, '') : '';
 
   socket = io(socketUrl, {
     auth: { token },

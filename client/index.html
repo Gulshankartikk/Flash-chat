@@ -8,10 +8,24 @@
     <meta name="theme-color" content="#14110F" media="(prefers-color-scheme: dark)" />
     <meta name="description" content="Flash Chat - Blazing-fast realtime messaging, voice/video calling, social feed, encrypted pocket vault, and Flash AI assistant." />
     <title>Flash Chat - Realtime Messaging, Social & AI Assistant</title>
-    <!-- Google Fonts Inter -->
+    <!-- Immediate theme bootstrap to prevent flash of wrong theme -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('flash_chat_theme');
+          var isDark = saved ? saved === 'dark' : (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          var activeTheme = isDark ? 'dark' : 'light';
+          document.documentElement.classList.add(activeTheme);
+          document.documentElement.classList.remove(isDark ? 'light' : 'dark');
+          document.documentElement.setAttribute('data-theme', activeTheme);
+          document.documentElement.style.colorScheme = activeTheme;
+        } catch (e) {}
+      })();
+    </script>
+    <!-- Google Fonts Inter & Instrument Serif -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Google Identity Services for Authorize with Google -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>

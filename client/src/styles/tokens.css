@@ -1,27 +1,86 @@
 /**
- * Flash Chat - Single Source of Truth Design Tokens
- * 8 Semantic Palette Tokens + Theme System Tokens
- *
- * Primary Palette:
- * - Background: #14110F
- * - Cards: #211A17
- * - Primary: #FF7849
- * - Secondary: #FFB36B
- * - Accent: #FFD166
- * - Text: #FFF7ED
+ * Flash Chat - Glassy Dashboard Design Tokens
+ * Single Source of Truth Design Tokens & Glassmorphism Theme System
  */
 
+/* --- Light Mode Tokens (Default & .light class) --- */
 :root,
+:root.light,
+.light {
+  /* Step 1: Design Tokens (Light Mode) */
+  --bg-a: #8a5a46;
+  --bg-b: #c98f77;
+  --bg-c: #5b3a2e;
+
+  /* Glass surfaces */
+  --glass: rgba(255, 235, 225, 0.45);
+  --glass-2: rgba(255, 235, 225, 0.65);
+  --side: rgba(120, 70, 55, 0.90);
+  --edge: rgba(255, 255, 255, 0.65);
+
+  /* Typography */
+  --ink: #4a2a22;
+  --ink-soft: rgba(74, 42, 34, 0.68);
+
+  /* Accent (coral) */
+  --coral-a: #f0735f;
+  --coral-b: #d9503f;
+
+  /* Status */
+  --good: #2f9e6b;
+  --bad: #e04a3a;
+
+  /* Semantic Palette (High Contrast Light Mode) */
+  --cream: #FFF7ED;
+  --card: #FFFFFF;
+  --primary: #FF7849;
+  --secondary: #FFB36B;
+  --accent: #E86333;
+  --muted: #7E7065;
+  --line: #EFE3D5;
+
+  /* Gradients & Shadows */
+  --brand-gradient: linear-gradient(135deg, #FF7849 0%, #FF9B58 50%, #FFB36B 100%);
+  --brand-gradient-hover: linear-gradient(135deg, #F06737 0%, #F5924E 50%, #FFA557 100%);
+  --soft-shadow: 0 8px 30px rgba(120, 70, 55, 0.12);
+  --focus-ring: 2px solid var(--primary);
+  --focus-offset: 2px;
+}
+
+/* --- Dark Mode Tokens (.dark class & forced dark) --- */
+:root.dark,
 .dark {
-  /* --- Primary Warm Espresso & Vibrant Amber Palette --- */
-  --cream: #14110F;       /* Deep Warm Obsidian/Espresso Canvas Background */
-  --card: #211A17;        /* Elevated Warm Dark Card & Surface */
-  --primary: #FF7849;     /* Brand Vibrant Coral-Orange Action */
-  --secondary: #FFB36B;   /* Warm Peach & Amber Secondary Highlight */
-  --accent: #FFD166;      /* Golden Sun Yellow Accent & Badges */
-  --ink: #FFF7ED;         /* Warm Ivory High-Contrast Crisp Typography */
-  --muted: #A8998C;       /* Warm Sandy Muted Subtext & Inactive Icons */
-  --line: #352B25;        /* Subtle Warm Espresso Crisp Border */
+  /* Step 1: Design Tokens (Dark Mode) */
+  --bg-a: #2a1712;
+  --bg-b: #5a3025;
+  --bg-c: #170c09;
+
+  /* Glass surfaces */
+  --glass: rgba(255, 220, 205, 0.10);
+  --glass-2: rgba(255, 220, 205, 0.18);
+  --side: rgba(30, 16, 12, 0.92);
+  --edge: rgba(255, 255, 255, 0.14);
+
+  /* Typography */
+  --ink: #fbe9e2;
+  --ink-soft: rgba(251, 233, 226, 0.65);
+
+  /* Accent (coral) */
+  --coral-a: #f0735f;
+  --coral-b: #d9503f;
+
+  /* Status */
+  --good: #2f9e6b;
+  --bad: #e04a3a;
+
+  /* Semantic Palette (High Contrast Dark Mode) */
+  --cream: #14110F;
+  --card: #211A17;
+  --primary: #FF7849;
+  --secondary: #FFB36B;
+  --accent: #FFD166;
+  --muted: #A8998C;
+  --line: #352B25;
 
   /* Gradients & Shadows */
   --brand-gradient: linear-gradient(135deg, #FF7849 0%, #FF9E58 50%, #FFB36B 100%);
@@ -31,22 +90,41 @@
   --focus-offset: 2px;
 }
 
-/* Light Mode Companion Tokens (Warm Ivory & Coral-Orange) */
-.light {
-  --cream: #FFF7ED;       /* Warm Ivory Canvas */
-  --card: #FFFFFF;        /* Pure White Elevated Surface */
-  --primary: #FF7849;     /* Vibrant Coral-Orange Action */
-  --secondary: #FFB36B;   /* Warm Amber Secondary */
-  --accent: #E86333;      /* Deep Coral Accent */
-  --ink: #14110F;         /* Deep Warm Obsidian Typography */
-  --muted: #7E7065;       /* Muted Warm Stone Subtext & Icons */
-  --line: #EFE3D5;        /* Soft Warm Border */
+/* System Preference Fallback (when user hasn't explicitly set .light class) */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --bg-a: #2a1712;
+    --bg-b: #5a3025;
+    --bg-c: #170c09;
 
-  --brand-gradient: linear-gradient(135deg, #FF7849 0%, #FF9B58 50%, #FFB36B 100%);
-  --brand-gradient-hover: linear-gradient(135deg, #F06737 0%, #F5924E 50%, #FFA557 100%);
-  --soft-shadow: 0 8px 30px rgba(255, 120, 73, 0.12);
-  --focus-ring: 2px solid var(--primary);
-  --focus-offset: 2px;
+    --glass: rgba(255, 220, 205, 0.10);
+    --glass-2: rgba(255, 220, 205, 0.18);
+    --side: rgba(30, 16, 12, 0.92);
+    --edge: rgba(255, 255, 255, 0.14);
+
+    --ink: #fbe9e2;
+    --ink-soft: rgba(251, 233, 226, 0.65);
+
+    --coral-a: #f0735f;
+    --coral-b: #d9503f;
+
+    --good: #2f9e6b;
+    --bad: #e04a3a;
+
+    --cream: #14110F;
+    --card: #211A17;
+    --primary: #FF7849;
+    --secondary: #FFB36B;
+    --accent: #FFD166;
+    --muted: #A8998C;
+    --line: #352B25;
+
+    --brand-gradient: linear-gradient(135deg, #FF7849 0%, #FF9E58 50%, #FFB36B 100%);
+    --brand-gradient-hover: linear-gradient(135deg, #F06737 0%, #F5924E 50%, #FFA557 100%);
+    --soft-shadow: 0 8px 30px rgba(0, 0, 0, 0.65);
+    --focus-ring: 2px solid var(--primary);
+    --focus-offset: 2px;
+  }
 }
 
 /* Base Body Application */
@@ -59,12 +137,13 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
   -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Text Selection Styling */
 ::selection {
-  background-color: rgba(255, 120, 73, 0.3);
-  color: #FFF7ED;
+  background-color: rgba(240, 115, 95, 0.3);
+  color: var(--ink);
 }
 
 /* Accessible focus visible utility */
@@ -76,7 +155,7 @@ body {
 /* Global scrollbar styling for all elements (vertical & horizontal) */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 120, 73, 0.45) transparent;
+  scrollbar-color: rgba(240, 115, 95, 0.45) transparent;
 }
 
 .dark * {
@@ -92,11 +171,11 @@ body {
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 120, 73, 0.4);
+  background-color: rgba(240, 115, 95, 0.4);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 120, 73, 0.75);
+  background-color: rgba(240, 115, 95, 0.75);
 }
 ::-webkit-scrollbar-corner {
   background: transparent;

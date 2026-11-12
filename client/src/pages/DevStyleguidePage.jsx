@@ -15,8 +15,11 @@ import { Tooltip } from '../components/Tooltip';
 import { ListItem } from '../components/ListItem';
 import { FlashAiLogo } from '../components/common/FlashAiLogo';
 import { AiProviderDisclosure } from '../components/common/AiProviderDisclosure';
+import { HeroCard } from '../components/dashboard/HeroCard';
+import { CalendarCard } from '../components/dashboard/CalendarCard';
+import { StatCard } from '../components/dashboard/StatCard';
 import { useThemeStore } from '../store/useThemeStore';
-import { Sparkles, Heart, Bell, MessageSquare, Moon, Sun, Lock } from 'lucide-react';
+import { Sparkles, Heart, Bell, MessageSquare, Moon, Sun, Lock, Flame, Users, Bookmark } from 'lucide-react';
 
 export const DevStyleguidePage = () => {
   const { theme, toggleTheme } = useThemeStore();
@@ -201,6 +204,71 @@ export const DevStyleguidePage = () => {
               onAction={() => {}}
             />
           </Card>
+        </div>
+      </section>
+
+      {/* 8. Glassy Dashboard Design System */}
+      <section className="mb-10">
+        <h2 className="text-base font-bold text-ink mb-4">8. Glassy Dashboard Components (.glass, .coral-card, StatCards)</h2>
+        
+        {/* Token Swatches */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 text-xs">
+          <div className="p-3 rounded-2xl glass text-ink border border-edge">
+            <span className="font-bold">Glass Surface</span>
+            <p className="text-[11px] text-ink-soft mt-1">var(--glass) + blur(22px)</p>
+          </div>
+          <div className="p-3 rounded-2xl coral-card text-white">
+            <span className="font-bold">Coral Accent Card</span>
+            <p className="text-[11px] text-white/80 mt-1">var(--coral-a) to (--coral-b)</p>
+          </div>
+          <div className="p-3 rounded-2xl bg-[var(--side)] text-white">
+            <span className="font-bold">Sidebar Tint</span>
+            <p className="text-[11px] text-white/80 mt-1">var(--side) #784637</p>
+          </div>
+          <div className="p-3 rounded-2xl glass text-ink border border-edge">
+            <span className="font-bold">Instrument Serif</span>
+            <p className="font-serif-italic text-lg text-[#f0735f] mt-1">roll into day</p>
+          </div>
+        </div>
+
+        {/* Dashboard Components Preview */}
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 min-[1020px]:grid-cols-[1.7fr_1fr] gap-6">
+            <HeroCard headingWord="roll" />
+            <CalendarCard />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 min-[1020px]:grid-cols-4 gap-4">
+            <StatCard
+              title="Conversations"
+              value="1,420"
+              sub="18 unread"
+              change="+14.2%"
+              icon={MessageSquare}
+            />
+            <StatCard
+              title="Social Pulse"
+              value="9,820"
+              sub="Trending topics"
+              change="+28.4%"
+              icon={Flame}
+              hot
+            />
+            <StatCard
+              title="Directory"
+              value="64"
+              sub="Verified"
+              change="+4.5%"
+              icon={Users}
+            />
+            <StatCard
+              title="Security"
+              value="100%"
+              sub="AES-GCM"
+              change="+0.0%"
+              icon={Bookmark}
+            />
+          </div>
         </div>
       </section>
     </div>

@@ -364,3 +364,106 @@ Before opening public traffic:
 - [x] Validate Gemini AI smart actions and SSE streaming.
 - [x] Check `/api/health` and `/api/ready` response codes.
 - [x] Verify Nginx SSL A+ rating on Qualys SSL Labs.
+
+---
+
+## 9. Managed Cloud Production Architecture (Vercel + Render + MongoDB Atlas)
+
+For modern serverless/managed deployments without managing raw Linux VMs, Flash Chat is configured out-of-the-box for:
+- **Frontend (SPA/PWA):** [Vercel](https://vercel.com)
+- **Backend (Persistent Node Web Service):** [Render](https://render.com)
+- **Database:** [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
+- **Cache / Realtime PubSub:** [Upstash Redis](https://upstash.com) or Render Managed Redis
+- **Media Storage:** [Cloudinary](https://cloudinary.com)
+- **WebRTC Relay:** [Metered.ca](https://www.metered.ca) or [OpenRelay](https://www.metered.ca/openrelay/) / Coturn
+
+> [!IMPORTANT]
+> **Persistent Server Requirement**: Flash Chat requires persistent WebSockets and Socket.IO state for real-time messaging, typing indicators, presence, and WebRTC mesh call signaling. Do **NOT** deploy the backend as AWS Lambda or Vercel Serverless Functions. Render provides persistent Node.js web services that keep WebSocket connections open indefinitely.
+
+### 9.1 Database Setup (MongoDB Atlas)
+1. Log in to [MongoDB Atlas](https://cloud.mongodb.com) and create an **M0 Free** or **M10+ Production** Cluster.
+2. Under **Security > Database Access**, add a new database user (e.g. `flash_admin`) with password authentication and `readWriteAnyDatabase` privileges.
+3. Under **Security > Network Access**, click **Add IP Address** -> `0.0.0.0/0` (Allow access from anywhere) so Render backend dynamic IPs can connect.
+4. Click **Connect > Drivers (Node.js)** and copy your connection string:
+   ```
+   mongodb+srv://flash_admin:<password>@cluster0.abcde.mongodb.net/flashchat?retryWrites=true&w=majority&appName=FlashChat
+   ```
+
+### 9.2 Redis Setup (Upstash or Render Redis)
+1. **Option A (Upstash - Free Serverless Redis)**:
+   - Create a Redis database at [Upstash](https://console.upstash.com/).
+   - Copy the `rediss://...` Node.js / ioredis connection string.
+2. **Option B (Render Redis)**:
+   - In Render Dashboard, click **New > Redis**.
+   - Copy the internal connection URL.
+
+### 9.3 Backend Deployment (Render Web Service)
+1. Push your repository to GitHub.
+2. In [Render Dashboard](https://dashboard.render.com), click **New + > Web Service** and connect your GitHub repo.
+3. Configure the service settings:
+   - **Name:** `flash-chat-server`
+   - **Region:** Choose the region nearest to your MongoDB Atlas cluster (e.g. Oregon, Frankfurt, Singapore).
+   - **Root Directory:** `server`
+   - **Runtime:** `Node`
+   - **Build Command:** `npm install --omit=dev`
+   - **Start Command:** `npm start`
+   - **Plan:** `Starter` (or Free for testing)
+   - **Health Check Path:** `/health`
+4. Under **Environment Variables**, add:
+   - `NODE_ENV`: `production`
+   - `PORT`: `10000` (Render binds to this automatically)
+   - `CLIENT_URL`: `https://your-app.vercel.app` (your Vercel frontend URL, comma-separated if multiple)
+   - `MONGO_URI`: `mongodb+srv://flash_admin:<password>@cluster0.abcde.mongodb.net/flashchat?retryWrites=true&w=majority`
+   - `REDIS_URL`: `rediss://default:<password>@<host>:<port>` (optional in dev, recommended in production)
+   - `JWT_ACCESS_SECRET`: `<Generate strong 32+ char secret: openssl rand -base64 32>`
+   - `JWT_REFRESH_SECRET`: `<Generate strong 32+ char secret: openssl rand -base64 32>`
+   - `PHONE_HASH_SECRET`: `<Generate strong 32+ char secret: openssl rand -base64 32>`
+   - `GEMINI_API_KEY`: `<Your Google Gemini API Key from Google AI Studio>`
+   - `CLOUDINARY_CLOUD_NAME`: `<Your Cloudinary Cloud Name>`
+   - `CLOUDINARY_API_KEY`: `<Your Cloudinary API Key>`
+   - `CLOUDINARY_API_SECRET`: `<Your Cloudinary API Secret>`
+   - `STUN_URLS`: `stun:stun.l.google.com:19302,stun:stun1.l.google.com:19302`
+   - `TURN_URL`: `turn:standard.relay.metered.ca:80` (or your Coturn URL)
+   - `TURN_USERNAME`: `<Your TURN username>`
+   - `TURN_CREDENTIAL`: `<Your TURN password/credential>`
+   - `SMTP_HOST`: `smtp.gmail.com`
+   - `SMTP_PORT`: `587`
+   - `SMTP_USER`: `your-email@gmail.com`
+   - `SMTP_PASS`: `your-16-char-gmail-app-password`
+5. Click **Deploy Web Service**.
+6. Once deployed, test the health endpoint: `curl https://flash-chat-server.onrender.com/health`.
+
+### 9.4 Frontend Deployment (Vercel SPA)
+1. In [Vercel Dashboard](https://vercel.com), click **Add New > Project** and import your GitHub repository.
+2. Configure project settings:
+   - **Framework Preset:** `Vite`
+   - **Root Directory:** Click `Edit` and select `client`
+   - **Build Command:** `npm run build`
+   - **Output Directory:** `dist`
+3. Under **Environment Variables**, add:
+   - `VITE_API_URL`: `https://flash-chat-server.onrender.com` (Your Render Backend URL, no trailing slash)
+   - `VITE_SOCKET_URL`: `https://flash-chat-server.onrender.com`
+   - `VITE_GOOGLE_CLIENT_ID`: `your-google-oauth-client-id.apps.googleusercontent.com`
+4. Click **Deploy**.
+5. SPA Routing (`vercel.json`): The included `client/vercel.json` rewrites all client requests to `/index.html` so direct URLs like `/chats`, `/contacts`, and `/social` refresh seamlessly without 404s.
+
+### 9.5 Production WebRTC STUN/TURN Setup
+WebRTC requires direct peer-to-peer UDP connections. Over 20% of users across cellular networks, corporate firewalls, or symmetric NATs cannot connect peer-to-peer and require a **TURN relay**.
+1. **Metered.ca (Free Tier - 50GB/mo free TURN)**:
+   - Sign up at [Metered.ca](https://www.metered.ca).
+   - Create a Turn Credential and copy the STUN/TURN server URLs, username, and credential into Render environment variables:
+     ```env
+     STUN_URLS=stun:stun.relay.metered.ca:80
+     TURN_URL=turn:standard.relay.metered.ca:80
+     TURN_USERNAME=your_metered_username
+     TURN_CREDENTIAL=your_metered_credential
+     ```
+2. Flash Chat automatically serves ICE configurations to authenticated clients through `GET /api/calls/ice-config`.
+
+### 9.6 End-to-End Verification Runbook
+Once both services are live:
+1. **Liveness Check:** Visit `https://flash-chat-server.onrender.com/health` -> verify `"status": "healthy"`, `"mongodb": "connected"`.
+2. **Account Creation:** Open your Vercel URL -> Register a test user -> verify welcome email/OTP.
+3. **Realtime Messaging:** Open two separate browser windows (or incognito) -> send messages back and forth -> verify instant delivery, typing indicators, read receipts, and sound effects.
+4. **WebRTC Calling:** In a 1:1 conversation between two devices on different networks (e.g. WiFi vs 5G hotspot) -> click Video Call -> accept camera/mic permissions -> verify audio and video mesh stream connects.
+5. **Pocket Vault:** Test PIN creation -> verify client-side AES-GCM-256 encryption.

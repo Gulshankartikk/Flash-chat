@@ -445,6 +445,9 @@ TURN_SECRET=flashchat_coturn_static_auth_secret_2026
 > ⚠️ **IMPORTANT NOTE FOR PRODUCTION**:
 > WebRTC `navigator.mediaDevices.getUserMedia()` is restricted by modern web browsers to **Secure Contexts (HTTPS)** only (except `localhost`). When deploying Flash Chat to a remote server or domain, you **MUST configure an SSL certificate (HTTPS)** via Nginx, Caddy, or Cloudflare, or browsers will refuse camera and microphone access.
 
+### Managed Production Deployment (Vercel + Render + MongoDB Atlas)
+For complete step-by-step instructions on deploying the client to **Vercel**, persistent backend to **Render**, and connecting **MongoDB Atlas**, **Managed Redis**, and **TURN relays**, see the [Production Deployment Guide](docs/DEPLOYMENT.md#9-managed-cloud-production-architecture-vercel--render--mongodb-atlas).
+
 ---
 
 ## 10. Performance Optimizations
